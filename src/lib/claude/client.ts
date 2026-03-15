@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ANALYZE_ENTRY_PROMPT } from './prompts';
+import { ANALYZE_ENTRY_PROMPT, buildUserMessage } from './prompts';
 import { parseClaudeResponse, ClaudeAnalysisResult } from './parser';
 
 // Инициализация клиента
@@ -15,8 +15,17 @@ const anthropic = process.env.ANTHROPIC_API_KEY
  *
  * @param content - Текст сновидения или предчувствия
  * @param type - Тип записи (dream или premonition) для лучшего контекста
+ * @param direction - Направленность (personal/other/collective)
+ * @param timeframe - Временное ощущение (now/soon/distant)
+ * @param quality - Качество ощущения (warning/neutral/revelation)
  */
-export async function analyzeEntry(content: string, type: string): Promise<ClaudeAnalysisResult | null> {
+export async function analyzeEntry(
+  content: string,
+  type: string,
+  direction?: string | null,
+  timeframe?: string | null,
+  quality?: string | null
+): Promise<ClaudeAnalysisResult | null> {
   if (!anthropic) {
     console.error('Ошибка: не задан ключ ANTHROPIC_API_KEY');
     return null;
@@ -31,7 +40,7 @@ export async function analyzeEntry(content: string, type: string): Promise<Claud
       messages: [
         {
           role: 'user',
-          content: `Пожалуйста, проанализируй следующий текст (Тип: ${type}):\n\n"${content}"`,
+          content: buildUserMessage(content, type, direction, timeframe, quality),
         },
       ],
     });

@@ -21,3 +21,38 @@ You MUST return ONLY valid JSON matching this schema:
 }
 
 Do NOT include any markdown formatting, explanations, conversational text, or code blocks outside the JSON. Return exactly the raw JSON text.`;
+
+export function buildUserMessage(
+  content: string,
+  type: string,
+  direction?: string | null,
+  timeframe?: string | null,
+  quality?: string | null
+): string {
+  const directionMap: Record<string, string> = {
+    personal: 'про себя лично',
+    other: 'про кого-то близкого',
+    collective: 'про что-то большее / про мир',
+  };
+  const timeframeMap: Record<string, string> = {
+    now: 'уже происходит',
+    soon: 'скоро — дни или недели',
+    distant: 'далеко или неясно',
+  };
+  const qualityMap: Record<string, string> = {
+    warning: 'предупреждение',
+    neutral: 'просто образы',
+    revelation: 'озарение',
+  };
+
+  let metadata = '';
+  if (direction || timeframe || quality) {
+    metadata = `\n\nМетаданные от пользователя:`;
+    if (direction) metadata += `\n- Направленность: ${direction} (${directionMap[direction] || direction})`;
+    if (timeframe) metadata += `\n- Временное ощущение: ${timeframe} (${timeframeMap[timeframe] || timeframe})`;
+    if (quality) metadata += `\n- Качество: ${quality} (${qualityMap[quality] || quality})`;
+    metadata += `\nИспользуй эти данные чтобы точнее интерпретировать образы и оценить specificity.`;
+  }
+
+  return `Тип записи: ${type === 'dream' ? 'Сон' : 'Предчувствие'}\n\nТекст:\n${content}${metadata}`;
+}

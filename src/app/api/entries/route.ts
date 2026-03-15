@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
     // 2. Получаем данные
     const body = await req.json();
-    const { type, title, content, intensity, is_public = true } = body;
+    const { type, title, content, intensity, direction, timeframe, quality, is_public = true } = body;
 
     // Валидация
     if (!['dream', 'premonition'].includes(type) || !title || !content || content.length < 50) {
@@ -54,6 +54,9 @@ export async function POST(req: Request) {
         title,
         content,
         intensity: intensity || null,
+        direction: direction || null,
+        timeframe: timeframe || null,
+        quality: quality || null,
         is_public,
         is_anonymous: false,
       })

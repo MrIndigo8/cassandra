@@ -27,7 +27,7 @@ export async function POST() {
     // Получаем записи, которые еще не анализировались
     const { data: entries, error: fetchError } = await supabaseAdmin
       .from('entries')
-      .select('id, content, type')
+      .select('id, content, type, direction, timeframe, quality')
       .is('ai_analyzed_at', null)
       .limit(10);
 
@@ -44,7 +44,7 @@ export async function POST() {
 
     for (const entry of entries) {
       try {
-        const analysis = await analyzeEntry(entry.content, entry.type);
+        const analysis = await analyzeEntry(entry.content, entry.type, entry.direction, entry.timeframe, entry.quality);
 
         if (analysis) {
           // Сохраняем результат

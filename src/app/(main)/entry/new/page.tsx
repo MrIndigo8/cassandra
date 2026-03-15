@@ -12,6 +12,9 @@ export default function NewEntryPage() {
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
   const [intensity, setIntensity] = useState<number>(5);
+  const [direction, setDirection] = useState<'personal' | 'other' | 'collective' | null>(null);
+  const [timeframe, setTimeframe] = useState<'now' | 'soon' | 'distant' | null>(null);
+  const [quality, setQuality] = useState<'warning' | 'neutral' | 'revelation' | null>(null);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +41,9 @@ export default function NewEntryPage() {
           title: title.trim() || 'Без заголовка (связанных событий не указано)',
           content,
           intensity,
+          direction,
+          timeframe,
+          quality,
         }),
       });
 
@@ -178,6 +184,84 @@ export default function NewEntryPage() {
               <span>Призрачно</span>
               <span>Детально</span>
               <span>Гипер-реалистично</span>
+            </div>
+          </div>
+
+          {/* Направленность */}
+          <div className="card glass">
+            <label className="label text-mist-light">Направленность <span className="text-mist-dim font-normal">(опционально)</span></label>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { value: 'personal' as const, label: 'Про меня лично', icon: '👤' },
+                { value: 'other' as const, label: 'Про кого-то близкого', icon: '👥' },
+                { value: 'collective' as const, label: 'Про что-то большее', icon: '🌍' },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setDirection(direction === opt.value ? null : opt.value)}
+                  className={`p-3 rounded-xl border-2 transition-all text-sm font-medium flex flex-col items-center gap-2 ${
+                    direction === opt.value
+                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
+                      : 'bg-void border-void-border/50 hover:border-mist-dim/40 text-mist-dim'
+                  }`}
+                >
+                  <span className="text-xl">{opt.icon}</span>
+                  <span>{opt.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Временное ощущение */}
+          <div className="card glass">
+            <label className="label text-mist-light">Временное ощущение <span className="text-mist-dim font-normal">(опционально)</span></label>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { value: 'now' as const, label: 'Уже происходит', icon: '⚡' },
+                { value: 'soon' as const, label: 'Скоро — дни или недели', icon: '⏳' },
+                { value: 'distant' as const, label: 'Далеко или неясно', icon: '🌫️' },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setTimeframe(timeframe === opt.value ? null : opt.value)}
+                  className={`p-3 rounded-xl border-2 transition-all text-sm font-medium flex flex-col items-center gap-2 ${
+                    timeframe === opt.value
+                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
+                      : 'bg-void border-void-border/50 hover:border-mist-dim/40 text-mist-dim'
+                  }`}
+                >
+                  <span className="text-xl">{opt.icon}</span>
+                  <span>{opt.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Качество ощущения */}
+          <div className="card glass">
+            <label className="label text-mist-light">Качество ощущения <span className="text-mist-dim font-normal">(опционально)</span></label>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { value: 'warning' as const, label: 'Предупреждение', icon: '⚠️' },
+                { value: 'neutral' as const, label: 'Просто образы', icon: '🔮' },
+                { value: 'revelation' as const, label: 'Озарение', icon: '💡' },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setQuality(quality === opt.value ? null : opt.value)}
+                  className={`p-3 rounded-xl border-2 transition-all text-sm font-medium flex flex-col items-center gap-2 ${
+                    quality === opt.value
+                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.2)]'
+                      : 'bg-void border-void-border/50 hover:border-mist-dim/40 text-mist-dim'
+                  }`}
+                >
+                  <span className="text-xl">{opt.icon}</span>
+                  <span>{opt.label}</span>
+                </button>
+              ))}
             </div>
           </div>
 
