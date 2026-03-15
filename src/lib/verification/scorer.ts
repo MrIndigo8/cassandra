@@ -56,7 +56,7 @@ export async function scoreMatch(entry: EntryData, event: NewsEvent): Promise<Ma
       .replace('{event_category}', event.category);
 
     const message = await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       temperature: 0, // Нам нужна максимальная четкость и логика
       system: "You are an analytical JSON API. Return ONLY valid JSON.",
