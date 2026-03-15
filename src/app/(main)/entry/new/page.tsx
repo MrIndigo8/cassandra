@@ -49,6 +49,9 @@ export default function NewEntryPage() {
 
       // Перенаправляем на страницу созданной записи
       if (result.data?.id) {
+        // Фоновый запуск ИИ-анализа (без await, 'fire and forget')
+        fetch('/api/analyze', { method: 'POST' }).catch(err => console.error('Ошибка старта ИИ:', err));
+        
         router.push(`/entry/${result.data.id}`);
       } else {
         router.push('/feed');

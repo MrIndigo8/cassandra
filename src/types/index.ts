@@ -58,11 +58,17 @@ export interface Entry {
 
   // Поля AI-анализа (заполняются фоновой задачей)
   ai_summary: string | null;
-  ai_symbols: string[] | null;
+  ai_images: string[] | null;
   ai_emotions: string[] | null;
-  ai_themes: string[] | null;
-  ai_prediction_score: number | null;  // Вероятность совпадения 0-1
+  ai_scale: string | null;
+  ai_geography: string | null;
+  ai_specificity: number | null;
   ai_analyzed_at: string | null;
+
+  // Метаданные переживания
+  direction: 'personal' | 'other' | 'collective' | null;
+  timeframe: 'now' | 'soon' | 'distant' | null;
+  quality: 'warning' | 'neutral' | 'revelation' | null;
 
   is_public: boolean;
   is_anonymous: boolean;       // Публичная, но без имени автора
@@ -170,6 +176,9 @@ export interface CreateEntryInput {
   symbols: string[];
   location: string | null;
   intensity: number | null;
+  direction?: 'personal' | 'other' | 'collective' | null;
+  timeframe?: 'now' | 'soon' | 'distant' | null;
+  quality?: 'warning' | 'neutral' | 'revelation' | null;
   is_public: boolean;
   is_anonymous: boolean;
 }
@@ -182,6 +191,9 @@ export interface UpdateEntryInput {
   symbols?: string[];
   location?: string | null;
   intensity?: number | null;
+  direction?: 'personal' | 'other' | 'collective' | null;
+  timeframe?: 'now' | 'soon' | 'distant' | null;
+  quality?: 'warning' | 'neutral' | 'revelation' | null;
   is_public?: boolean;
   is_anonymous?: boolean;
 }

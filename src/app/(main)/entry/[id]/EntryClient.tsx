@@ -130,13 +130,36 @@ export function EntryClient({ entry }: EntryClientProps) {
         {entry.ai_analyzed_at ? (
           <div className="space-y-4 text-sm text-gray-700">
             {entry.ai_summary && <p className="italic border-l-2 border-primary/30 pl-3">{entry.ai_summary}</p>}
-            {entry.ai_symbols && entry.ai_symbols.length > 0 && (
+            
+            {entry.ai_images && entry.ai_images.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
-                {entry.ai_symbols.map((sym, i) => (
+                {entry.ai_images.map((sym, i) => (
                   <span key={i} className="px-2 py-0.5 bg-surface rounded text-xs text-gray-700 border border-border">#{sym}</span>
                 ))}
               </div>
             )}
+            
+            {entry.ai_emotions && entry.ai_emotions.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {entry.ai_emotions.map((em, i) => (
+                  <span key={`em-${i}`} className="px-2 py-0.5 bg-red-50/50 rounded text-xs text-red-700 border border-red-100">
+                    {em}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
+              {entry.ai_scale && (
+                <div>Масштаб: <span className="font-medium text-gray-700">{entry.ai_scale}</span></div>
+              )}
+              {entry.ai_geography && (
+                <div>Локация: <span className="font-medium text-gray-700">{entry.ai_geography}</span></div>
+              )}
+              {entry.ai_specificity !== null && entry.ai_specificity !== undefined && (
+                <div>Специфичность: <span className="font-medium text-gray-700">{entry.ai_specificity.toFixed(1)}/1.0</span></div>
+              )}
+            </div>
           </div>
         ) : (
           <div className="text-gray-500 text-sm italic py-4">
