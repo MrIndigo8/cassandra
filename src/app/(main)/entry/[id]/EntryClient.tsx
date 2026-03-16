@@ -26,24 +26,6 @@ export function EntryClient({ entry }: EntryClientProps) {
   };
 
   const isDream = entry.type === 'dream';
-  
-  let statusStr = "Ожидает анализа";
-  let statusColor = "bg-gray-50 text-gray-500 border-gray-200";
-  let statusIcon = (
-    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  );
-
-  if (entry.ai_analyzed_at) {
-    statusStr = "Проанализировано";
-    statusColor = "bg-[#ECFDF5] text-primary border-[#A7F3D0]";
-    statusIcon = (
-      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    );
-  }
 
   // Точки интенсивности
   const renderIntensityDots = (intensity: number) => {
@@ -77,10 +59,6 @@ export function EntryClient({ entry }: EntryClientProps) {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
             )}
             {isDream ? 'Сон' : 'Предчувствие'}
-          </div>
-          <div className={`px-3 py-1 rounded-full border text-xs font-medium flex items-center gap-1.5 flex-shrink-0 ${statusColor}`}>
-            {statusIcon}
-            {statusStr}
           </div>
         </div>
 
@@ -116,56 +94,6 @@ export function EntryClient({ entry }: EntryClientProps) {
         <p className="text-gray-700 text-base leading-relaxed whitespace-pre-wrap">
           {entry.content}
         </p>
-      </div>
-
-      {/* AI результаты */}
-      <div className="border border-gray-100 rounded-lg p-6 bg-surface mb-8">
-        <h3 className="font-mono text-sm tracking-widest text-primary uppercase mb-4 flex items-center gap-2">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
-          </svg>
-          Ноосферный резонанс
-        </h3>
-        
-        {entry.ai_analyzed_at ? (
-          <div className="space-y-4 text-sm text-gray-700">
-            {entry.ai_summary && <p className="italic border-l-2 border-primary/30 pl-3">{entry.ai_summary}</p>}
-            
-            {entry.ai_images && entry.ai_images.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-3">
-                {entry.ai_images.map((sym, i) => (
-                  <span key={i} className="px-2 py-0.5 bg-surface rounded text-xs text-gray-700 border border-border">#{sym}</span>
-                ))}
-              </div>
-            )}
-            
-            {entry.ai_emotions && entry.ai_emotions.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {entry.ai_emotions.map((em, i) => (
-                  <span key={`em-${i}`} className="px-2 py-0.5 bg-red-50/50 rounded text-xs text-red-700 border border-red-100">
-                    {em}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <div className="flex flex-wrap gap-4 mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
-              {entry.ai_scale && (
-                <div>Масштаб: <span className="font-medium text-gray-700">{entry.ai_scale}</span></div>
-              )}
-              {entry.ai_geography && (
-                <div>Локация: <span className="font-medium text-gray-700">{entry.ai_geography}</span></div>
-              )}
-              {entry.ai_specificity !== null && entry.ai_specificity !== undefined && (
-                <div>Специфичность: <span className="font-medium text-gray-700">{entry.ai_specificity.toFixed(1)}/1.0</span></div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="text-gray-500 text-sm italic py-4">
-            Искусственный интеллект анализирует архетипы и образы. Возвращайтесь позже, чтобы увидеть расшифровку.
-          </div>
-        )}
       </div>
 
       {/* Действия */}
