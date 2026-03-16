@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useUser } from '@/hooks/useUser';
 
 export function Header() {
   const { profile } = useUser();
+  const pathname = usePathname();
 
   const initial = profile?.username
     ? profile.username[0].toUpperCase()
@@ -21,6 +23,18 @@ export function Header() {
         <Link href="/feed" className="font-semibold text-gray-900 text-base">
           🔮 Кассандра
         </Link>
+
+        {/* Центральная часть: навигация */}
+        <div className="flex-1 flex justify-center items-center">
+          <Link 
+            href="/noosphere" 
+            className={`text-sm font-medium transition-colors ${
+              pathname === '/noosphere' ? 'text-primary' : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            Ноосфера
+          </Link>
+        </div>
 
         {/* Правая часть: кнопка + аватар */}
         <div className="flex items-center gap-3">
