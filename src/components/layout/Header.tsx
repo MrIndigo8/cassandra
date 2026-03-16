@@ -24,13 +24,6 @@ export function Header() {
 
         {/* Правая часть: кнопка + аватар */}
         <div className="flex items-center gap-3">
-          <Link
-            href="/entry/new"
-            className="btn-primary text-sm py-2 px-4"
-          >
-            Записать сигнал
-          </Link>
-
           {/* Аватар пользователя */}
           <Link
             href={profileHref}

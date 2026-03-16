@@ -7,7 +7,7 @@
 export type UserRole = 'observer' | 'chronicler' | 'sensitive' | 'oracle';
 
 // --- Типы записей ---
-export type EntryType = 'dream' | 'premonition';
+export type EntryType = 'dream' | 'premonition' | 'feeling' | 'vision' | 'unknown';
 
 // --- Статусы верификации ---
 export type VerificationStatus = 'pending' | 'processing' | 'verified' | 'rejected';

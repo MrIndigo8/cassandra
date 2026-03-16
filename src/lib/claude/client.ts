@@ -21,7 +21,7 @@ const anthropic = process.env.ANTHROPIC_API_KEY
  */
 export async function analyzeEntry(
   content: string,
-  type: string,
+  type?: string | null,
   direction?: string | null,
   timeframe?: string | null,
   quality?: string | null

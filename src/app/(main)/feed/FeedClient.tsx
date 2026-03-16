@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { EntryCard, type FeedEntry } from '@/components/EntryCard';
+import { InlineEntryForm } from '@/components/InlineEntryForm';
 
 type FilterType = 'all' | 'dream' | 'premonition';
 
@@ -137,6 +137,9 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
 
   return (
     <div className="max-w-[680px] mx-auto py-6 px-4">
+      {/* Форма публикации сигнала */}
+      <InlineEntryForm />
+
       {/* Фильтры */}
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-none">
         <button
@@ -195,9 +198,6 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
               ? 'В коллективном бессознательном пока нет активных сигналов. Будьте первым, кто внесет свой вклад в глобальную карту предчувствий.'
               : `Записей типа «${filter === 'dream' ? 'Сон' : 'Предчувствие'}» пока не найдено. Настройтесь на частоту и поделитесь видением.`}
           </p>
-          <Link href="/entry/new" className="btn-primary py-3 px-8">
-            Записать сигнал
-          </Link>
         </div>
       )}
 

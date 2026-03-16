@@ -16,8 +16,6 @@ interface EntryCardProps {
 }
 
 export function EntryCard({ entry }: EntryCardProps) {
-  const isDream = entry.type === 'dream';
-  
   // Форматируем время создания
   const timeAgo = formatDistanceToNow(new Date(entry.created_at), { addSuffix: true, locale: ru });
 
@@ -52,11 +50,17 @@ export function EntryCard({ entry }: EntryCardProps) {
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="font-medium text-gray-900">{entry.users?.username || 'Аноним'}</span>
             <span className="text-sm text-gray-500">{timeAgo}</span>
-            <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${
-              isDream ? 'bg-[#EFF6FF] text-secondary border-[#BAE6FD]' : 'bg-[#ECFDF5] text-primary border-[#A7F3D0]'
-            }`}>
-              {isDream ? 'Сон' : 'Предчувствие'}
-            </span>
+            {entry.type && entry.type !== 'unknown' && (
+              <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${
+                entry.type === 'dream' 
+                  ? 'bg-[#EFF6FF] text-secondary border-[#BAE6FD]' 
+                  : entry.type === 'premonition' 
+                    ? 'bg-[#ECFDF5] text-primary border-[#A7F3D0]'
+                    : 'bg-gray-100 text-gray-600 border-gray-200'
+              }`}>
+                {entry.type === 'dream' ? 'Сон' : entry.type === 'premonition' ? 'Предчувствие' : entry.type === 'feeling' ? 'Ощущение' : 'Видение'}
+              </span>
+            )}
           </div>
 
           {/* Заголовок */}

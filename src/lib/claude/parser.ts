@@ -3,6 +3,7 @@ export interface ClaudeAnalysisResult {
   emotions: string[];
   scale: string;
   geography: string | null;
+  type: string;
   specificity: number;
   timeframe_signal: string;
   summary: string;
@@ -14,6 +15,7 @@ export function parseClaudeResponse(text: string): ClaudeAnalysisResult {
     emotions: [],
     scale: "unknown",
     geography: null,
+    type: "unknown",
     specificity: 0,
     timeframe_signal: "near",
     summary: "Не удалось расшифровать сигнал."
@@ -49,6 +51,7 @@ export function parseClaudeResponse(text: string): ClaudeAnalysisResult {
       emotions: Array.isArray(parsed.emotions) ? parsed.emotions : fallback.emotions,
       scale: typeof parsed.scale === 'string' ? parsed.scale : fallback.scale,
       geography: typeof parsed.geography === 'string' ? parsed.geography : fallback.geography,
+      type: typeof parsed.type === 'string' ? parsed.type : fallback.type,
       specificity: typeof parsed.specificity === 'number' ? parsed.specificity : fallback.specificity,
       timeframe_signal: typeof parsed.timeframe_signal === 'string' ? parsed.timeframe_signal : fallback.timeframe_signal,
       summary: typeof parsed.summary === 'string' ? parsed.summary : fallback.summary

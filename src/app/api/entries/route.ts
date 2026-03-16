@@ -35,28 +35,21 @@ export async function POST(req: Request) {
 
     // 2. Получаем данные
     const body = await req.json();
-    const { type, title, content, intensity, direction, timeframe, quality, is_public = true } = body;
+    const { content, is_public = true } = body;
 
     // Валидация
-    if (!['dream', 'premonition'].includes(type) || !title || !content || content.length < 50) {
-      return NextResponse.json({ error: 'Неверные данные' }, { status: 400 });
+    if (!content || content.length < 30) {
+      return NextResponse.json({ error: 'Текст сигнала слишком короткий (минимум 30 символов)' }, { status: 400 });
     }
 
     // 3. Сохранение записи
-    // created_at устанавливается БД автоматически (DEFAULT NOW())
-    // айди тоже генерируется БД (uuid_generate_v4)
-    // ai_analyzed_at по-умолчанию NULL
+    // type по умолчанию 'unknown' из БД
     const { data: entry, error: insertError } = await supabase
       .from('entries')
       .insert({
         user_id: user.id,
-        type,
-        title,
+        title: 'Без заголовка', // В будущем ИИ может генерировать заголовок, пока ставим заглушку
         content,
-        intensity: intensity || null,
-        direction: direction || null,
-        timeframe: timeframe || null,
-        quality: quality || null,
         is_public,
         is_anonymous: false,
       })

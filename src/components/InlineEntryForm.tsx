@@ -1,0 +1,108 @@
+'use client';
+
+import { useState } from 'react';
+import { useUser } from '@/hooks/useUser';
+
+export function InlineEntryForm() {
+  const { profile } = useUser();
+  const [content, setContent] = useState('');
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const minLength = 30;
+
+  const handleSubmit = async () => {
+    if (content.length < minLength) return;
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      // 1. Сохраняем запись в БД (post -> /api/entries)
+      const res = await fetch('/api/entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Ошибка при сохранении сигнала');
+      }
+
+      // Очищаем форму
+      setContent('');
+      setIsExpanded(false);
+
+      // Фоновый запуск анализа
+      fetch('/api/analyze', { method: 'POST' }).catch(console.error);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Неизвестная ошибка');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="card glass p-4 mb-6 relative">
+      <div className="flex gap-4">
+        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0 overflow-hidden text-white font-medium">
+          {profile?.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+          ) : (
+            <span>
+              {profile?.username ? profile.username[0].toUpperCase() : '?'}
+            </span>
+          )}
+        </div>
+        
+        <div className="flex-1">
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onFocus={() => setIsExpanded(true)}
+            placeholder="Что вам приснилось или что вы чувствуете..."
+            className={`w-full bg-transparent border-none focus:ring-0 text-text-primary placeholder:text-text-secondary/60 resize-none transition-all duration-300 ${
+              isExpanded ? 'min-h-[120px]' : 'min-h-[40px]'
+            }`}
+            disabled={isSubmitting}
+          />
+          
+          {error && (
+            <div className="text-red-400 text-sm mt-2">{error}</div>
+          )}
+
+          {isExpanded && (
+            <div className="flex items-center justify-between mt-4 border-t border-border pt-4">
+              <span className={`text-xs ${content.length < minLength ? 'text-text-secondary' : 'text-primary'}`}>
+                {content.length} / {minLength} мин.
+              </span>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsExpanded(false)}
+                  className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
+                  disabled={isSubmitting}
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || content.length < minLength}
+                  className="px-6 py-2 rounded-full bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? 'Отправка...' : 'Отправить сигнал'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

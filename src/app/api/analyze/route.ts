@@ -51,6 +51,7 @@ export async function POST() {
           const { error: updateError } = await supabaseAdmin
             .from('entries')
             .update({
+              type: analysis.type,
               ai_images: analysis.images,
               ai_emotions: analysis.emotions,
               ai_scale: analysis.scale,
