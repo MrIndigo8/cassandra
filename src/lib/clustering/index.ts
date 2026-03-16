@@ -10,8 +10,8 @@ const supabase = createClient(
 
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    })
+    apiKey: process.env.ANTHROPIC_API_KEY,
+  })
   : null;
 
 // Интерфейс ответа Claude для кластера
@@ -29,8 +29,11 @@ interface ClusterAIResult {
  * Основная функция кластеризации
  * Вызывается по cron
  */
-export async function runClustering(): Promise<void> {
+export async function runClustering(): Promise<{ clusters_found: number; anomalies: number }> {
   console.log('[Clustering] Начало анализа кластеров...');
+  
+  let clustersFound = 0;
+  let anomaliesFound = 0;
 
   // 1. Получаем записи за последние 48 часов, у которых есть образы
   const fortyEightHoursAgo = new Date();
@@ -44,7 +47,7 @@ export async function runClustering(): Promise<void> {
 
   if (recentError || !recentEntries) {
     console.error('[Clustering] Ошибка получения недавних записей:', recentError);
-    return;
+    return { clusters_found: 0, anomalies: 0 };
   }
 
   // 2. Подсчитываем частоту каждого образа за 48 часов
@@ -52,7 +55,7 @@ export async function runClustering(): Promise<void> {
 
   for (const entry of recentEntries) {
     if (!entry.ai_images) continue;
-    
+
     for (const image of entry.ai_images) {
       if (!imageCounts[image]) {
         imageCounts[image] = { count: 0, users: new Set(), entryIds: [] };
@@ -68,7 +71,8 @@ export async function runClustering(): Promise<void> {
     .filter(([, data]) => data.users.size >= 2)
     .sort((a, b) => b[1].count - a[1].count);
 
-  console.log(`[Clustering] Найдено значимых образов: ${significantImages.length}`);
+  clustersFound = significantImages.length;
+  console.log(`[Clustering] Найдено значимых образов: ${clustersFound}`);
 
   // 3. Загружаем baseline (базовую частоту) за 30 дней для сравнения
   const thirtyDaysAgo = new Date();
@@ -82,7 +86,7 @@ export async function runClustering(): Promise<void> {
 
   if (baselineError) {
     console.error('[Clustering] Ошибка получения baseline:', baselineError);
-    return;
+    return { clusters_found: clustersFound, anomalies: anomaliesFound };
   }
 
   const baselineCounts: Record<string, number> = {};
@@ -100,19 +104,20 @@ export async function runClustering(): Promise<void> {
     // Рассчитываем норму (baseline) для 48 часов на основе 30-дневной статистики
     // 30 дней = 15 периодов по 48 часов
     const baseline48h = Math.max(1, (baselineCounts[image] || 0) / 15);
-    
+
     // Аномалия: рост в X раз
     const anomalyFactor = currentData.count / baseline48h;
-    
+
     console.log(`[Clustering] Образ "${image}": текущая частота ${currentData.count}, норма ${baseline48h.toFixed(1)}, рост ${anomalyFactor.toFixed(1)}x`);
 
     // Если текущих упоминаний больше 2 и рост более 2x от нормы
     if (currentData.count > 2 && anomalyFactor > 2.0) {
       // Это аномальный кластер!
-      
+      anomaliesFound++;
+
       // Расчет intensity_score = (current / baseline) * log(unique_users + 1)
       const intensityScore = anomalyFactor * Math.log(currentData.users.size + 1);
-      
+
       console.log(`[Clustering] ---> АНОМАЛИЯ обнаружена! Интенсивность: ${intensityScore.toFixed(2)}`);
 
       // Генерация ID кластера на основе базового образа (slugify)
@@ -130,7 +135,8 @@ export async function runClustering(): Promise<void> {
     }
   }
 
-  console.log('[Clustering] Анализ завершен.');
+  console.log(`[Clustering] Анализ завершен. Кластеров: ${clustersFound}, Аномалий: ${anomaliesFound}`);
+  return { clusters_found: clustersFound, anomalies: anomaliesFound };
 }
 
 // Вспомогательная функция для вызова ИИ
@@ -144,7 +150,7 @@ async function analyzeClusterWithAI(
   try {
     // Собираем контекст из записей этого кластера
     const clusterEntries = allEntries.filter(e => data.entryIds.includes(e.id));
-    
+
     // Собираем географию
     const geos = clusterEntries.map(e => e.ai_geography).filter(Boolean);
     const geography = geos.length > 0 ? Array.from(new Set(geos)).join(', ') : 'Не определено';
@@ -170,7 +176,7 @@ async function analyzeClusterWithAI(
       .replace('{world_events}', eventsContext || 'Нет значимых событий');
 
     const response = await anthropic!.messages.create({
-      model: 'claude-sonnet-4-6',  
+      model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       temperature: 0.2, // Строгость для аналитики
       system: prompt,
@@ -178,7 +184,7 @@ async function analyzeClusterWithAI(
     });
 
     const responseText = response.content.find((block) => block.type === 'text')?.text;
-    
+
     if (!responseText) return null;
 
     // Очистка и парсинг JSON
@@ -186,7 +192,7 @@ async function analyzeClusterWithAI(
     if (cleanedText.startsWith('```json')) cleanedText = cleanedText.replace(/^```json/, '');
     if (cleanedText.startsWith('```')) cleanedText = cleanedText.replace(/^```/, '');
     if (cleanedText.endsWith('```')) cleanedText = cleanedText.replace(/```$/, '');
-    
+
     const firstBrace = cleanedText.indexOf('{');
     const lastBrace = cleanedText.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
@@ -194,7 +200,7 @@ async function analyzeClusterWithAI(
     }
 
     const parsed = JSON.parse(cleanedText) as Partial<ClusterAIResult>;
-    
+
     return {
       signal_strength: parsed.signal_strength || 0,
       signal_type: parsed.signal_type || 'unknown',

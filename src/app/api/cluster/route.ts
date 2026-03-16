@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { runClustering } from '@/lib/clustering';
 
+export const maxDuration = 60; // Максимальное время выполнения (Vercel Hobby plan = 10-60s)
+
 /**
  * Endpoint для запуска кластеризации
- * /api/clustering
+ * /api/cluster
  */
 export async function POST(request: Request) {
   try {
@@ -17,13 +19,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Запускаем асинхронно, не ожидая полного завершения для HTTP-ответа
-    // чтобы Vercel не убил функцию по таймауту (если кластеризация займет > 10с)
-    runClustering().catch(console.error);
+    const stats = await runClustering();
 
     return NextResponse.json({ 
       status: 'success', 
-      message: 'Кластеризация запущена в фоне' 
+      clusters_found: stats.clusters_found,
+      anomalies: stats.anomalies
     });
   } catch (error) {
     console.error('[API Clustering] Ошибка:', error);

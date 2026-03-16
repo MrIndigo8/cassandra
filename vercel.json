@@ -9,8 +9,8 @@
       "schedule": "0 1 * * *"
     },
     {
-      "path": "/api/clustering",
-      "schedule": "0 2 * * *"
+      "path": "/api/cluster",
+      "schedule": "0 */6 * * *"
     }
   ]
 }
