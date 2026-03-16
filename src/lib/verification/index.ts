@@ -53,9 +53,8 @@ export async function runVerification(): Promise<{ checked: number; matched: num
       ai_images: entry.ai_images,
       ai_summary: entry.ai_summary,
       ai_specificity: entry.ai_specificity,
-      direction: entry.direction,
-      timeframe: entry.timeframe,
-      quality: entry.quality,
+      ai_scale: entry.ai_scale,
+      ai_geography: entry.ai_geography,
     };
 
     let bestScore = entry.best_match_score || 0;

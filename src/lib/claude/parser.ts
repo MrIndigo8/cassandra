@@ -4,6 +4,7 @@ export interface ClaudeAnalysisResult {
   scale: string;
   geography: string | null;
   specificity: number;
+  timeframe_signal: string;
   summary: string;
 }
 
@@ -14,6 +15,7 @@ export function parseClaudeResponse(text: string): ClaudeAnalysisResult {
     scale: "unknown",
     geography: null,
     specificity: 0,
+    timeframe_signal: "near",
     summary: "Не удалось расшифровать сигнал."
   };
 
@@ -48,6 +50,7 @@ export function parseClaudeResponse(text: string): ClaudeAnalysisResult {
       scale: typeof parsed.scale === 'string' ? parsed.scale : fallback.scale,
       geography: typeof parsed.geography === 'string' ? parsed.geography : fallback.geography,
       specificity: typeof parsed.specificity === 'number' ? parsed.specificity : fallback.specificity,
+      timeframe_signal: typeof parsed.timeframe_signal === 'string' ? parsed.timeframe_signal : fallback.timeframe_signal,
       summary: typeof parsed.summary === 'string' ? parsed.summary : fallback.summary
     };
   } catch (error) {

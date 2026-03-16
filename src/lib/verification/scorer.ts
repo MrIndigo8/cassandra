@@ -13,16 +13,15 @@ export interface EntryData {
   ai_images: string[] | null;
   ai_summary: string | null;
   ai_specificity: number | null;
-  direction: string | null;
-  timeframe: string | null;
-  quality: string | null;
+  ai_scale: string | null;
+  ai_geography: string | null;
 }
 
 export interface MatchScore {
   match_score: number;
   matched_elements: string[];
   explanation: string;
-  confidence: number;
+  confidence: 'low' | 'medium' | 'high';
 }
 
 /**
@@ -44,16 +43,15 @@ export async function scoreMatch(entry: EntryData, event: NewsEvent): Promise<Ma
   try {
     const prompt = VERIFY_MATCH_PROMPT
       .replace('{entry_date}', entry.created_at)
-      .replace('{ai_images}', (entry.ai_images || []).join(', '))
-      .replace('{ai_summary}', entry.ai_summary || '')
-      .replace('{ai_specificity}', String(entry.ai_specificity || 0))
-      .replace('{direction}', entry.direction || 'не указано')
-      .replace('{timeframe}', entry.timeframe || 'не указано')
-      .replace('{quality}', entry.quality || 'не указано')
+      .replace('{images}', (entry.ai_images || []).join(', '))
+      .replace('{scale}', entry.ai_scale || 'не указано')
+      .replace('{geography}', entry.ai_geography || 'не указано')
+      .replace('{specificity}', String(entry.ai_specificity || 0))
+      .replace('{summary}', entry.ai_summary || '')
       .replace('{event_date}', event.publishedAt.toISOString())
       .replace('{event_title}', event.title)
       .replace('{event_description}', event.description)
-      .replace('{event_category}', event.category);
+      .replace('{event_geography}', event.geography || 'не указано');
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',

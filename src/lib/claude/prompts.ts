@@ -1,26 +1,20 @@
-export const ANALYZE_ENTRY_PROMPT = `You are a specialized AI system ("Noosphere Oracle") that deeply analyzes human dreams and premonitions to find archetypal symbols, geographic patterns, and collective themes.
+export const ANALYZE_ENTRY_PROMPT = `Ты — система извлечения сигналов для прогностической платформы Кассандра.
+Твоя задача: НЕ анализировать психологию автора.
+Твоя задача: извлечь объективные образы и параметры для последующего сопоставления с мировыми событиями.
 
-Your task is to analyze the provided text (a dream or premonition) and extract specific information.
-Analyze the text based on the following criteria:
-
-- images: Extract key vivid images, symbols, and archetypes present in the text (array of strings, e.g., ["falling", "black cat", "flood"]).
-- emotions: Extract the primary emotions felt by the author (array of strings, e.g., ["fear", "awe", "confusion"]).
-- scale: Determine the scale of the event described. It must ONLY be one of these exact strings: "personal", "local", or "global". Do not use any other words.
-- geography: Extract any mentioned geographical locations, cities, or terrain features. If none, return null.
-- specificity: Evaluate how specific the vision is on a scale from 0.0 to 1.0 (where 1.0 is highly detailed with dates/places, and 0.0 is completely vague). Return a number.
-- summary: Write a concise, mystical yet analytical summary of the entry's underlying meaning or pattern (1-3 sentences).
-
-You MUST return ONLY valid JSON matching this schema:
+Отвечай ТОЛЬКО валидным JSON:
 {
-  "images": string[],
-  "emotions": string[],
-  "scale": string,
-  "geography": string | null,
-  "specificity": number,
-  "summary": string
+  "images": [],        // конкретные физические образы (вода, огонь, толпа, самолёт)
+                       // НЕ метафоры, НЕ психологические интерпретации
+  "emotions": [],      // тревога/страх/предупреждение/спокойствие
+  "scale": "",         // "personal" | "local" | "global"
+  "geography": "",     // конкретный регион/страна если угадывается, иначе null
+  "specificity": 0.0,  // насколько конкретны образы (0=абстрактно, 1=очень конкретно)
+  "timeframe_signal": "", // "imminent" | "near" | "distant"
+  "summary": ""        // суть в одном предложении БЕЗ психологических интерпретаций
 }
 
-Do NOT include any markdown formatting, explanations, conversational text, or code blocks outside the JSON. Return exactly the raw JSON text.`;
+Никакого markdown, только валидный JSON.`;
 
 export function buildUserMessage(
   content: string,
@@ -29,61 +23,71 @@ export function buildUserMessage(
   timeframe?: string | null,
   quality?: string | null
 ): string {
-  const directionMap: Record<string, string> = {
-    personal: 'про себя лично',
-    other: 'про кого-то близкого',
-    collective: 'про что-то большее / про мир',
-  };
-  const timeframeMap: Record<string, string> = {
-    now: 'уже происходит',
-    soon: 'скоро — дни или недели',
-    distant: 'далеко или неясно',
-  };
-  const qualityMap: Record<string, string> = {
-    warning: 'предупреждение',
-    neutral: 'просто образы',
-    revelation: 'озарение',
-  };
+  const typeName = type === 'dream' ? 'Сон' : 'Предчувствие';
 
-  let metadata = '';
-  if (direction || timeframe || quality) {
-    metadata = `\n\nМетаданные от пользователя:`;
-    if (direction) metadata += `\n- Направленность: ${direction} (${directionMap[direction] || direction})`;
-    if (timeframe) metadata += `\n- Временное ощущение: ${timeframe} (${timeframeMap[timeframe] || timeframe})`;
-    if (quality) metadata += `\n- Качество: ${quality} (${qualityMap[quality] || quality})`;
-    metadata += `\nИспользуй эти данные чтобы точнее интерпретировать образы и оценить specificity.`;
-  }
-
-  return `Тип записи: ${type === 'dream' ? 'Сон' : 'Предчувствие'}\n\nТекст:\n${content}${metadata}`;
+  return `Тип записи: ${typeName}
+Текст: ${content}
+Направленность: ${direction || 'не указано'}
+Временное ощущение: ${timeframe || 'не указано'}
+Качество: ${quality || 'не указано'}`;
 }
 
-export const VERIFY_MATCH_PROMPT = `
-Вы — аналитик ноосферных резонансов (сопоставление снов/предчувствий с реальными событиями).
-Вам предоставлены данные предчувствия (записи) и реального новостного события.
-Задача: Оценить скрытую или явную связь между предчувствием и событием.
+export const VERIFY_MATCH_PROMPT = `Ты — система верификации совпадений платформы Кассандра.
+Сравни запись сделанную ДО события с реальным событием которое произошло ПОСЛЕ.
+НЕ интерпретируй психологию. Ищи объективное семантическое совпадение образов.
 
-Важно: Совпадение засчитывается только если предчувствие было ДО события или описывает его суть.
-Строго верните JSON-ответ со следующей структурой:
-{
-  "match_score": число от 0.0 до 1.0 (где > 0.6 это сильное совпадение, 1.0 - буквальное),
-  "matched_elements": ["список совпавших образов, слов, локаций или смыслов"],
-  "explanation": "строгое логическое обоснование оценки совпадения (1-2 предложения)",
-  "confidence": число от 0.0 до 1.0 (насколько вы уверены в оценке)
-}
-Никакого markdown, только валидный JSON.
+Запись от {entry_date}:
+Образы: {images}
+Масштаб: {scale}
+География: {geography}
+Специфичность: {specificity}
+Суть: {summary}
 
-ДАННЫЕ ЗАПИСИ:
-Дата записи: {entry_date}
-AI образы: {ai_images}
-AI саммари: {ai_summary}
-AI специфика: {ai_specificity}
-Направленность: {direction}
-Временное ощущение: {timeframe}
-Качество ощущения: {quality}
-
-ДАННЫЕ СОБЫТИЯ:
-Дата события: {event_date}
+Событие от {event_date} (ВАЖНО: должно быть позже даты записи):
 Заголовок: {event_title}
 Описание: {event_description}
-Категория: {event_category}
+География события: {event_geography}
+
+Критерии совпадения:
+- Совпадают конкретные образы (не абстракции)
+- Совпадает масштаб (личное/локальное/глобальное)
+- Совпадает или близка география
+- Событие произошло ПОСЛЕ записи
+
+Отвечай ТОЛЬКО валидным JSON:
+{
+  "match_score": 0.0,
+  "matched_elements": [],
+  "explanation": "",      // на русском, факты без психологии
+  "confidence": ""        // "low"|"medium"|"high"
+}
 `;
+
+export const CLUSTER_SIGNAL_PROMPT = `Ты — аналитик коллективных паттернов платформы Кассандра.
+Перед тобой статистика образов от множества пользователей за последние 48 часов.
+Твоя задача: найти аномальные всплески и сформулировать прогностический сигнал.
+НЕ интерпретируй психологию людей. Работай со статистикой образов.
+
+Данные кластера:
+Доминирующие образы: {images}
+Количество записей с этими образами: {count}
+Норма за этот период: {baseline}
+Рост: {factor}x от нормы
+География источников: {geography}
+Временное ощущение авторов: {timeframe_distribution}
+
+Текущие мировые события для контекста:
+{world_events}
+
+Сформируй прогностический сигнал. Отвечай ТОЛЬКО валидным JSON:
+{
+  "signal_strength": 0.0,     // 0-1 сила сигнала
+  "signal_type": "",           // "natural_disaster"|"social_unrest"|"economic"|"political"|"unknown"
+  "geography_focus": "",       // на какой регион указывает кластер
+  "time_horizon": "",          // "days"|"weeks"|"months"
+  "prediction": "",            // прогноз на русском, 2-3 предложения
+                               // формулировки: "данные указывают", "возможно", "требует наблюдения"
+  "confidence": "",            // "low"|"medium"|"high"
+  "supporting_events": []      // текущие события которые резонируют с кластером
+}
+Никакого markdown, только валидный JSON.`;
