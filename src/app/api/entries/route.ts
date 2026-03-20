@@ -43,13 +43,13 @@ export async function POST(req: Request) {
     }
 
     // 3. Сохранение записи
-    // type по умолчанию 'unknown' из БД
     const { data: entry, error: insertError } = await supabase
       .from('entries')
       .insert({
         user_id: user.id,
         title: 'Без заголовка', // В будущем ИИ может генерировать заголовок, пока ставим заглушку
         content,
+        type: 'unknown',
         is_public,
         is_anonymous: false,
       })

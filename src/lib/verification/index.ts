@@ -23,7 +23,7 @@ export async function runVerification(): Promise<{ checked: number; matched: num
 
   const { data: entries, error: entriesError } = await supabase
     .from('entries')
-    .select('*, profiles:user_id (id)')
+    .select('*')
     .eq('is_verified', false)
     .not('ai_analyzed_at', 'is', null)
     .gte('created_at', thirtyDaysAgo.toISOString())

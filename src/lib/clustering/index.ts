@@ -131,7 +131,7 @@ export async function runClustering(): Promise<{ clusters_found: number; anomali
       }
 
       // Сохраняем в БД
-      await saveCluster(clusterId, image, currentData, baseline48h, anomalyFactor, intensityScore, aiAnalysis);
+      await saveCluster(clusterId, image, currentData, baseline48h, anomalyFactor, intensityScore, aiAnalysis, recentEntries);
     }
   }
 
@@ -225,8 +225,17 @@ async function saveCluster(
   baseline: number,
   anomalyFactor: number,
   intensityScore: number,
-  aiAnalysis: ClusterAIResult | null
+  aiAnalysis: ClusterAIResult | null,
+  allEntries: { id: string; ai_geography: string | null; timeframe: string | null }[]
 ) {
+  // Собираем geography_data из записей кластера
+  const clusterEntries = allEntries.filter(e => data.entryIds.includes(e.id));
+  const geographyData: Record<string, number> = {};
+  for (const entry of clusterEntries) {
+    if (entry.ai_geography) {
+      geographyData[entry.ai_geography] = (geographyData[entry.ai_geography] || 0) + 1;
+    }
+  }
   const clusterData = {
     id,
     title: `Кластер: ${image}`,
@@ -253,6 +262,7 @@ async function saveCluster(
     prediction_confidence: aiAnalysis ? (aiAnalysis.confidence === 'high' ? 0.9 : aiAnalysis.confidence === 'medium' ? 0.6 : 0.3) : 0,
     signal_type: aiAnalysis?.signal_type || 'unknown',
     time_horizon: aiAnalysis?.time_horizon || null,
+    geography_data: Object.keys(geographyData).length > 0 ? geographyData : null,
   };
 
   const { error } = await supabase

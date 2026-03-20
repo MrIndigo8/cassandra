@@ -1,3 +1,12 @@
+// Допустимые значения type в БД (entries.type CHECK constraint)
+const ALLOWED_ENTRY_TYPES = ['dream', 'premonition', 'unknown'] as const;
+
+function sanitizeEntryType(type: string): string {
+  return ALLOWED_ENTRY_TYPES.includes(type as typeof ALLOWED_ENTRY_TYPES[number])
+    ? type
+    : 'unknown';
+}
+
 export interface ClaudeAnalysisResult {
   images: string[];
   emotions: string[];
@@ -51,7 +60,7 @@ export function parseClaudeResponse(text: string): ClaudeAnalysisResult {
       emotions: Array.isArray(parsed.emotions) ? parsed.emotions : fallback.emotions,
       scale: typeof parsed.scale === 'string' ? parsed.scale : fallback.scale,
       geography: typeof parsed.geography === 'string' ? parsed.geography : fallback.geography,
-      type: typeof parsed.type === 'string' ? parsed.type : fallback.type,
+      type: sanitizeEntryType(typeof parsed.type === 'string' ? parsed.type : fallback.type),
       specificity: typeof parsed.specificity === 'number' ? parsed.specificity : fallback.specificity,
       timeframe_signal: typeof parsed.timeframe_signal === 'string' ? parsed.timeframe_signal : fallback.timeframe_signal,
       summary: typeof parsed.summary === 'string' ? parsed.summary : fallback.summary
