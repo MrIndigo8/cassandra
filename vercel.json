@@ -1,16 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/analyze",
+      "path": "/api/cron",
       "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/verify",
-      "schedule": "0 1 * * *"
-    },
-    {
-      "path": "/api/cluster",
-      "schedule": "0 */6 * * *"
     }
   ]
 }
