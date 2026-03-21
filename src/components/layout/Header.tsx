@@ -18,14 +18,30 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100">
-      <div className="max-w-[680px] mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="max-w-[1024px] mx-auto px-4 h-14 flex items-center justify-between">
         {/* Логотип */}
         <Link href="/feed" className="font-semibold text-gray-900 text-base">
           🔮 Кассандра
         </Link>
 
         {/* Центральная часть: навигация */}
-        <div className="flex-1 flex justify-center items-center">
+        <div className="flex-1 flex justify-center items-center gap-4">
+          <Link 
+            href="/feed" 
+            className={`text-sm font-medium transition-colors ${
+              pathname === '/feed' ? 'text-primary' : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            Лента
+          </Link>
+          <Link 
+            href="/events" 
+            className={`text-sm font-medium transition-colors ${
+              pathname === '/events' ? 'text-primary' : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            События
+          </Link>
           <Link 
             href="/noosphere" 
             className={`text-sm font-medium transition-colors ${
