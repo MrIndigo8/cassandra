@@ -47,6 +47,7 @@ export async function runAnalysis(): Promise<{ processed: number }> {
                     const { error: updateError } = await supabaseAdmin
                         .from('entries')
                         .update({
+                            title: analysis.title,
                             type: analysis.type,
                             ai_images: analysis.images,
                             ai_emotions: analysis.emotions,

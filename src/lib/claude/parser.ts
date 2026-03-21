@@ -8,6 +8,7 @@ function sanitizeEntryType(type: string): string {
 }
 
 export interface ClaudeAnalysisResult {
+  title: string;
   images: string[];
   emotions: string[];
   scale: string;
@@ -20,6 +21,7 @@ export interface ClaudeAnalysisResult {
 
 export function parseClaudeResponse(text: string): ClaudeAnalysisResult {
   const fallback: ClaudeAnalysisResult = {
+    title: "Без названия",
     images: [],
     emotions: [],
     scale: "unknown",
@@ -56,6 +58,7 @@ export function parseClaudeResponse(text: string): ClaudeAnalysisResult {
     const parsed = JSON.parse(cleanedText) as Partial<ClaudeAnalysisResult>;
 
     return {
+      title: parsed.title || fallback.title,
       images: Array.isArray(parsed.images) ? parsed.images : fallback.images,
       emotions: Array.isArray(parsed.emotions) ? parsed.emotions : fallback.emotions,
       scale: typeof parsed.scale === 'string' ? parsed.scale : fallback.scale,

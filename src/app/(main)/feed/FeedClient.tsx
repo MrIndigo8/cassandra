@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useUser } from '@/hooks/useUser';
 import { EntryCard, type FeedEntry } from '@/components/EntryCard';
 import { InlineEntryForm } from '@/components/InlineEntryForm';
 import { PushBanner } from '@/components/PushBanner';
@@ -21,6 +22,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
 
   const PAGE_SIZE = 20;
   const [supabase] = useState(() => createClient());
+  const { user, profile } = useUser();
 
   // Supabase Realtime подписка
   useEffect(() => {
@@ -36,15 +38,25 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async (payload: any) => {
-          // Когда приходит новая запись, у нас есть только данные entries, но нет users
-          // Надо запросить профиль автора
           const newEntry = payload.new as import('@/types').Entry; // raw entry
           
-          const { data: userData } = await supabase
-            .from('users')
-            .select('username, avatar_url')
-            .eq('id', newEntry.user_id)
-            .single();
+          let userData = null;
+
+          // Оптимизация N+1: если это наша запись, берем данные из профиля
+          if (user && profile && newEntry.user_id === user.id) {
+            userData = {
+              username: profile.username,
+              avatar_url: profile.avatar_url
+            };
+          } else {
+            // Иначе делаем запрос (один)
+            const { data } = await supabase
+              .from('users')
+              .select('username, avatar_url')
+              .eq('id', newEntry.user_id)
+              .single();
+            userData = data;
+          }
 
           const fullEntry: FeedEntry = {
             ...newEntry,
@@ -60,7 +72,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase]);
+  }, [supabase, user, profile]);
 
   const loadMore = async () => {
     if (loadingMore || !hasMore) return;
