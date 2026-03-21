@@ -20,9 +20,9 @@ export function VerifyButton() {
 
       setStatus('done');
       setResult(`Проверено: ${data.checked ?? 0}, совпадений: ${data.matched ?? 0}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatus('error');
-      setResult(err.message || 'Неизвестная ошибка');
+      setResult(err instanceof Error ? err.message : 'Неизвестная ошибка');
     }
   };
 
