@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { checkSpam } from '@/lib/antispam';
 
 export async function POST(req: Request) {
   try {
@@ -42,16 +43,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Текст сигнала слишком короткий (минимум 30 символов)' }, { status: 400 });
     }
 
+    // 2.5 Антиспам-проверка
+    const spamResult = await checkSpam(user.id, content);
+    if (spamResult.isSpam) {
+      return NextResponse.json(
+        { error: spamResult.reason || 'Слишком много записей. Попробуйте позже.' },
+        { status: 429 }
+      );
+    }
+
     // 3. Сохранение записи
     const { data: entry, error: insertError } = await supabase
       .from('entries')
       .insert({
         user_id: user.id,
-        title: 'Без заголовка', // В будущем ИИ может генерировать заголовок, пока ставим заглушку
+        title: 'Без заголовка',
         content,
         type: 'unknown',
         is_public,
         is_anonymous: false,
+        is_quarantine: spamResult.isQuarantine,
       })
       .select('id, created_at')
       .single();
