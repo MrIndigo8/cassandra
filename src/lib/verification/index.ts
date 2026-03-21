@@ -3,6 +3,7 @@ import { fetchAllEvents } from '../news';
 import { scoreMatch, EntryData } from './scorer';
 import { calculateRatingScore, getRoleForUser } from '../scoring';
 import { createMatchNotification } from '../notifications';
+import { updateUserProfile } from '../learning';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''; // Нужен сервисный ключ для обхода RLS
@@ -106,9 +107,10 @@ export async function runVerification(): Promise<{ checked: number; matched: num
       best_match_score: bestScore
     }).eq('id', entry.id);
 
-    // Если было найдено совпадение, нужно обновить рейтинг юзера
+    // Если было найдено совпадение, нужно обновить рейтинг и профиль юзера
     if (hasMatch && entry.user_id) {
        await recalculateUserRating(supabase, entry.user_id);
+       await updateUserProfile(entry.user_id);
     }
   }
 

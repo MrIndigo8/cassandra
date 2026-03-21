@@ -43,7 +43,8 @@ export async function runClustering(): Promise<{ clusters_found: number; anomali
     .from('entries')
     .select('id, user_id, ai_images, ai_emotions, ai_geography, timeframe')
     .gte('created_at', fortyEightHoursAgo.toISOString())
-    .not('ai_images', 'is', null);
+    .not('ai_images', 'is', null)
+    .neq('is_quarantine', true);
 
   if (recentError || !recentEntries) {
     console.error('[Clustering] Ошибка получения недавних записей:', recentError);

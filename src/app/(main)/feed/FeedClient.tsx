@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { EntryCard, type FeedEntry } from '@/components/EntryCard';
 import { InlineEntryForm } from '@/components/InlineEntryForm';
+import { PushBanner } from '@/components/PushBanner';
 
 type FilterType = 'all' | 'dream' | 'premonition';
 
@@ -137,6 +138,9 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
 
   return (
     <div className="max-w-[680px] mx-auto py-6 px-4">
+      {/* Баннер утренних напоминаний */}
+      <PushBanner />
+
       {/* Форма публикации сигнала */}
       <InlineEntryForm />
 

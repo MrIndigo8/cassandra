@@ -17,6 +17,8 @@ export function Header() {
     ? `/profile/${profile.username}`
     : '#';
 
+  const streak = (profile as Record<string, unknown> | null)?.streak as number | undefined;
+
   const navLinks = [
     { href: '/feed', label: 'Лента' },
     { href: '/events', label: 'События' },
@@ -46,8 +48,17 @@ export function Header() {
           ))}
         </div>
 
-        {/* Правая часть: уведомления + аватар */}
+        {/* Правая часть: streak + уведомления + аватар */}
         <div className="flex items-center gap-2">
+          {/* Streak badge */}
+          {streak && streak >= 3 && (
+            <span
+              className="text-sm font-bold text-orange-500 flex items-center gap-0.5"
+              title={`Серия: ${streak} дней подряд`}
+            >
+              🔥 {streak}
+            </span>
+          )}
           <NotificationBell />
           <Link
             href={profileHref}

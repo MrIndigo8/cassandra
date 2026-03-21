@@ -72,18 +72,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Ошибка сохранения записи' }, { status: 500 });
     }
 
-    // 4. Инкремент total_entries пользователя
-    // Поскольку у нас нет RPC, делаем select + update (можно заменить на RPC в будущем)
+    // 4. Инкремент total_entries + streak система
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('total_entries')
+      .select('total_entries, streak, longest_streak, last_entry_at')
       .eq('id', user.id)
       .single();
 
     if (!userError && userData) {
+      let newStreak = userData.streak || 0;
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      if (userData.last_entry_at) {
+        const lastDate = new Date(userData.last_entry_at);
+        const lastDay = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
+        const diffDays = Math.floor((today.getTime() - lastDay.getTime()) / (1000 * 3600 * 24));
+
+        if (diffDays === 1) {
+          // Вчера → streak + 1
+          newStreak = (userData.streak || 0) + 1;
+        } else if (diffDays === 0) {
+          // Сегодня уже была запись → streak не меняется
+          newStreak = userData.streak || 1;
+        } else {
+          // Позавчера или раньше → сброс
+          newStreak = 1;
+        }
+      } else {
+        // Первая запись
+        newStreak = 1;
+      }
+
+      const newLongestStreak = Math.max(userData.longest_streak || 0, newStreak);
+
       await supabase
         .from('users')
-        .update({ total_entries: userData.total_entries + 1 })
+        .update({
+          total_entries: (userData.total_entries || 0) + 1,
+          streak: newStreak,
+          longest_streak: newLongestStreak,
+          last_entry_at: now.toISOString(),
+        })
         .eq('id', user.id);
     }
 
