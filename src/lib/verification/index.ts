@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { fetchAllEvents } from '../news';
 import { scoreMatch, EntryData } from './scorer';
 import { calculateRatingScore, getRoleForUser } from '../scoring';
+import { createMatchNotification } from '../notifications';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''; // Нужен сервисный ключ для обхода RLS
@@ -85,6 +86,14 @@ export async function runVerification(): Promise<{ checked: number; matched: num
           explanation: match.explanation,
           confidence: match.confidence
         }, { onConflict: 'entry_id, event_id' });
+
+        // Уведомляем пользователя о найденном совпадении
+        await createMatchNotification(entry.user_id, {
+          entryId: entry.id,
+          matchScore: match.match_score,
+          eventTitle: event.title,
+          explanation: match.explanation,
+        });
       }
     }
 
