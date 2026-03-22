@@ -1,10 +1,10 @@
 'use client';
 
-import Link from 'next/link';
+
 import { useUser } from '@/hooks/useUser';
 import { NotificationBell } from './NotificationBell';
 import { useTranslations, useLocale } from 'next-intl';
-import { usePathname, useRouter } from '@/navigation';
+import { Link, usePathname, useRouter } from '@/navigation';
 
 export function Header() {
   const t = useTranslations('nav');
@@ -15,7 +15,17 @@ export function Header() {
 
   const handleLocaleChange = (newLocale: string) => {
     localStorage.setItem('locale', newLocale);
-    router.replace(pathname, { locale: newLocale });
+    
+    // Защита от дублирования 'en/en/feed' в случае рассинхрона роутера
+    let cleanPath = pathname;
+    if (cleanPath.startsWith('/en/') || cleanPath === '/en') {
+      cleanPath = cleanPath.replace(/^\/en/, '') || '/';
+    }
+    if (cleanPath.startsWith('/ru/') || cleanPath === '/ru') {
+      cleanPath = cleanPath.replace(/^\/ru/, '') || '/';
+    }
+    
+    router.replace(cleanPath, { locale: newLocale });
   };
 
   const initial = profile?.username

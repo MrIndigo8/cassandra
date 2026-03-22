@@ -3,6 +3,7 @@
 // Главная страница платформы (до авторизации)
 // ============================================================
 import { getTranslations } from 'next-intl/server';
+import { Link } from '@/navigation';
 import { LanguageRedirect } from '@/components/LanguageRedirect';
 
 export default async function HomePage() {
@@ -20,12 +21,12 @@ export default async function HomePage() {
             <span className="text-xl font-bold text-mist">Кассандра</span>
           </div>
           <nav className="flex items-center gap-4">
-            <a href="/login" className="text-mist-dim hover:text-mist transition-colors">
+            <Link href="/login" className="text-mist-dim hover:text-mist transition-colors">
               {t('login')}
-            </a>
-            <a href="/register" className="btn-primary text-sm">
+            </Link>
+            <Link href="/register" className="btn-primary text-sm">
               {t('register')}
-            </a>
+            </Link>
           </nav>
         </div>
       </header>
@@ -55,9 +56,9 @@ export default async function HomePage() {
 
           {/* CTA */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-            <a href="/register" className="btn-primary text-lg px-8 py-3">
+            <Link href="/register" className="btn-primary text-lg px-8 py-3">
               {t('cta')}
-            </a>
+            </Link>
             <a href="#how-it-works" className="btn-secondary text-lg px-8 py-3">
               {t('howItWorks')}
             </a>
