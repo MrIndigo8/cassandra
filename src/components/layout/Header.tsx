@@ -41,6 +41,7 @@ export function Header() {
   const navLinks = [
     { href: '/feed', label: t('feed') },
     { href: '/events', label: t('events') },
+    { href: '/archive', label: t('archive') },
     { href: '/noosphere', label: t('noosphere') },
   ];
 

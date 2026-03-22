@@ -13,7 +13,8 @@
     "events": "Events",
     "noosphere": "Noosphere",
     "profile": "Profile",
-    "writeSignal": "Write Signal"
+    "writeSignal": "Write Signal",
+    "archive": "Archive"
   },
   "feed": {
     "placeholder": "What did you dream about or what do you feel...",
@@ -98,11 +99,43 @@
     "notNow": "Not Now"
   },
   "landing": {
-    "hero": "Collective Precognition Platform",
-    "subtitle": "Record your dreams and premonitions. AI analyzes patterns and finds matches with real world events.",
-    "cta": "Start Recording",
-    "step1": "Record Your Vision",
-    "step2": "AI Analyzes",
-    "step3": "Find the Match"
+    "login": "Login",
+    "register": "Register",
+    "badge": "Research Platform",
+    "title1": "Collective",
+    "title2": "precognition",
+    "desc": "Record your dreams and premonitions. Artificial intelligence finds matches with real world events. Explore Jungian synchronicity on a collective scale.",
+    "cta": "Start Observing",
+    "howItWorks": "How it works",
+    "disclaimer": "An instrument of observation and research, not a prophecy. Based on Carl Jung's concept of synchronicity.",
+    "step1": {
+      "title": "Record",
+      "desc": "Capture dreams and premonitions immediately upon waking. The exact timestamp is your key to verification."
+    },
+    "step2": {
+      "title": "AI Analyzes",
+      "desc": "Claude extracts symbols, emotions, and themes, comparing them with the real-time stream of world events."
+    },
+    "step3": {
+      "title": "Matches",
+      "desc": "When your image coincides with a real event, you receive a notification. Your accuracy rating grows."
+    },
+    "footer": "An instrument of observation and research. Not a tool for predicting the future."
+  },
+  "archive": {
+    "title": "Match Archive — Documented Cases",
+    "subtitle": "Only verified cases with sources",
+    "filters": {
+      "all": "All",
+      "aviation": "Aviation",
+      "political": "Political",
+      "natural": "Natural",
+      "personal": "Personal",
+      "war": "War",
+      "other": "Other"
+    },
+    "lag": "Came true after {days} days",
+    "source": "Source:",
+    "empty": "No cases found."
   }
 }
