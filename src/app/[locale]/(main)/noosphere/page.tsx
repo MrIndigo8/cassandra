@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import NoosphereMap from './NoosphereMap';
+import { getTranslations } from 'next-intl/server';
 
 export const revalidate = 0; // Всегда свежие данные
 
@@ -18,6 +19,7 @@ const formatDate = (dateString: string) => {
 };
 
 export default async function NoospherePage() {
+  const t = await getTranslations('noosphere');
   const supabase = createServerSupabaseClient();
 
   // --- СЕКЦИЯ 1: Индекс тревоги ---
@@ -151,8 +153,8 @@ export default async function NoospherePage() {
   return (
     <div className="max-w-[1024px] mx-auto px-4 py-8">
       <div className="mb-10 text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2 font-mono tracking-tight">Ноосфера</h1>
-        <p className="text-gray-500">Глобальный трекер коллективного бессознательного</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2 font-mono tracking-tight">{t('title')}</h1>
+        <p className="text-gray-500">{t('subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -161,15 +163,15 @@ export default async function NoospherePage() {
           <div className={`text-[80px] leading-none font-bold tracking-tighter mb-2 ${anxietyColor}`}>
             {anxietyIndex}
           </div>
-          <div className="text-sm font-medium text-gray-900 uppercase tracking-widest mb-1">Глобальный индекс тревоги</div>
-          <div className="text-xs text-gray-400">последние 48 часов</div>
+          <div className="text-sm font-medium text-gray-900 uppercase tracking-widest mb-1">{t('anxietyIndex')}</div>
+          <div className="text-xs text-gray-400">{t('last48h')}</div>
         </div>
 
         {/* Секция 2: Топ образов */}
         <div className="md:col-span-2 bg-surface border border-gray-100 rounded-2xl p-6 shadow-sm">
           <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-            Топ образов (48ч)
+            {t('topImages')}
           </h2>
           
           {topImagesList.length > 0 ? (
@@ -191,7 +193,7 @@ export default async function NoospherePage() {
             </div>
           ) : (
             <div className="flex h-[120px] items-center justify-center text-gray-400 text-sm italic">
-              Сигналов пока недостаточно для формирования топа
+              {t('notEnoughSignals')}
             </div>
           )}
         </div>
@@ -200,7 +202,7 @@ export default async function NoospherePage() {
       {/* Секция 4: Карта Мира */}
       <div className="mb-8">
         <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-          География Ноосферы
+          {t('geography')}
         </h2>
         <NoosphereMap data={mapData} />
       </div>
@@ -208,16 +210,16 @@ export default async function NoospherePage() {
       {/* Секция 3: Активные кластеры */}
       <div className="mb-12">
         <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-          Активные аномалии
+          {t('activeAnomalies')}
         </h2>
         
         {clusters.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {clusters.map((cluster) => {
               const signalLvl = cluster.intensity_score || 0;
-              let signalBadge = { text: 'Низкий', color: 'bg-green-100 text-green-700 border-green-200' };
-              if (signalLvl >= 3) signalBadge = { text: 'Средний', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
-              if (signalLvl >= 6) signalBadge = { text: 'Высокий', color: 'bg-red-100 text-red-700 border-red-200' };
+              let signalBadge = { text: t('low'), color: 'bg-green-100 text-green-700 border-green-200' };
+              if (signalLvl >= 3) signalBadge = { text: t('medium'), color: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
+              if (signalLvl >= 6) signalBadge = { text: t('high'), color: 'bg-red-100 text-red-700 border-red-200' };
 
               return (
                 <div key={cluster.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors">
@@ -225,7 +227,7 @@ export default async function NoospherePage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${signalBadge.color}`}>
-                          Сигнал: {signalBadge.text} ({signalLvl.toFixed(1)})
+                          {t('signalLevel')}: {signalBadge.text} ({signalLvl.toFixed(1)})
                         </span>
                         <span className="text-xs text-gray-500 font-mono">
                           {formatDate(cluster.created_at)}
@@ -258,7 +260,7 @@ export default async function NoospherePage() {
                     <div className="bg-blue-50/50 rounded-lg p-3 text-sm border border-blue-100">
                       <span className="block text-xs font-bold text-blue-600 uppercase mb-1 flex items-center gap-1">
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                        Прогноз ИИ
+                        {t('aiPrediction')}
                       </span>
                       <p className="text-blue-900 italic leading-relaxed">{cluster.ai_prediction}</p>
                     </div>
@@ -269,7 +271,7 @@ export default async function NoospherePage() {
           </div>
         ) : (
           <div className="h-32 flex items-center justify-center bg-gray-50 border border-gray-100 border-dashed rounded-xl text-gray-400 text-sm">
-            Аномальных паттернов не обнаружено
+            {t('noAnomalies')}
           </div>
         )}
       </div>
@@ -277,7 +279,7 @@ export default async function NoospherePage() {
       {/* Секция 5: История совпадений */}
       <div>
         <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
-          История совпадений
+          {t('matchHistory')}
         </h2>
         
         {matches && matches.length > 0 ? (
@@ -286,9 +288,9 @@ export default async function NoospherePage() {
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-mono">
                   <tr>
-                    <th className="px-4 py-3 font-medium">Сигнал</th>
-                    <th className="px-4 py-3 font-medium">Событие</th>
-                    <th className="px-4 py-3 font-medium text-right">Точность</th>
+                    <th className="px-4 py-3 font-medium">{t('signal')}</th>
+                    <th className="px-4 py-3 font-medium">{t('event')}</th>
+                    <th className="px-4 py-3 font-medium text-right">{t('accuracy')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -325,7 +327,7 @@ export default async function NoospherePage() {
           </div>
         ) : (
           <div className="h-32 flex items-center justify-center bg-gray-50 border border-gray-100 border-dashed rounded-xl text-gray-400 text-sm italic">
-            История совпадений появится после верификации первых сигналов
+            {t('noHistoryYet')}
           </div>
         )}
       </div>

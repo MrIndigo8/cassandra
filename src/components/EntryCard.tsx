@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import type { Entry } from '@/types';
+import { useTranslations } from 'next-intl';
 
 // Расширенный тип записи для ленты (содержит автора)
 export interface FeedEntry extends Entry {
@@ -16,6 +17,7 @@ interface EntryCardProps {
 }
 
 export function EntryCard({ entry }: EntryCardProps) {
+  const t = useTranslations('entry');
   // Форматируем время создания
   const timeAgo = formatDistanceToNow(new Date(entry.created_at), { addSuffix: true, locale: ru });
 
@@ -83,7 +85,7 @@ export function EntryCard({ entry }: EntryCardProps) {
 
           {/* Подвал: Интенсивность и статус */}
           <div className="flex justify-between items-center mt-1">
-            <div className="flex items-center gap-1" title={`Интенсивность: ${entry.intensity || 0}/10`}>
+            <div className="flex items-center gap-1" title={`${t('intensity')}: ${entry.intensity || 0}/10`}>
               {entry.intensity ? renderIntensityDots(entry.intensity) : null}
             </div>
           </div>

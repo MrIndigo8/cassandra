@@ -2,8 +2,11 @@
 
 import { useState } from 'react';
 import { useUser } from '@/hooks/useUser';
+import { useTranslations } from 'next-intl';
 
 export function InlineEntryForm() {
+  const tFeed = useTranslations('feed');
+  const tCommon = useTranslations('common');
   const { profile } = useUser();
   const [content, setContent] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -27,7 +30,7 @@ export function InlineEntryForm() {
 
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || 'Ошибка при сохранении сигнала');
+        throw new Error(errorData.error || tCommon('error'));
       }
 
       // Очищаем форму
@@ -40,7 +43,7 @@ export function InlineEntryForm() {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Неизвестная ошибка');
+        setError(tCommon('error'));
       }
     } finally {
       setIsSubmitting(false);
@@ -66,7 +69,7 @@ export function InlineEntryForm() {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onFocus={() => setIsExpanded(true)}
-            placeholder="Что вам приснилось или что вы чувствуете..."
+            placeholder={tFeed('placeholder')}
             className={`w-full bg-transparent border-none focus:ring-0 text-text-primary placeholder:text-text-secondary/60 resize-none transition-all duration-300 ${
               isExpanded ? 'min-h-[120px]' : 'min-h-[40px]'
             }`}
@@ -89,14 +92,14 @@ export function InlineEntryForm() {
                   className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
                   disabled={isSubmitting}
                 >
-                  Отмена
+                  {tCommon('cancel')}
                 </button>
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting || content.length < minLength}
                   className="px-6 py-2 rounded-full bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? 'Отправка...' : 'Отправить сигнал'}
+                  {isSubmitting ? tCommon('loading') : tFeed('submit')}
                 </button>
               </div>
             </div>

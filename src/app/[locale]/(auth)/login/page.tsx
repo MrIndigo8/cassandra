@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { useTranslations } from 'next-intl';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
@@ -13,6 +14,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get('next') || '/feed';
+  const t = useTranslations('auth');
   
   const supabase = createClient();
 
@@ -28,7 +30,7 @@ function LoginForm() {
 
     if (error) {
       if (error.message.includes('Invalid login credentials')) {
-        setError('Неверный email или пароль');
+        setError(t('errors.invalidCredentials'));
       } else {
         setError(error.message);
       }
@@ -78,7 +80,7 @@ function LoginForm() {
             fill="#EA4335"
           />
         </svg>
-        Продолжить с Google
+        {t('googleLogin')}
       </button>
 
       <div className="flex items-center gap-4 mb-6">
@@ -95,7 +97,7 @@ function LoginForm() {
         )}
 
         <div>
-          <label className="label" htmlFor="email">Email</label>
+          <label className="label" htmlFor="email">{t('email')}</label>
           <input
             id="email"
             type="email"
@@ -108,7 +110,7 @@ function LoginForm() {
         </div>
 
         <div>
-          <label className="label" htmlFor="password">Пароль</label>
+          <label className="label" htmlFor="password">{t('password')}</label>
           <input
             id="password"
             type="password"
@@ -128,15 +130,15 @@ function LoginForm() {
           {loading ? (
             <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
           ) : (
-            'Войти'
+            t('login')
           )}
         </button>
       </form>
 
       <div className="mt-6 text-center text-sm text-mist-dim">
-        Ещё нет аккаунта?{' '}
+        {t('noAccount')}{' '}
         <Link href={`/register${next !== '/feed' ? `?next=${next}` : ''}`} className="text-accent hover:text-accent-light transition-colors font-medium">
-          Зарегистрироваться
+          {t('register')}
         </Link>
       </div>
     </>
@@ -144,18 +146,19 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const t = useTranslations('auth');
   return (
     <div className="card w-full max-w-md mx-auto relative z-10 glass">
       <div className="text-center mb-8">
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-aurora mb-4 shadow-glow-sm">
           <span className="text-white font-bold text-xl">К</span>
         </div>
-        <h1 className="text-2xl font-bold text-gradient mb-2">Вход в Кассандру</h1>
+        <h1 className="text-2xl font-bold text-gradient mb-2">{t('loginTitle')}</h1>
         <p className="text-sm text-mist-dim">
-          Продолжить исследование синхроний
+          {t('loginTitle')}
         </p>
       </div>
-      <Suspense fallback={<div className="text-center py-4">Загрузка...</div>}>
+      <Suspense fallback={<div className="text-center py-4">...</div>}>
         <LoginForm />
       </Suspense>
     </div>

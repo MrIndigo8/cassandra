@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { fetchAllEvents } from '@/lib/news';
 import { VerifyButton } from './VerifyButton';
 import Image from 'next/image';
+import { getTranslations } from 'next-intl/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,6 +81,7 @@ interface GroupedEvent {
 }
 
 export default async function EventsPage() {
+  const t = await getTranslations('events');
   const supabase = createServerSupabaseClient();
 
   // Запрос: matches с join на entries и users, score > 0.6
@@ -171,10 +173,10 @@ export default async function EventsPage() {
       {/* Заголовок */}
       <div className="mb-10 text-center">
         <h1 className="text-3xl font-bold text-gray-900 mb-2 font-mono tracking-tight">
-          События
+          {t('title')}
         </h1>
         <p className="text-gray-500">
-          Верифицированные совпадения предсказаний с реальными событиями
+          {t('subtitle')}
         </p>
       </div>
 
@@ -182,11 +184,11 @@ export default async function EventsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <div className="bg-surface border border-gray-100 rounded-2xl p-5 text-center shadow-sm">
           <div className="text-3xl font-bold text-gray-900 mb-1">{events.length}</div>
-          <div className="text-xs text-gray-500 uppercase tracking-widest">Событий</div>
+          <div className="text-xs text-gray-500 uppercase tracking-widest">{t('eventsCount')}</div>
         </div>
         <div className="bg-surface border border-gray-100 rounded-2xl p-5 text-center shadow-sm">
           <div className="text-3xl font-bold text-primary mb-1">{matches.length}</div>
-          <div className="text-xs text-gray-500 uppercase tracking-widest">Совпадений</div>
+          <div className="text-xs text-gray-500 uppercase tracking-widest">{t('matchesCount')}</div>
         </div>
         <div className="bg-surface border border-gray-100 rounded-2xl p-5 text-center shadow-sm">
           <div className="text-3xl font-bold text-green-600 mb-1">
@@ -197,7 +199,7 @@ export default async function EventsPage() {
               : 0}
             %
           </div>
-          <div className="text-xs text-gray-500 uppercase tracking-widest">Средняя точность</div>
+          <div className="text-xs text-gray-500 uppercase tracking-widest">{t('averageAccuracy')}</div>
         </div>
       </div>
 
@@ -205,7 +207,7 @@ export default async function EventsPage() {
       <div>
         <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-green-500" />
-          Верифицированные совпадения
+          {t('verifiedMatches')}
         </h2>
 
         {events.length > 0 ? (
@@ -358,7 +360,7 @@ export default async function EventsPage() {
           <div className="h-40 flex flex-col items-center justify-center bg-gray-50 border border-gray-100 border-dashed rounded-xl text-gray-400 gap-2">
             <span className="text-3xl">🔮</span>
             <span className="text-sm italic">
-              Верифицированные совпадения появятся по мере накопления данных
+              {t('noMatchesYet')}
             </span>
           </div>
         )}
@@ -368,7 +370,7 @@ export default async function EventsPage() {
       <div className="mt-10">
         <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
-          Активные сигналы
+          {t('activeSignals')}
         </h2>
 
         {clusters.length > 0 ? (
@@ -450,7 +452,7 @@ export default async function EventsPage() {
         ) : (
           <div className="h-32 flex flex-col items-center justify-center bg-gray-50 border border-gray-100 border-dashed rounded-xl text-gray-400 gap-2">
             <span className="text-2xl">📡</span>
-            <span className="text-sm italic">Активных аномальных сигналов нет</span>
+            <span className="text-sm italic">{t('noActiveSignals')}</span>
           </div>
         )}
       </div>
@@ -460,7 +462,7 @@ export default async function EventsPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-500" />
-            Мировые события (2 дня)
+            {t('worldEvents')}
           </h2>
           <VerifyButton />
         </div>
@@ -508,7 +510,7 @@ export default async function EventsPage() {
         ) : (
           <div className="h-32 flex flex-col items-center justify-center bg-gray-50 border border-gray-100 border-dashed rounded-xl text-gray-400 gap-2">
             <span className="text-2xl">📰</span>
-            <span className="text-sm italic">Не удалось загрузить мировые события</span>
+            <span className="text-sm italic">{t('failedToLoadEvents')}</span>
           </div>
         )}
       </div>

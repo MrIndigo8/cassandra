@@ -1,0 +1,108 @@
+{
+  "common": {
+    "appName": "Cassandra",
+    "tagline": "Collective Precognition Platform",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "save": "Save",
+    "cancel": "Cancel",
+    "back": "Back"
+  },
+  "nav": {
+    "feed": "Feed",
+    "events": "Events",
+    "noosphere": "Noosphere",
+    "profile": "Profile",
+    "writeSignal": "Write Signal"
+  },
+  "feed": {
+    "placeholder": "What did you dream about or what do you feel...",
+    "submit": "Send Signal",
+    "filters": {
+      "all": "All Signals",
+      "dreams": "Dreams",
+      "premonitions": "Premonitions"
+    },
+    "empty": "The noosphere is silent... Be the first to send a signal",
+    "loadMore": "Load More",
+    "timeAgo": "ago"
+  },
+  "entry": {
+    "awaitingAnalysis": "Awaiting Analysis",
+    "analyzed": "Analyzed",
+    "matchFound": "Match Found",
+    "shareSignal": "Share Signal",
+    "linkCopied": "Link Copied",
+    "intensity": "Intensity",
+    "noosphericResonance": "Noospheric Resonance"
+  },
+  "auth": {
+    "login": "Sign In",
+    "register": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "username": "Username",
+    "loginTitle": "Sign in to Cassandra",
+    "registerTitle": "Create Account",
+    "googleLogin": "Continue with Google",
+    "noAccount": "No account?",
+    "hasAccount": "Already have an account?",
+    "errors": {
+      "invalidCredentials": "Invalid email or password",
+      "emailTaken": "Email already taken",
+      "usernameTaken": "Username already taken",
+      "weakPassword": "Password is too short"
+    }
+  },
+  "profile": {
+    "entries": "Signals",
+    "matches": "Matches",
+    "rating": "Rating",
+    "streak": "day streak",
+    "editName": "Edit Name",
+    "roles": {
+      "observer": "Observer",
+      "chronicler": "Chronicler",
+      "sensitive": "Sensitive",
+      "oracle": "Oracle"
+    }
+  },
+  "noosphere": {
+    "title": "Noosphere",
+    "anxietyIndex": "Global Anxiety Index",
+    "topImages": "Top Signals Right Now",
+    "activeClusters": "Active Signals",
+    "matchHistory": "Match History",
+    "noData": "Not enough data yet",
+    "signalLow": "Low",
+    "signalMedium": "Medium",
+    "signalHigh": "High"
+  },
+  "events": {
+    "title": "Events",
+    "verifiedMatches": "Verified Matches",
+    "activeSignals": "Active Signals",
+    "worldEvents": "World Events",
+    "runVerification": "Run Verification",
+    "noMatchesYet": "Matches will appear as data accumulates",
+    "pendingEvent": "Event has not occurred yet"
+  },
+  "notifications": {
+    "empty": "All quiet... Write more signals",
+    "matchFound": "Your signal resonates with a real event 🔮"
+  },
+  "push": {
+    "bannerTitle": "Enable Morning Reminders?",
+    "bannerText": "We'll remind you at 7:00 AM to record your dream before you forget",
+    "enable": "Enable",
+    "notNow": "Not Now"
+  },
+  "landing": {
+    "hero": "Collective Precognition Platform",
+    "subtitle": "Record your dreams and premonitions. AI analyzes patterns and finds matches with real world events.",
+    "cta": "Start Recording",
+    "step1": "Record Your Vision",
+    "step2": "AI Analyzes",
+    "step3": "Find the Match"
+  }
+}

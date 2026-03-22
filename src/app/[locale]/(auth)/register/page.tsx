@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { useTranslations } from 'next-intl';
 
 function RegisterForm() {
   const [email, setEmail] = useState('');
@@ -14,6 +15,7 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get('next') || '/feed';
+  const t = useTranslations('auth');
   
   const supabase = createClient();
 
@@ -33,7 +35,7 @@ function RegisterForm() {
     }
 
     if (password.length < 6) {
-      setError('Пароль должен содержать минимум 6 символов');
+      setError(t('errors.weakPassword'));
       setLoading(false);
       return;
     }
@@ -48,7 +50,7 @@ function RegisterForm() {
       if (checkError) throw checkError;
 
       if (existingUser) {
-        setError('Это имя пользователя уже занято');
+        setError(t('errors.usernameTaken'));
         setLoading(false);
         return;
       }
@@ -66,7 +68,7 @@ function RegisterForm() {
 
       if (signUpError) {
         if (signUpError.message.includes('already registered')) {
-          setError('Пользователь с таким email уже существует');
+          setError(t('errors.emailTaken'));
         } else {
           setError(signUpError.message);
         }
@@ -140,7 +142,7 @@ function RegisterForm() {
         )}
 
         <div>
-          <label className="label" htmlFor="username">Имя пользователя (никнейм)</label>
+          <label className="label" htmlFor="username">{t('username')}</label>
           <input
             id="username"
             type="text"
@@ -155,7 +157,7 @@ function RegisterForm() {
         </div>
 
         <div>
-          <label className="label" htmlFor="email">Email</label>
+          <label className="label" htmlFor="email">{t('email')}</label>
           <input
             id="email"
             type="email"
@@ -168,7 +170,7 @@ function RegisterForm() {
         </div>
 
         <div>
-          <label className="label" htmlFor="password">Пароль</label>
+          <label className="label" htmlFor="password">{t('password')}</label>
           <input
             id="password"
             type="password"
@@ -189,15 +191,15 @@ function RegisterForm() {
           {loading ? (
             <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
           ) : (
-            'Создать аккаунт'
+            t('register')
           )}
         </button>
       </form>
 
       <div className="mt-6 text-center text-sm text-mist-dim">
-        Уже есть аккаунт?{' '}
+        {t('hasAccount')}{' '}
         <Link href={`/login${next !== '/feed' ? `?next=${next}` : ''}`} className="text-accent hover:text-accent-light transition-colors font-medium">
-          Войти
+          {t('login')}
         </Link>
       </div>
     </>
@@ -205,18 +207,19 @@ function RegisterForm() {
 }
 
 export default function RegisterPage() {
+  const t = useTranslations('auth');
   return (
     <div className="card w-full max-w-md mx-auto relative z-10 glass">
       <div className="text-center mb-8">
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-aurora mb-4 shadow-glow-sm">
           <span className="text-white font-bold text-xl">К</span>
         </div>
-        <h1 className="text-2xl font-bold text-gradient mb-2">Создание аккаунта</h1>
+        <h1 className="text-2xl font-bold text-gradient mb-2">{t('registerTitle')}</h1>
         <p className="text-sm text-mist-dim">
-          Присоединяйтесь к проекту Кассандра
+          {t('registerTitle')}
         </p>
       </div>
-      <Suspense fallback={<div className="text-center py-4">Загрузка...</div>}>
+      <Suspense fallback={<div className="text-center py-4">...</div>}>
         <RegisterForm />
       </Suspense>
     </div>

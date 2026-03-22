@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ProfileEditor } from './ProfileEditor';
+import { getTranslations } from 'next-intl/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,11 +13,11 @@ export async function generateMetadata({ params }: { params: { username: string 
   };
 }
 
-const ROLE_LABELS: Record<string, { label: string; color: string; icon: string }> = {
-  observer: { label: 'Наблюдатель', color: 'bg-gray-100 text-gray-600 border-gray-200', icon: '👁️' },
-  chronicler: { label: 'Хронист', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: '📝' },
-  sensitive: { label: 'Сенситив', color: 'bg-purple-100 text-purple-700 border-purple-200', icon: '🔮' },
-  oracle: { label: 'Оракул', color: 'bg-amber-100 text-amber-700 border-amber-200', icon: '⚡' },
+const ROLE_LABELS = {
+  observer: { labelKey: 'observer', color: 'bg-gray-100 text-gray-600 border-gray-200', icon: '👁️' },
+  chronicler: { labelKey: 'chronicler', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: '📝' },
+  sensitive: { labelKey: 'sensitive', color: 'bg-purple-100 text-purple-700 border-purple-200', icon: '🔮' },
+  oracle: { labelKey: 'oracle', color: 'bg-amber-100 text-amber-700 border-amber-200', icon: '⚡' },
 };
 
 function formatDate(dateString: string) {
@@ -35,6 +36,7 @@ function formatDateShort(dateString: string) {
 }
 
 export default async function ProfilePage({ params }: { params: { username: string } }) {
+  const t = await getTranslations('profile');
   const supabase = createServerSupabaseClient();
 
   // Текущий пользователь
@@ -91,7 +93,7 @@ export default async function ProfilePage({ params }: { params: { username: stri
     .eq('user_id', profile.id)
     .gt('similarity_score', 0.6);
 
-  const role = ROLE_LABELS[profile.role] || ROLE_LABELS.observer;
+  const roleData = ROLE_LABELS[profile.role as keyof typeof ROLE_LABELS] || ROLE_LABELS.observer;
   const initial = profile.username[0].toUpperCase();
 
   return (
@@ -119,8 +121,8 @@ export default async function ProfilePage({ params }: { params: { username: stri
             <h1 className="text-2xl font-bold text-gray-900">
               {profile.display_name || profile.username}
             </h1>
-            <span className={`text-xs font-bold px-2 py-1 rounded-full border ${role.color}`}>
-              {role.icon} {role.label}
+            <span className={`text-xs font-bold px-2 py-1 rounded-full border ${roleData.color}`}>
+              {roleData.icon} {t(`roles.${roleData.labelKey}`)}
             </span>
           </div>
           <p className="text-gray-500 text-sm mb-2">@{profile.username}</p>
@@ -131,7 +133,6 @@ export default async function ProfilePage({ params }: { params: { username: stri
             Зарегистрирован {formatDate(profile.created_at)}
           </p>
 
-          {/* Редактирование (если свой) */}
           {isOwnProfile && (
             <ProfileEditor
               userId={profile.id}
@@ -145,15 +146,15 @@ export default async function ProfilePage({ params }: { params: { username: stri
       <div className="grid grid-cols-3 gap-4 mb-8">
         <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
           <div className="text-2xl font-bold text-gray-900">{totalEntries || 0}</div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-widest">Записей</div>
+          <div className="text-[10px] text-gray-500 uppercase tracking-widest">{t('entries')}</div>
         </div>
         <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
           <div className="text-2xl font-bold text-primary">{confirmedMatches || 0}</div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-widest">Совпадений</div>
+          <div className="text-[10px] text-gray-500 uppercase tracking-widest">{t('matches')}</div>
         </div>
         <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
           <div className="text-2xl font-bold text-amber-600">{(profile.rating || 0).toFixed(1)}</div>
-          <div className="text-[10px] text-gray-500 uppercase tracking-widest">Рейтинг</div>
+          <div className="text-[10px] text-gray-500 uppercase tracking-widest">{t('rating')}</div>
         </div>
       </div>
 

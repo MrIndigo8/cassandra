@@ -6,6 +6,7 @@ import { useUser } from '@/hooks/useUser';
 import { EntryCard, type FeedEntry } from '@/components/EntryCard';
 import { InlineEntryForm } from '@/components/InlineEntryForm';
 import { PushBanner } from '@/components/PushBanner';
+import { useTranslations } from 'next-intl';
 
 type FilterType = 'all' | 'dream' | 'premonition';
 
@@ -23,6 +24,8 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
   const PAGE_SIZE = 20;
   const [supabase] = useState(() => createClient());
   const { user, profile } = useUser();
+  const t = useTranslations('feed');
+  const tCommon = useTranslations('common');
 
   // Supabase Realtime подписка
   useEffect(() => {
@@ -166,7 +169,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
               : 'bg-surface text-text-secondary border-border hover:border-text-secondary/50'
           }`}
         >
-          Все сигналы
+          {t('filters.all')}
         </button>
         <button
           onClick={() => handleFilterChange('dream')}
@@ -177,7 +180,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
           }`}
         >
           <span className={`w-2 h-2 rounded-full ${filter === 'dream' ? 'bg-secondary' : 'bg-border'}`}></span>
-          Сны
+          {t('filters.dreams')}
         </button>
         <button
           onClick={() => handleFilterChange('premonition')}
@@ -188,7 +191,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
           }`}
         >
           <span className={`w-2 h-2 rounded-full ${filter === 'premonition' ? 'bg-primary' : 'bg-border'}`}></span>
-          Предчувствия
+          {t('filters.premonitions')}
         </button>
       </div>
 
@@ -208,11 +211,11 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-text-primary mb-3">Ноосфера молчит</h2>
+          <h2 className="text-2xl font-bold text-text-primary mb-3 line-clamp-2 md:line-clamp-none">{t('empty')}</h2>
           <p className="text-text-secondary max-w-md mx-auto mb-8">
             {filter === 'all' 
-              ? 'В коллективном бессознательном пока нет активных сигналов. Будьте первым, кто внесет свой вклад в глобальную карту предчувствий.'
-              : `Записей типа «${filter === 'dream' ? 'Сон' : 'Предчувствие'}» пока не найдено. Настройтесь на частоту и поделитесь видением.`}
+              ? ''
+              : ''}
           </p>
         </div>
       )}
@@ -225,7 +228,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
             disabled={loadingMore}
             className="px-8 py-3 rounded-full border border-border text-text-secondary hover:border-primary hover:text-primary transition-colors disabled:opacity-50 font-medium"
           >
-            {loadingMore ? 'Синхронизация...' : 'Погрузиться глубже'}
+            {loadingMore ? tCommon('loading') : t('loadMore')}
           </button>
         </div>
       )}
