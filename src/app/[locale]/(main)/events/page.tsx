@@ -126,7 +126,16 @@ export default async function EventsPage() {
   let worldEvents: { id: string; source: string; title: string; url: string; publishedAt: string; geography: string | null; severity: string }[] = [];
   try {
     const raw = await fetchAllEvents(2);
-    worldEvents = raw.slice(0, 20).map(e => ({
+    
+    // Обеспечиваем разнообразие источников в ленте
+    const guardianEvents = raw.filter(e => e.source === 'guardian').slice(0, 15);
+    const usgsEvents = raw.filter(e => e.source === 'usgs').slice(0, 15);
+    const newsapiEvents = raw.filter(e => e.source === 'newsapi').slice(0, 30);
+    
+    const mixedEvents = [...guardianEvents, ...usgsEvents, ...newsapiEvents]
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+
+    worldEvents = mixedEvents.map(e => ({
       id: e.id,
       source: e.source,
       title: e.title,
