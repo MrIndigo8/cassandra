@@ -187,7 +187,7 @@ export async function GET() {
     await supabase.from('historical_cases').delete().neq('id', '00000000-0000-0000-0000-000000000000');
 
     for (const item of historicalCases) {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('historical_cases')
         .insert(item)
         .select();
@@ -200,7 +200,8 @@ export async function GET() {
     }
 
     return NextResponse.json({ message: "Seeding complete", results });
-  } catch (err: any) {
-    return NextResponse.json({ message: "Seeding failed", error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ message: "Seeding failed", error: errorMessage }, { status: 500 });
   }
 }

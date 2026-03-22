@@ -1,5 +1,7 @@
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config({ path: '.env.local' });
+import { createClient } from '@supabase/supabase-js';
+// @ts-ignore
+import * as dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -178,7 +180,7 @@ async function seed() {
   console.log('Seeding historical_cases...');
   
   for (const item of historicalCases) {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('historical_cases')
       .insert(item)
       .select();
