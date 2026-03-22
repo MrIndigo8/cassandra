@@ -1,6 +1,6 @@
 export interface NewsEvent {
   id: string;
-  source: 'gdelt' | 'newsapi' | 'usgs';
+  source: 'gdelt' | 'newsapi' | 'usgs' | 'guardian';
   title: string;
   description: string;
   url: string;

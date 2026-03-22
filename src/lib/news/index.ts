@@ -1,6 +1,7 @@
 import { NewsEvent } from './types';
 import { fetchRecentNews } from './newsapi';
 import { fetchEarthquakes } from './usgs';
+import { fetchGuardianNews } from './guardian';
 
 export { type NewsEvent } from './types';
 
@@ -11,46 +12,26 @@ export { type NewsEvent } from './types';
  * @param daysBack - количество дней назад для поиска
  */
 export async function fetchAllEvents(daysBack: number): Promise<NewsEvent[]> {
-  console.log(`[News] Запрос событий за последние ${daysBack} дня(ей)...`);
-
-  // Параллельный запрос ко всем источникам
-  const [newsApiEvents, usgsEvents] = await Promise.all([
+  const [newsApiEvents, usgsEvents, guardianEvents] = await Promise.all([
     fetchRecentNews(daysBack),
     fetchEarthquakes(daysBack),
+    fetchGuardianNews(daysBack)
   ]);
 
-  // Статистика по источникам
-  const stats = {
-    newsapi: newsApiEvents.length,
-    usgs: usgsEvents.length,
-  };
+  console.log(`[NewsAPI] Получено ${newsApiEvents.length} событий`);
+  console.log(`[USGS] Получено ${usgsEvents.length} землетрясений`);
+  console.log(`[Guardian] Получено ${guardianEvents.length} событий`);
 
-  console.log('[News] Статистика:', JSON.stringify(stats));
-
-  // Объединяем все события
-  const allEvents = [...newsApiEvents, ...usgsEvents];
-
-  // Дедупликация по нормализованному title
+  const allEvents = [...newsApiEvents, ...usgsEvents, ...guardianEvents];
+  
+  // Дедупликация по заголовку
   const seen = new Set<string>();
-  const unique: NewsEvent[] = [];
-
-  for (const event of allEvents) {
-    const key = event.title.toLowerCase().trim();
-    if (!seen.has(key)) {
-      seen.add(key);
-      unique.push(event);
-    }
-  }
-
-  const removed = allEvents.length - unique.length;
-  if (removed > 0) {
-    console.log(`[News] Удалено ${removed} дубликатов`);
-  }
-
-  console.log(`[News] Итого уникальных событий: ${unique.length}`);
-
-  // Сортируем по дате (новые первые)
-  unique.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
-
-  return unique;
+  return allEvents.filter(event => {
+    const key = event.title.toLowerCase().slice(0, 50);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a, b) => 
+    new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+  );
 }
