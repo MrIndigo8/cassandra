@@ -43,7 +43,14 @@ export default async function RootLayout({
   children: React.ReactNode;
   params: { locale: string };
 }>) {
-  const messages = await getMessages();
+  // Force fetching the exact json corresponding to params.locale
+  // to bypass any Next.js generic request caching or next-intl issues.
+  let messages;
+  try {
+    messages = (await import(`../../../messages/${locale}.json`)).default;
+  } catch (err) {
+    messages = (await import(`../../../messages/ru.json`)).default;
+  }
 
   return (
     <html lang={locale} className="dark">
