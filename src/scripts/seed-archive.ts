@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-// @ts-expect-error
+// @ts-expect-error: dotenv is not installed with types in this project
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
