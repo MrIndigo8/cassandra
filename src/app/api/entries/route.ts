@@ -34,6 +34,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
     }
 
+    // Определяем страну пользователя по IP через Vercel заголовки
+    const countryCode = req.headers.get('x-vercel-ip-country') || null;
+
+    // Маппинг кода страны в название
+    const countryNames: Record<string, string> = {
+      'RU': 'Russia', 'US': 'United States', 'GB': 'United Kingdom',
+      'DE': 'Germany', 'FR': 'France', 'UA': 'Ukraine', 'BY': 'Belarus',
+      'KZ': 'Kazakhstan', 'PL': 'Poland', 'IT': 'Italy', 'ES': 'Spain',
+      'TR': 'Turkey', 'CN': 'China', 'JP': 'Japan', 'IN': 'India',
+      'BR': 'Brazil', 'CA': 'Canada', 'AU': 'Australia', 'IL': 'Israel',
+      'IR': 'Iran', 'SA': 'Saudi Arabia', 'NL': 'Netherlands', 'SE': 'Sweden',
+      'NO': 'Norway', 'FI': 'Finland', 'CZ': 'Czech Republic', 'AT': 'Austria',
+      'CH': 'Switzerland', 'PT': 'Portugal', 'GR': 'Greece', 'RO': 'Romania',
+      'HU': 'Hungary', 'SK': 'Slovakia', 'BG': 'Bulgaria', 'RS': 'Serbia',
+      'HR': 'Croatia', 'MX': 'Mexico', 'AR': 'Argentina', 'CL': 'Chile',
+      'CO': 'Colombia', 'ZA': 'South Africa', 'EG': 'Egypt', 'NG': 'Nigeria',
+      'KR': 'South Korea', 'ID': 'Indonesia', 'PH': 'Philippines', 'TH': 'Thailand',
+      'VN': 'Vietnam', 'MY': 'Malaysia', 'SG': 'Singapore', 'PK': 'Pakistan',
+      'BD': 'Bangladesh', 'NZ': 'New Zealand'
+    };
+
+    const ipGeography = countryCode ? (countryNames[countryCode] || countryCode) : null;
+
     // 2. Получаем данные
     const body = await req.json();
     const { content, is_public = true } = body;
@@ -63,6 +86,8 @@ export async function POST(req: Request) {
         is_public,
         is_anonymous: false,
         is_quarantine: spamResult.isQuarantine,
+        ip_geography: ipGeography,
+        ip_country_code: countryCode,
       })
       .select('id, created_at')
       .single();
