@@ -40,25 +40,37 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Убираем префиксы локалей из пути
+  let pathWithoutLocale = request.nextUrl.pathname;
+  if (pathWithoutLocale.startsWith('/en/') || pathWithoutLocale === '/en') {
+    pathWithoutLocale = pathWithoutLocale.replace(/^\/en/, '') || '/';
+  }
+  if (pathWithoutLocale.startsWith('/ru/') || pathWithoutLocale === '/ru') {
+    pathWithoutLocale = pathWithoutLocale.replace(/^\/ru/, '') || '/';
+  }
+
   // Защита маршрутов: если нет сессии — редирект на логин
   // Исключения: публичные страницы
   const publicPaths = ['/', '/login', '/register'];
   const isPublicPath = publicPaths.some(
-    (path) => request.nextUrl.pathname === path
+    (path) => pathWithoutLocale === path
   );
   const isApiPath = request.nextUrl.pathname.startsWith('/api/');
   const isStaticPath = request.nextUrl.pathname.startsWith('/_next/');
 
   if (!user && !isPublicPath && !isApiPath && !isStaticPath) {
     const url = request.nextUrl.clone();
-    url.pathname = '/login';
+    // Сохраняем префикс если он был
+    const prefix = request.nextUrl.pathname.startsWith('/en') ? '/en' : '';
+    url.pathname = `${prefix}/login`;
     return NextResponse.redirect(url);
   }
 
   // Если залогинен и на странице логина — редирект в ленту
-  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register')) {
+  if (user && (pathWithoutLocale === '/login' || pathWithoutLocale === '/register')) {
     const url = request.nextUrl.clone();
-    url.pathname = '/feed';
+    const prefix = request.nextUrl.pathname.startsWith('/en') ? '/en' : '';
+    url.pathname = `${prefix}/feed`;
     return NextResponse.redirect(url);
   }
 

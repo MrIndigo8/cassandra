@@ -48,7 +48,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} className="dark">
       <body className={`${inter.variable} font-sans`}>
-        <NextIntlClientProvider messages={messages}>
+        <NextIntlClientProvider messages={messages} locale={locale}>
           <AuthProvider>{children}</AuthProvider>
         </NextIntlClientProvider>
       </body>
