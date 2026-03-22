@@ -41,7 +41,7 @@ export async function runClustering(): Promise<{ clusters_found: number; anomali
 
   const { data: recentEntries, error: recentError } = await supabase
     .from('entries')
-    .select('id, user_id, ai_images, ai_emotions, ai_geography, timeframe')
+    .select('id, user_id, ai_images, ai_emotions, ai_geography, ip_geography, timeframe')
     .gte('created_at', fortyEightHoursAgo.toISOString())
     .not('ai_images', 'is', null)
     .neq('is_quarantine', true);
@@ -146,7 +146,7 @@ async function analyzeClusterWithAI(
   data: { count: number; users: Set<string>; entryIds: string[] },
   baseline: number,
   anomalyFactor: number,
-  allEntries: { id: string; ai_geography: string | null; timeframe: string | null }[]
+  allEntries: { id: string; ai_geography: string | null; ip_geography: string | null; timeframe: string | null }[]
 ): Promise<ClusterAIResult | null> {
   try {
     // Собираем контекст из записей этого кластера
@@ -218,6 +218,24 @@ async function analyzeClusterWithAI(
   }
 }
 
+// Собираем географию из двух источников
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function buildGeographyData(entries: any[]): Promise<Record<string, number>> {
+  const geoCount: Record<string, number> = {};
+  
+  for (const entry of entries) {
+    // Приоритет 1: ai_geography (из текста — точнее)
+    const geo = entry.ai_geography || entry.ip_geography;
+    
+    if (geo) {
+      const normalized = geo.trim();
+      geoCount[normalized] = (geoCount[normalized] || 0) + 1;
+    }
+  }
+  
+  return geoCount;
+}
+
 // Вспомогательная функция для сохранения в БД
 async function saveCluster(
   id: string,
@@ -227,16 +245,11 @@ async function saveCluster(
   anomalyFactor: number,
   intensityScore: number,
   aiAnalysis: ClusterAIResult | null,
-  allEntries: { id: string; ai_geography: string | null; timeframe: string | null }[]
+  allEntries: { id: string; ai_geography: string | null; ip_geography: string | null; timeframe: string | null }[]
 ) {
   // Собираем geography_data из записей кластера
   const clusterEntries = allEntries.filter(e => data.entryIds.includes(e.id));
-  const geographyData: Record<string, number> = {};
-  for (const entry of clusterEntries) {
-    if (entry.ai_geography) {
-      geographyData[entry.ai_geography] = (geographyData[entry.ai_geography] || 0) + 1;
-    }
-  }
+  const geographyData = await buildGeographyData(clusterEntries);
   const clusterData = {
     id,
     title: `Кластер: ${image}`,
