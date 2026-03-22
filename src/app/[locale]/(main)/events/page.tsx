@@ -377,9 +377,9 @@ export default async function EventsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {clusters.map((cluster: Record<string, unknown>) => {
               const intensity = (cluster.intensity_score as number) || 0;
-              let level = { text: 'Низкий', color: 'bg-green-100 text-green-700 border-green-200' };
-              if (intensity >= 3) level = { text: 'Средний', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
-              if (intensity >= 6) level = { text: 'Высокий', color: 'bg-red-100 text-red-700 border-red-200' };
+              let level = { text: t('levelLow'), color: 'bg-green-100 text-green-700 border-green-200' };
+              if (intensity >= 3) level = { text: t('levelMedium'), color: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
+              if (intensity >= 6) level = { text: t('levelHigh'), color: 'bg-red-100 text-red-700 border-red-200' };
 
               return (
                 <div
@@ -393,13 +393,13 @@ export default async function EventsPage() {
                         <span
                           className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${level.color}`}
                         >
-                          Сигнал: {level.text} ({intensity.toFixed(1)})
+                          {t('signalLabel')} {level.text} ({intensity.toFixed(1)})
                         </span>
                       </div>
                       <h3 className="font-semibold text-gray-900">{cluster.title as string}</h3>
                     </div>
                     <span className="shrink-0 text-[10px] uppercase font-bold px-2 py-1 rounded-full bg-orange-50 text-orange-600 border border-orange-100 whitespace-nowrap">
-                      ⏳ Ожидание
+                      ⏳ {t('waiting')}
                     </span>
                   </div>
 
@@ -420,16 +420,16 @@ export default async function EventsPage() {
                   {/* Метрики */}
                   <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-3 pb-3 border-b border-gray-100">
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase font-bold text-gray-400">Записей</span>
+                      <span className="text-[10px] uppercase font-bold text-gray-400">{t('records')}</span>
                       <span className="font-medium text-gray-900">{(cluster.entry_count as number) || 0}</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase font-bold text-gray-400">Пользователей</span>
+                      <span className="text-[10px] uppercase font-bold text-gray-400">{t('users')}</span>
                       <span className="font-medium text-gray-900">{(cluster.unique_users as number) || 0}</span>
                     </div>
                     <div className="flex flex-col ml-auto">
-                      <span className="text-[10px] uppercase font-bold text-gray-400">Статус</span>
-                      <span className="font-medium text-orange-600 text-xs">Событие ещё не произошло</span>
+                      <span className="text-[10px] uppercase font-bold text-gray-400">{t('status')}</span>
+                      <span className="font-medium text-orange-600 text-xs">{t('pendingEvent')}</span>
                     </div>
                   </div>
 
@@ -440,7 +440,7 @@ export default async function EventsPage() {
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
-                        Прогноз ИИ
+                        {t('aiPrediction')}
                       </span>
                       <p className="text-blue-900 italic leading-relaxed">{cluster.ai_prediction as string}</p>
                     </div>

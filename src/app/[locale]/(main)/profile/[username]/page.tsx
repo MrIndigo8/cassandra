@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ProfileEditor } from './ProfileEditor';
+import { LogoutButton } from './LogoutButton';
 import { getTranslations } from 'next-intl/server';
 
 export const dynamic = 'force-dynamic';
@@ -53,10 +54,10 @@ export default async function ProfilePage({ params }: { params: { username: stri
     return (
       <div className="max-w-[680px] mx-auto px-4 py-20 text-center">
         <span className="text-5xl mb-4 block">👻</span>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Пользователь не найден</h1>
-        <p className="text-gray-500">@{params.username} не существует</p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">{t('userNotFound')}</h1>
+        <p className="text-gray-500">{t('doesNotExist', { username: params.username })}</p>
         <Link href="/feed" className="mt-4 inline-block text-primary hover:underline text-sm">
-          ← Вернуться в ленту
+          {t('backToFeed')}
         </Link>
       </div>
     );
@@ -130,14 +131,17 @@ export default async function ProfilePage({ params }: { params: { username: stri
             <p className="text-gray-600 text-sm mb-2">{profile.bio}</p>
           )}
           <p className="text-xs text-gray-400">
-            Зарегистрирован {formatDate(profile.created_at)}
+            {t('registered', { date: formatDate(profile.created_at) })}
           </p>
 
           {isOwnProfile && (
-            <ProfileEditor
-              userId={profile.id}
-              currentDisplayName={profile.display_name || ''}
-            />
+            <div>
+              <ProfileEditor
+                userId={profile.id}
+                currentDisplayName={profile.display_name || ''}
+              />
+              <LogoutButton />
+            </div>
           )}
         </div>
       </div>
@@ -163,7 +167,7 @@ export default async function ProfilePage({ params }: { params: { username: stri
         <div className="mb-8">
           <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500" />
-            Подтверждённые совпадения
+            {t('confirmedMatches')}
           </h2>
           <div className="space-y-2">
             {matches.map((match: Record<string, unknown>) => (
@@ -204,7 +208,7 @@ export default async function ProfilePage({ params }: { params: { username: stri
       <div>
         <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest mb-3 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-blue-500" />
-          Последние записи
+          {t('recentEntries')}
         </h2>
         {entries && entries.length > 0 ? (
           <div className="space-y-2">
@@ -239,7 +243,7 @@ export default async function ProfilePage({ params }: { params: { username: stri
           </div>
         ) : (
           <div className="h-24 flex items-center justify-center bg-gray-50 border border-gray-100 border-dashed rounded-xl text-gray-400 text-sm italic">
-            Записей пока нет
+            {t('noEntriesYet')}
           </div>
         )}
       </div>

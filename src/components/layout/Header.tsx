@@ -8,6 +8,7 @@ import { Link, usePathname, useRouter } from '@/navigation';
 
 export function Header() {
   const t = useTranslations('nav');
+  const tCommon = useTranslations('common');
   const locale = useLocale();
   const { profile } = useUser();
   const pathname = usePathname();
@@ -50,7 +51,7 @@ export function Header() {
       <div className="max-w-[1024px] mx-auto px-4 h-14 flex items-center justify-between">
         {/* Логотип */}
         <Link href="/feed" className="font-semibold text-gray-900 text-base">
-          🔮 Кассандра
+          🔮 {tCommon('appName')}
         </Link>
 
         {/* Центральная часть: навигация */}

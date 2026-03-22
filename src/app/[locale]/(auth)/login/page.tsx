@@ -147,15 +147,17 @@ function LoginForm() {
 
 export default function LoginPage() {
   const t = useTranslations('auth');
+  const tCommon = useTranslations('common');
+  
   return (
     <div className="card w-full max-w-md mx-auto relative z-10 glass">
       <div className="text-center mb-8">
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-aurora mb-4 shadow-glow-sm">
-          <span className="text-white font-bold text-xl">К</span>
+          <span className="text-white font-bold text-xl">{tCommon('appName')[0]}</span>
         </div>
         <h1 className="text-2xl font-bold text-gradient mb-2">{t('loginTitle')}</h1>
         <p className="text-sm text-mist-dim">
-          {t('loginTitle')}
+          {tCommon('tagline')}
         </p>
       </div>
       <Suspense fallback={<div className="text-center py-4">...</div>}>
