@@ -34,7 +34,6 @@ export const metadata: Metadata = {
 };
 
 import { NextIntlClientProvider } from 'next-intl';
-import { getMessages } from 'next-intl/server';
 
 export default async function RootLayout({
   children,
@@ -48,7 +47,7 @@ export default async function RootLayout({
   let messages;
   try {
     messages = (await import(`../../../messages/${locale}.json`)).default;
-  } catch (err) {
+  } catch {
     messages = (await import(`../../../messages/ru.json`)).default;
   }
 
