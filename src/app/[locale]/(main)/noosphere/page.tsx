@@ -204,7 +204,7 @@ export default async function NoospherePage() {
         <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest mb-4 flex items-center gap-2">
           {t('geography')}
         </h2>
-        <NoosphereMap data={mapData} />
+        <NoosphereMap />
       </div>
 
       {/* Секция 3: Активные кластеры */}
