@@ -12,6 +12,9 @@ interface Notification {
   data: Record<string, unknown> | null;
   status: string;
   created_at: string;
+  action_type?: string;
+  entry_id?: string;
+  scheduled_for?: string;
 }
 
 function timeAgo(dateString: string): string {
@@ -112,10 +115,26 @@ export function NotificationBell() {
     }
 
     // Навигация к записи
-    const entryId = notif.data?.entry_id;
+    // Навигация к записи
+    const entryId = notif.data?.entry_id || notif.entry_id;
     if (entryId) {
       router.push(`/entry/${entryId}`);
       setIsOpen(false);
+    }
+  };
+
+  const handleSelfReport = async (entryId: string, status: string) => {
+    try {
+      const res = await fetch('/api/self-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entry_id: entryId, status })
+      });
+      if (res.ok) {
+        setNotifications(prev => prev.filter(n => !(n.entry_id === entryId && n.action_type === 'self_report')));
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -186,9 +205,40 @@ export function NotificationBell() {
                     }`}>
                       {notif.title}
                     </p>
-                    <p className="text-xs text-gray-500 line-clamp-2">
-                      {notif.message}
-                    </p>
+                    {notif.action_type === 'self_report' && notif.entry_id ? (
+                      <div className="mt-2 mb-1">
+                        <p className="text-sm text-gray-600 mb-2 italic border-l-2 border-gray-200 pl-2">
+                          &quot;{notif.message}&quot;
+                        </p>
+                        <p className="text-xs font-medium text-gray-900 mb-2">
+                          Это сбылось?
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleSelfReport(notif.entry_id!, 'fulfilled'); }}
+                            className="flex-1 py-1 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600"
+                          >
+                            ✅ Да
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleSelfReport(notif.entry_id!, 'partial'); }}
+                            className="flex-1 py-1 text-xs bg-yellow-400 text-white rounded-lg hover:bg-yellow-500"
+                          >
+                            🔶 Частично
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleSelfReport(notif.entry_id!, 'unfulfilled'); }}
+                            className="flex-1 py-1 text-xs bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300"
+                          >
+                            ❌ Нет
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 line-clamp-2">
+                        {notif.message}
+                      </p>
+                    )}
                     <span className="text-[10px] text-gray-400 mt-1 block">
                       {timeAgo(notif.created_at)}
                     </span>

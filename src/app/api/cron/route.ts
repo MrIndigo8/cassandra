@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { runAnalysis } from "@/lib/analysis";
 import { runVerification } from "@/lib/verification";
 import { runClustering } from "@/lib/clustering";
@@ -24,6 +25,20 @@ export async function GET(request: Request) {
         }
 
         console.log('[Cron] Запуск объединенного цикла задач...');
+
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        // 0. Активация отложенных уведомлений
+        console.log('[Cron] 0/3: Активация отложенных уведомлений...');
+        await supabase
+          .from('notifications')
+          .update({ status: 'unread' })
+          .eq('action_type', 'self_report')
+          .eq('status', 'pending')
+          .lte('scheduled_for', new Date().toISOString());
 
         // 1. Анализ новых записей (Claude)
         console.log('[Cron] 1/3: Запуск анализа записей...');

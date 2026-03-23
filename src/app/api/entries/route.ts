@@ -97,6 +97,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Ошибка сохранения записи' }, { status: 500 });
     }
 
+    // 3.5 Создаем отложенное уведомление через 14 дней
+    await supabase.from('notifications').insert({
+      user_id: user.id,
+      entry_id: entry.id,
+      type: 'self_report_reminder',
+      title: 'Это предчувствие сбылось?',
+      message: content.length > 80 ? content.slice(0, 80) + '...' : content,
+      action_type: 'self_report',
+      status: 'pending',
+      scheduled_for: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+    });
+
     // 4. Инкремент total_entries + streak система
     const { data: userData, error: userError } = await supabase
       .from('users')
