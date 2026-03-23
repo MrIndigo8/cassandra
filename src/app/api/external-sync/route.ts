@@ -69,7 +69,7 @@ export async function GET() {
     .from('external_signals')
     .select('*', { count: 'exact' })
     .order('published_at', { ascending: false })
-    .limit(5);
+    .limit(50);
   
   return Response.json({ total: count, latest: data });
 }
