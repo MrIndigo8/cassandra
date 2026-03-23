@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 
     // 2. Получаем данные
     const body = await req.json();
-    const { content, is_public = true } = body;
+    const { content, is_public = true, image_url } = body;
 
     // Валидация
     if (!content || content.length < 30) {
@@ -88,6 +88,7 @@ export async function POST(req: Request) {
         is_quarantine: spamResult.isQuarantine,
         ip_geography: ipGeography,
         ip_country_code: countryCode,
+        image_url: image_url || null,
       })
       .select('id, created_at')
       .single();

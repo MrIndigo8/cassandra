@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import type { Entry } from '@/types';
+import EntryComments from '@/components/EntryComments';
+import EntryReactions from '@/components/EntryReactions';
+import { useUser } from '@/hooks/useUser';
 
 // Расширенный тип, включающий автора
 interface EntryWithUser extends Entry {
@@ -18,6 +21,7 @@ interface EntryClientProps {
 
 export function EntryClient({ entry }: EntryClientProps) {
   const [copied, setCopied] = useState(false);
+  const { user, profile } = useUser();
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -94,6 +98,24 @@ export function EntryClient({ entry }: EntryClientProps) {
         <p className="text-gray-700 text-base leading-relaxed whitespace-pre-wrap">
           {entry.content}
         </p>
+
+        {entry.image_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={entry.image_url}
+            alt="Изображение к записи"
+            className="mt-6 w-full max-h-96 object-cover rounded-xl border border-gray-100"
+          />
+        )}
+
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <EntryReactions entryId={entry.id} isAuthenticated={!!user} />
+          <EntryComments 
+            entryId={entry.id} 
+            isAuthenticated={!!user}
+            currentUsername={profile?.username}
+          />
+        </div>
       </div>
 
       {/* Действия */}

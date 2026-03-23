@@ -1,0 +1,56 @@
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+
+// GET — получить комментарии к записи
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const entryId = searchParams.get('entry_id');
+  if (!entryId) return Response.json({ error: 'entry_id required' }, { status: 400 });
+
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('comments')
+    .select('*, users:user_id(username, avatar_url)')
+    .eq('entry_id', entryId)
+    .order('created_at', { ascending: true });
+
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  return Response.json({ data });
+}
+
+// POST — добавить комментарий
+export async function POST(request: Request) {
+  const supabase = createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { entry_id, content } = await request.json();
+  if (!content || content.trim().length === 0) {
+    return Response.json({ error: 'Пустой комментарий' }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from('comments')
+    .insert({ entry_id, user_id: user.id, content: content.trim() })
+    .select('*, users:user_id(username, avatar_url)')
+    .single();
+
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  return Response.json({ data }, { status: 201 });
+}
+
+// DELETE — удалить свой комментарий
+export async function DELETE(request: Request) {
+  const supabase = createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id } = await request.json();
+  const { error } = await supabase
+    .from('comments')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
+
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  return Response.json({ success: true });
+}

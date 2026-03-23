@@ -72,6 +72,7 @@ export interface Entry {
 
   is_public: boolean;
   is_anonymous: boolean;       // Публичная, но без имени автора
+  image_url?: string | null;   // Прикрепленное изображение
 
   created_at: string;          // ТОЛЬКО ОТ СЕРВЕРА — DEFAULT NOW()
   updated_at: string;

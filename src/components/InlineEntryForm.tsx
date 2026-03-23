@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useUser } from '@/hooks/useUser';
 import { useTranslations } from 'next-intl';
+import ImageUpload from './ImageUpload';
 
 export function InlineEntryForm() {
   const tFeed = useTranslations('feed');
@@ -12,6 +13,7 @@ export function InlineEntryForm() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   const minLength = 30;
 
@@ -25,7 +27,7 @@ export function InlineEntryForm() {
       const res = await fetch('/api/entries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, image_url: imageUrl }),
       });
 
       if (!res.ok) {
@@ -35,6 +37,7 @@ export function InlineEntryForm() {
 
       // Очищаем форму
       setContent('');
+      setImageUrl(null);
       setIsExpanded(false);
 
       // Фоновый запуск анализа
@@ -78,6 +81,14 @@ export function InlineEntryForm() {
           
           {error && (
             <div className="text-red-400 text-sm mt-2">{error}</div>
+          )}
+
+          {isExpanded && (
+            <ImageUpload
+              onUpload={(url) => setImageUrl(url)}
+              onRemove={() => setImageUrl(null)}
+              currentUrl={imageUrl}
+            />
           )}
 
           {isExpanded && (

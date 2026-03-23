@@ -3,6 +3,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import type { Entry } from '@/types';
 import { useTranslations } from 'next-intl';
+import EntryReactions from './EntryReactions';
+import { useUser } from '@/hooks/useUser';
 
 // Расширенный тип записи для ленты (содержит автора)
 export interface FeedEntry extends Entry {
@@ -18,6 +20,7 @@ interface EntryCardProps {
 
 export function EntryCard({ entry }: EntryCardProps) {
   const t = useTranslations('entry');
+  const { user } = useUser();
   // Форматируем время создания
   const timeAgo = formatDistanceToNow(new Date(entry.created_at), { addSuffix: true, locale: ru });
 
@@ -79,6 +82,18 @@ export function EntryCard({ entry }: EntryCardProps) {
             {entry.content}
           </p>
 
+          {/* Картинка (если есть) */}
+          {entry.image_url && (
+            <div className="mb-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={entry.image_url}
+                alt="Изображение к записи"
+                className="max-h-64 w-full object-cover rounded-xl border border-gray-100"
+              />
+            </div>
+          )}
+
           <span className="text-sm text-gray-500 hover:text-gray-700 font-medium mb-3 inline-block transition-colors">
             Читать далее
           </span>
@@ -88,6 +103,12 @@ export function EntryCard({ entry }: EntryCardProps) {
             <div className="flex items-center gap-1" title={`${t('intensity')}: ${entry.intensity || 0}/10`}>
               {entry.intensity ? renderIntensityDots(entry.intensity) : null}
             </div>
+          </div>
+          <div onClick={(e) => e.preventDefault()} className="mt-2 text-left w-full">
+            <EntryReactions 
+              entryId={entry.id} 
+              isAuthenticated={!!user}
+            />
           </div>
         </div>
       </article>
