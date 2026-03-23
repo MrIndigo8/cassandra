@@ -6,6 +6,8 @@ import { NotificationBell } from './NotificationBell';
 import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/navigation';
 
+import { Logo } from './Logo';
+
 export function Header() {
   const t = useTranslations('nav');
   const tCommon = useTranslations('common');
@@ -50,8 +52,9 @@ export function Header() {
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100">
       <div className="max-w-[1024px] mx-auto px-4 h-14 flex items-center justify-between">
         {/* Логотип */}
-        <Link href="/feed" className="font-semibold text-gray-900 text-base">
-          🔮 {tCommon('appName')}
+        <Link href="/feed" className="flex items-center gap-2.5 font-bold text-gray-900 text-lg tracking-tight hover:opacity-80 transition-opacity">
+          <Logo className="w-7 h-7" />
+          {tCommon('appName')}
         </Link>
 
         {/* Центральная часть: навигация */}
