@@ -9,8 +9,11 @@ export async function fetchDreamSubreddits(): Promise<ExternalSignal[]> {
       const response = await fetch(
         `https://www.reddit.com/r/${sub}/new.json?limit=25`,
         { 
-          headers: { 'User-Agent': 'Cassandra/1.0 (research platform)' },
-          next: { revalidate: 3600 }
+          headers: { 
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json'
+          },
+          cache: 'no-store' // Отключаем кэш, чтобы Next.js не сохранял пустые ответы
         }
       );
       if (!response.ok) continue;
