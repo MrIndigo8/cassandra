@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { runAnalysis } from "@/lib/analysis";
 import { runVerification } from "@/lib/verification";
 import { runClustering } from "@/lib/clustering";
+import { fetchDreamSubreddits } from '@/lib/external/reddit';
+import { fetchPolymarketEvents } from '@/lib/external/polymarket';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 минут (максимум для Hobby)
@@ -51,16 +53,62 @@ export async function GET(request: Request) {
         console.log('[Cron] Верификация завершена:', verificationResult);
 
         // 3. Кластеризация и поиск аномалий
-        console.log('[Cron] 3/3: Запуск кластеризации...');
+        console.log('[Cron] 3/4: Запуск кластеризации...');
         const clusteringResult = await runClustering();
         console.log('[Cron] Кластеризация завершена:', clusteringResult);
+
+        // 4. Внешний сбор (Reddit + Polymarket)
+        console.log('[Cron] 4/4: Запуск интеграции внешних сигналов...');
+        let savedReddit = 0;
+        let savedPolymarket = 0;
+        try {
+          const redditSignals = await fetchDreamSubreddits();
+          for (const signal of redditSignals) {
+            const { error } = await supabase
+              .from('external_signals')
+              .upsert({
+                source: 'reddit',
+                external_id: signal.id,
+                title: signal.title,
+                content: signal.content,
+                url: signal.url,
+                published_at: signal.publishedAt.toISOString(),
+                metadata: signal.metadata
+              }, { onConflict: 'source,external_id', ignoreDuplicates: true });
+            if (!error) savedReddit++;
+          }
+
+          const markets = await fetchPolymarketEvents();
+          for (const market of markets) {
+            const { error } = await supabase
+              .from('external_signals')
+              .upsert({
+                source: 'polymarket',
+                external_id: market.id,
+                title: market.question,
+                content: `Вероятность: ${Math.round(market.probability * 100)}% | Объём: $${Math.round(market.volume).toLocaleString()}`,
+                published_at: new Date().toISOString(),
+                metadata: {
+                  probability: market.probability,
+                  category: market.category,
+                  endDate: market.endDate,
+                  volume: market.volume
+                }
+              }, { onConflict: 'source,external_id', ignoreDuplicates: true });
+            if (!error) savedPolymarket++;
+          }
+        } catch(e) {
+          console.error('[Cron] Ошибка внешних сигналов:', e);
+        }
+        console.log(`[Cron] Интеграция завершена. Reddit: ${savedReddit}, Polymarket: ${savedPolymarket}`);
 
         return NextResponse.json({
             success: true,
             tasks: {
                 analysis: analysisResult,
                 verification: verificationResult,
-                clustering: clusteringResult
+                clustering: clusteringResult,
+                external: { reddit: savedReddit, polymarket: savedPolymarket }
             },
             timestamp: new Date().toISOString()
         });
