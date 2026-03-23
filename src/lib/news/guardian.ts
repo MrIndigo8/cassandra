@@ -19,8 +19,17 @@ export async function fetchGuardianNews(daysBack: number): Promise<NewsEvent[]> 
       `&show-fields=bodyText,trailText` +
       `&api-key=${apiKey}`;
 
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Guardian API error: ${response.status}`);
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'CassandraApp/1.0',
+        'Accept': 'application/json'
+      },
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Guardian API error: ${response.status} - ${errorText}`);
+    }
     
     const data = await response.json();
     const results = data.response?.results || [];

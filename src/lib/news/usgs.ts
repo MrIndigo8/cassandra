@@ -42,7 +42,9 @@ export async function fetchEarthquakes(daysBack: number): Promise<NewsEvent[]> {
     url.searchParams.set('orderby', 'time');
     url.searchParams.set('limit', '100');
 
-    const response = await fetch(url.toString());
+    const response = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(5000)
+    });
 
     if (!response.ok) {
       console.error(`[USGS] Ошибка ${response.status}:`, await response.text());

@@ -41,7 +41,9 @@ export async function fetchRecentNews(daysBack: number): Promise<NewsEvent[]> {
       url.searchParams.set('pageSize', '100');
       url.searchParams.set('from', fromStr);
 
-      const response = await fetch(url.toString());
+      const response = await fetch(url.toString(), {
+        signal: AbortSignal.timeout(5000)
+      });
 
       if (!response.ok) {
         console.error(`[NewsAPI] Ошибка ${response.status} для lang=${lang}:`, await response.text());
