@@ -6,45 +6,41 @@ export async function fetchDreamSubreddits(): Promise<ExternalSignal[]> {
 
   for (const sub of subreddits) {
     try {
-      const response = await fetch(
-        `https://www.reddit.com/r/${sub}/new.json?limit=25`,
-        { 
-          headers: { 
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json'
-          },
-          cache: 'no-store' // Отключаем кэш, чтобы Next.js не сохранял пустые ответы
-        }
-      );
+      const url = `https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.reddit.com%2Fr%2F${sub}%2Fnew.rss`;
+      const response = await fetch(url, { cache: 'no-store' });
       if (!response.ok) continue;
       
       const data = await response.json();
-      const posts = data?.data?.children || [];
+      const items = data.items || [];
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      posts.forEach((post: any) => {
-        const p = post.data;
-        if (p.selftext && p.selftext.length > 100) {
+      items.forEach((item: any) => {
+        // Убираем HTML-теги из RSS-описания
+        const rawContent = item.description || item.content || '';
+        // В Reddit RSS контент часто предваряется HTML-таблицами или ссылками. Вырежем их простой регуляркой.
+        const textContent = rawContent.replace(/<[^>]*>?/gm, '').trim();
+
+        if (textContent.length > 100) {
           signals.push({
-            id: p.id,
+            id: item.guid || item.link,
             source: 'reddit',
-            title: p.title,
-            content: p.selftext.slice(0, 600),
-            url: `https://reddit.com${p.permalink}`,
+            title: item.title,
+            content: textContent.slice(0, 600),
+            url: item.link,
             geography: null,
-            publishedAt: new Date(p.created_utc * 1000),
+            publishedAt: new Date(item.pubDate),
             metadata: {
               subreddit: sub,
-              upvotes: p.score,
-              comments: p.num_comments,
-              author: p.author
+              upvotes: 0, // Нет в RSS
+              comments: 0, // Нет в RSS
+              author: item.author
             }
           });
         }
       });
 
-      // Задержка между запросами чтобы не банили
-      await new Promise(r => setTimeout(r, 500));
+      // Задержка между запросами
+      await new Promise(r => setTimeout(r, 800));
     } catch (e) {
       console.error(`[Reddit] Ошибка для r/${sub}:`, e);
     }
