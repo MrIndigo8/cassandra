@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { fetchAllEvents } from '@/lib/news';
 import { VerifyButton } from './VerifyButton';
+import ExternalSignals from '@/components/ExternalSignals';
 import Image from 'next/image';
 import { getTranslations } from 'next-intl/server';
 
@@ -523,6 +524,9 @@ export default async function EventsPage() {
           </div>
         )}
       </div>
+
+      {/* Блок 4: Внешние сигналы (Reddit, Polymarket) */}
+      <ExternalSignals />
     </div>
   );
 }
