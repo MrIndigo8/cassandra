@@ -65,11 +65,22 @@ export async function POST(request: Request) {
 // GET для тестирования
 export async function GET() {
   const supabase = createAdminClient();
-  const { data, count } = await supabase
-    .from('external_signals')
-    .select('*', { count: 'exact' })
-    .order('published_at', { ascending: false })
-    .limit(50);
   
-  return Response.json({ total: count, latest: data });
+  const { data: redditData } = await supabase
+    .from('external_signals')
+    .select('*')
+    .eq('source', 'reddit')
+    .order('published_at', { ascending: false })
+    .limit(20);
+
+  const { data: polymarketData } = await supabase
+    .from('external_signals')
+    .select('*')
+    .eq('source', 'polymarket')
+    .order('published_at', { ascending: false })
+    .limit(20);
+  
+  const combined = [...(redditData || []), ...(polymarketData || [])];
+  
+  return Response.json({ total: combined.length, latest: combined });
 }
