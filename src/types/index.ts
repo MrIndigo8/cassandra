@@ -1,10 +1,18 @@
 export interface UserProfile {
   id: string;
   username: string;
+  display_name?: string | null;
+  bio?: string | null;
   avatar_url: string | null;
   role: 'observer' | 'chronicler' | 'oracle' | 'sensitive' | null;
   rating_score: number;
+  rating?: number | null;
+  created_at: string;
+  streak?: number | null;
 }
+
+/** Alias for backward-compatibility with useUser hook */
+export type User = UserProfile;
 
 export interface Entry {
   id: string;
