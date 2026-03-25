@@ -93,7 +93,7 @@ export default function ExternalSignals() {
                     {s.content}
                   </p>
                   <span className="text-xs text-orange-400">
-                    r/{s.metadata?.subreddit} · {s.metadata?.upvotes} upvotes
+                    r/{String(s.metadata?.subreddit ?? '')} · {String(s.metadata?.upvotes ?? 0)} upvotes
                   </span>
                 </div>
               ))}
@@ -114,11 +114,11 @@ export default function ExternalSignals() {
                     <div className="flex-1 bg-gray-100 rounded-full h-2">
                       <div 
                         className="bg-green-500 h-2 rounded-full"
-                        style={{ width: `${Math.round(m.metadata?.probability * 100)}%` }}
+                        style={{ width: `${Math.round(Number(m.metadata?.probability ?? 0) * 100)}%` }}
                       />
                     </div>
                     <span className="text-xs font-medium text-green-600">
-                      {Math.round(m.metadata?.probability * 100)}%
+                      {Math.round(Number(m.metadata?.probability ?? 0) * 100)}%
                     </span>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">{m.content}</p>
