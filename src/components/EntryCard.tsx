@@ -7,7 +7,7 @@ import EntryReactions from './EntryReactions';
 import { useUser } from '@/hooks/useUser';
 
 // Расширенный тип записи для ленты (содержит автора)
-export interface FeedEntry extends Entry {
+export interface FeedEntry extends Omit<Entry, 'users'> {
   users: {
     username: string;
     avatar_url: string | null;

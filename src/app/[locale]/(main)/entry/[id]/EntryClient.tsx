@@ -9,7 +9,7 @@ import { useUser } from '@/hooks/useUser';
 import { useTranslations } from 'next-intl';
 
 // Расширенный тип, включающий автора
-interface EntryWithUser extends Entry {
+interface EntryWithUser extends Omit<Entry, 'users'> {
   users: {
     username: string;
     avatar_url: string | null;
