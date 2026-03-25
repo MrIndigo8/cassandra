@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/navigation';
+import { useTranslations } from 'next-intl';
 
 interface ProfileEditorProps {
   userId: string;

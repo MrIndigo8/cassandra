@@ -7,7 +7,7 @@ export async function fetchDreamSubreddits(): Promise<ExternalSignal[]> {
   for (const sub of subreddits) {
     try {
       const url = `https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.reddit.com%2Fr%2F${sub}%2Fnew.rss`;
-      const response = await fetch(url, { cache: 'no-store' });
+      const response = await fetch(url, { next: { revalidate: 3600 } });
       if (!response.ok) continue;
       
       const data = await response.json();

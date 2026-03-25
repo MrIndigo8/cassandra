@@ -210,3 +210,111 @@
   - цветовая шкала от 0 до 10 на основе `cluster.intensity_score`
   - маппинг стран делается эвристикой по названию страны
 
+## Актуальная архитектура и потоки данных (v2)
+
+Ниже — приоритетное описание, которое соответствует текущим файлам на диске (i18n через `[locale]`, reactions/comments, map-data и расширенные API).
+
+### 1) Next.js + i18n
+
+- RootLayout: `src/app/[locale]/layout.tsx`
+  - загружает сообщения `messages/${locale}.json`
+  - оборачивает приложение в `NextIntlClientProvider`
+  - подключает `AuthProvider`
+- Pages:
+  - лендинг до auth: `src/app/[locale]/page.tsx`
+  - auth страницы: `src/app/[locale]/(auth)/login|register/page.tsx`
+  - основной layout: `src/app/[locale]/(main)/layout.tsx`
+  - ключевые страницы:
+    - `.../(main)/feed/page.tsx`
+    - `.../(main)/entry/[id]/page.tsx`
+    - `.../(main)/noosphere/page.tsx`
+    - `.../(main)/events/page.tsx`
+    - `.../(main)/archive/page.tsx`
+    - `.../(main)/profile/[username]/page.tsx` (заглушка)
+
+### 2) Middleware (auth + locale)
+
+- `src/middleware.ts`: агрегирует:
+  - `updateSession(request)` (Supabase auth + редиректы)
+  - `next-intl/middleware` для формирования locale префиксов
+- В `updateSession` логика:
+  - если нет пользователя и путь не публичный/не API/не статика → редирект на `/login`
+  - если пользователь залогинен и открывает `/login|/register` → редирект в `/feed`
+
+### 3) Entry lifecycle (создание → анализ → верификация → кластеризация)
+
+#### Создание записи
+
+- UI: `src/components/InlineEntryForm.tsx`
+  - POST `/api/entries` с `content` и опциональным `image_url`
+  - далее fire-and-forget POST `/api/analyze`
+- API: `src/app/api/entries/route.ts`
+  - определяет `ipGeography` из `x-vercel-ip-country`
+  - антиспам: `checkSpam(user.id, content)` → возвращает `isQuarantine`
+  - INSERT в `entries`:
+    - `type: 'unknown'`
+    - `is_quarantine`, `ip_geography`, `ip_country_code`, `image_url`
+  - создаёт напоминание в `notifications` через 14 дней (`action_type: self_report`)
+
+#### Анализ
+
+- API cron/trigger: `src/app/api/analyze/route.ts`
+  - `runAnalysis()` выбирает entries где `ai_analyzed_at IS NULL`
+  - `analyzeEntry(...)` → Claude JSON → UPDATE:
+    - `title`, `type`, `ai_images`, `ai_emotions`, `ai_scale`, `ai_geography`, `ai_specificity`, `ai_summary`, `ai_analyzed_at`
+
+#### Верификация совпадений
+
+- API cron: `src/app/api/verify/route.ts`
+  - `runVerification()`:
+    - берёт `entries` где `is_verified=false` и `ai_analyzed_at not null` (в текущей версии — упрощённо)
+    - получает события `fetchAllEvents(3)`
+    - оценивает `scoreMatch(entryData, event)`
+    - при `match_score > 0.6`:
+      - upsert в `matches`
+      - создаёт уведомление `createMatchNotification(...)`
+      - пересчитывает rating/role и вызывает learning `updateUserProfile(...)`
+    - в любом случае `entries.is_verified=true`
+
+#### Кластеризация
+
+- API cron: `src/app/api/cluster/route.ts`
+  - `runClustering()`:
+    - берёт entries за последние 48h с `ai_images`, исключает карантин (`is_quarantine`)
+    - считает частоту образов и ищет аномалии относительно baseline (30 дней)
+    - при необходимости вызывает Claude `CLUSTER_SIGNAL_PROMPT`
+    - записывает кластер в `clusters` включая `geography_data` (JSONB) через helper `buildGeographyData(...)`
+
+### 4) Ноосфера и карта
+
+- Серверная страница: `src/app/[locale]/(main)/noosphere/page.tsx`
+  - читает `clusters` (active + `is_resolved=false`)
+  - вычисляет anxiety index
+  - запрашивает top images из `entries.ai_images`
+  - подтягивает history matches из `matches`
+- Карта: `src/app/[locale]/(main)/noosphere/NoosphereMap.tsx`
+  - на клиенте вызывает `/api/map-data`
+  - карта содержит 3 слоя:
+    - активности по `activityMap` (country ISO codes)
+    - тревожности по `anxietyMap` (из `clusters.geography_data`)
+    - “мировые события” по `worldEvents`
+
+### 5) Reactions & Comments
+
+- Реакции:
+  - UI: `src/components/EntryReactions.tsx`
+  - API: `src/app/api/reactions/route.ts` (GET агрегирует, POST toggle)
+- Комментарии:
+  - UI: `src/components/EntryComments.tsx`
+  - API: `src/app/api/comments/route.ts` (GET list, POST insert, DELETE own)
+
+### 6) Events & Archive
+
+- Events: `src/app/[locale]/(main)/events/page.tsx`
+  - показывает verified matches (JOIN `matches -> entries -> users`)
+  - показывает активные кластеры и “world events” через `fetchAllEvents`
+  - элементы `VerifyButton` и `ExternalSignals`
+- Archive: `src/app/[locale]/(main)/archive/page.tsx` + `ArchiveClient.tsx`
+  - читает `historical_cases`
+
+

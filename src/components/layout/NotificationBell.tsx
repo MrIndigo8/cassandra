@@ -1,21 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/navigation';
 import { createClient } from '@/lib/supabase/client';
-
-interface Notification {
-  id: string;
-  type: string;
-  title: string;
-  message: string;
-  data: Record<string, unknown> | null;
-  status: string;
-  created_at: string;
-  action_type?: string;
-  entry_id?: string;
-  scheduled_for?: string;
-}
+import { useTranslations } from 'next-intl';
+import type { Notification } from '@/types';
+import type { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 
 function timeAgo(dateString: string): string {
   const diff = Date.now() - new Date(dateString).getTime();
@@ -31,24 +21,39 @@ function timeAgo(dateString: string): string {
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const supabase = createClient();
+  const t = useTranslations('notifications');
 
   const unreadCount = notifications.filter(n => n.status === 'unread').length;
 
   const fetchNotifications = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    const { data } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(20);
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
 
-    if (data) setNotifications(data as Notification[]);
+      if (error) throw error;
+      if (data) setNotifications(data as Notification[]);
+      setError(false);
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [supabase]);
 
   // Загрузка при монтировании
@@ -74,8 +79,8 @@ export function NotificationBell() {
             table: 'notifications',
             filter: `user_id=eq.${user.id}`,
           },
-          (payload: { new: Record<string, unknown> }) => {
-            const newNotif = payload.new as unknown as Notification;
+          (payload: RealtimePostgresInsertPayload<Notification>) => {
+            const newNotif = payload.new;
             setNotifications(prev => [newNotif, ...prev].slice(0, 20));
           }
         )
@@ -187,7 +192,15 @@ export function NotificationBell() {
           </div>
 
           <div className="max-h-80 overflow-y-auto">
-            {notifications.length > 0 ? (
+            {loading ? (
+              <div className="py-10 text-center text-gray-400">
+                <span className="text-sm italic">{t('loading')}</span>
+              </div>
+            ) : error ? (
+              <div className="py-10 text-center text-red-400">
+                <span className="text-sm italic">{t('errorLoading')}</span>
+              </div>
+            ) : notifications.length > 0 ? (
               notifications.map(notif => (
                 <button
                   key={notif.id}
@@ -251,7 +264,7 @@ export function NotificationBell() {
             ) : (
               <div className="py-10 text-center text-gray-400">
                 <span className="text-2xl block mb-2">🔔</span>
-                <span className="text-sm italic">Пока тихо... Пиши больше сигналов</span>
+                <span className="text-sm italic">{t('empty')}</span>
               </div>
             )}
           </div>

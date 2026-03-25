@@ -15,7 +15,7 @@ export default async function HomePage() {
       <header className="border-b border-void-border/50 backdrop-blur-sm bg-void/50 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-aurora flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-aurora flex items-center justify-center" aria-hidden="true">
               <span className="text-white font-bold text-sm">К</span>
             </div>
             <span className="text-xl font-bold text-mist">Кассандра</span>
@@ -36,7 +36,7 @@ export default async function HomePage() {
         <div className="max-w-3xl mx-auto">
           {/* Бейдж */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cassandra-900/50 border border-cassandra-700/30 mb-8">
-            <span className="w-2 h-2 rounded-full bg-accent animate-pulse-slow" />
+            <span className="w-2 h-2 rounded-full bg-accent animate-pulse-slow" aria-hidden="true" />
             <span className="text-sm text-cassandra-300">
               {t('badge')}
             </span>
@@ -71,8 +71,8 @@ export default async function HomePage() {
         </div>
 
         {/* Декоративные элементы */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cassandra-700/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cassandra-700/5 rounded-full blur-3xl pointer-events-none" aria-hidden="true" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent/5 rounded-full blur-3xl pointer-events-none" aria-hidden="true" />
       </main>
 
       {/* Как это работает */}
@@ -84,7 +84,7 @@ export default async function HomePage() {
           <div className="grid md:grid-cols-3 gap-8">
             {/* Шаг 1 */}
             <div className="card text-center group">
-              <div className="w-14 h-14 rounded-xl bg-dream/10 border border-dream/20 flex items-center justify-center mx-auto mb-4 group-hover:shadow-glow-sm transition-shadow">
+              <div className="w-14 h-14 rounded-xl bg-dream/10 border border-dream/20 flex items-center justify-center mx-auto mb-4 group-hover:shadow-glow-sm transition-shadow" aria-hidden="true">
                 <span className="text-2xl">🌙</span>
               </div>
               <h3 className="text-lg font-semibold text-mist mb-2">{t('step1.title')}</h3>
@@ -95,7 +95,7 @@ export default async function HomePage() {
 
             {/* Шаг 2 */}
             <div className="card text-center group">
-              <div className="w-14 h-14 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center mx-auto mb-4 group-hover:shadow-glow-sm transition-shadow">
+              <div className="w-14 h-14 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center mx-auto mb-4 group-hover:shadow-glow-sm transition-shadow" aria-hidden="true">
                 <span className="text-2xl">🧠</span>
               </div>
               <h3 className="text-lg font-semibold text-mist mb-2">{t('step2.title')}</h3>
@@ -106,7 +106,7 @@ export default async function HomePage() {
 
             {/* Шаг 3 */}
             <div className="card text-center group">
-              <div className="w-14 h-14 rounded-xl bg-match/10 border border-match/20 flex items-center justify-center mx-auto mb-4 group-hover:shadow-glow-sm transition-shadow">
+              <div className="w-14 h-14 rounded-xl bg-match/10 border border-match/20 flex items-center justify-center mx-auto mb-4 group-hover:shadow-glow-sm transition-shadow" aria-hidden="true">
                 <span className="text-2xl">✨</span>
               </div>
               <h3 className="text-lg font-semibold text-mist mb-2">{t('step3.title')}</h3>
@@ -122,7 +122,7 @@ export default async function HomePage() {
       <footer className="border-t border-void-border/50 py-8 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-aurora flex items-center justify-center">
+            <div className="w-6 h-6 rounded bg-aurora flex items-center justify-center" aria-hidden="true">
               <span className="text-white font-bold text-xs">К</span>
             </div>
             <span className="text-sm text-mist-dim">Кассандра © 2026</span>

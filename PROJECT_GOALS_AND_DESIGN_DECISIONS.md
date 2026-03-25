@@ -72,3 +72,56 @@
 - ожиданиями UI и тем, какие поля реально заполняются кластеризацией,
 - join в verification и реальным именованием таблиц в миграциях.
 
+## Актуальные дизайн-решения (v2)
+
+### Антиспам и карантин
+
+- В `src/app/api/entries/route.ts` перед сохранением entry выполняется:
+  - `checkSpam(user.id, content)` из `src/lib/antispam/index.ts`
+- `checkSpam`:
+  - частотный лимит (>= 5 записей за 24 часа)
+  - минимальная длина (>= 30 символов)
+  - “карантин” для новых аккаунтов (< 30 дней с регистрации)
+  - (опционально при наличии ключей) Claude-детектор спама через `SPAM_DETECTION_PROMPT`
+- Результат сохраняется в `entries.is_quarantine` и используется в кластеризации.
+
+### Санитизация type (чтобы удерживать данные в допустимом наборе)
+
+- В `src/lib/claude/parser.ts`:
+  - `sanitizeEntryType` разрешает `['dream','premonition','unknown']`
+- Это снижает риск “вылета” из SQL constraints и упрощает отрисовку в UI.
+
+### Self-learning профиля
+
+- После успешных совпадений в `runVerification`:
+  - создаётся notification пользователю (`createMatchNotification`)
+  - пересчитываются rating/role
+  - вызывается learning `updateUserProfile(userId)`
+- Learning обновляет:
+  - `users.dominant_images`
+  - `users.avg_specificity`
+  - `users.avg_lag_days`
+
+### Уведомления как часть воронки
+
+- События уведомлений лежат в `notifications` и используются в UI через `NotificationBell`.
+- Отдельно есть self-report workflow:
+  - `src/app/api/self-report/route.ts` сохраняет `self_reports` и обновляет entry/users/notifications.
+
+### Карта Ноосферы через серверный агрегатор
+
+- UI карты не строит “все данные” сам.
+- Используется единый endpoint `GET /api/map-data`, который возвращает:
+  - `activityMap` (entries по IP-географии)
+  - `anxietyMap` (clusters по `geography_data`)
+  - `worldEvents` (из `fetchAllEvents`)
+
+### Расширение UX через реакции/комментарии и внешние сигналы
+
+- Reactions/Comments: `api/reactions`, `api/comments`
+- External signals:
+  - `api/external-sync` (cron-like POST с сервисным ключом)
+  - `components/ExternalSignals` — табы Reddit/Polymarket
+- Archive:
+  - `historical_cases` + `api/seed`
+

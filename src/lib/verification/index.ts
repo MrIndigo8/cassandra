@@ -16,7 +16,7 @@ export async function runVerification(): Promise<{ checked: number; matched: num
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   
-  console.log('[Verification] Начало цикла проверки...');
+  if (process.env.NODE_ENV !== 'production') console.info('[Verification] Начало цикла проверки...');
 
   // 1. Берем непроверенные записи (которые были проанализированы ИИ),
   // но не старше 30 дней чтобы не проверять вечно старые.
@@ -32,7 +32,7 @@ export async function runVerification(): Promise<{ checked: number; matched: num
     .limit(50); // Пакетная обработка
 
   if (entriesError || !entries || entries.length === 0) {
-    console.log('[Verification] Нет записей для проверки.');
+
     return { checked: 0, matched: 0 };
   }
 
@@ -41,7 +41,7 @@ export async function runVerification(): Promise<{ checked: number; matched: num
   // но ограничимся 3 днями для оптимальности.
   const events = await fetchAllEvents(3);
   if (events.length === 0) {
-    console.log('[Verification] Нет свежих новостей для проверки.');
+
     return { checked: 0, matched: 0 };
   }
 
@@ -165,5 +165,5 @@ async function recalculateUserRating(supabase: SupabaseClient, userId: string) {
     role: newRole
   }).eq('id', userId);
   
-  console.log(`[Verification] Обновлен рейтинг юзера ${userId}: score=${ratingScore}, role=${newRole}`);
+  if (process.env.NODE_ENV !== 'production') console.info(`[Verification] Обновлен рейтинг юзера ${userId}: score=${ratingScore}, role=${newRole}`);
 }

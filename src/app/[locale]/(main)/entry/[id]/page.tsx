@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
-import Link from 'next/link';
+import { Link } from '@/navigation';
+import { notFound } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { EntryClient } from './EntryClient';
 import type { Entry } from '@/types';

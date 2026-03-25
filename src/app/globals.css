@@ -7,7 +7,7 @@
     background-color: #FFFFFF;
     color: #1F2937;
     @apply antialiased;
-    font-family: "Inter", system-ui, sans-serif;
+    font-family: var(--font-inter), "Inter", system-ui, sans-serif;
     min-height: 100vh;
   }
 

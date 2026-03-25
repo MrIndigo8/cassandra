@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { Link } from '@/navigation';
 import type { Entry } from '@/types';
 import EntryComments from '@/components/EntryComments';
 import EntryReactions from '@/components/EntryReactions';
 import { useUser } from '@/hooks/useUser';
+import { useTranslations } from 'next-intl';
 
 // Расширенный тип, включающий автора
 interface EntryWithUser extends Entry {
@@ -20,6 +21,7 @@ interface EntryClientProps {
 }
 
 export function EntryClient({ entry }: EntryClientProps) {
+  const t = useTranslations('entry');
   const [copied, setCopied] = useState(false);
   const { user, profile } = useUser();
 
@@ -48,7 +50,7 @@ export function EntryClient({ entry }: EntryClientProps) {
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
-        Вернуться в ленту
+        {t('backToFeed')}
       </Link>
 
       {/* Хедер записи */}
@@ -62,12 +64,12 @@ export function EntryClient({ entry }: EntryClientProps) {
             ) : (
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
             )}
-            {isDream ? 'Сон' : 'Предчувствие'}
+            {isDream ? t('type.dream') : t('type.premonition')}
           </div>
         </div>
 
         <div className="text-gray-500 font-mono text-xs text-right">
-          <div className="font-medium text-gray-900 mb-0.5">{entry.users?.username || 'Аноним'}</div>
+          <div className="font-medium text-gray-900 mb-0.5">{entry.users?.username || t('anonymous')}</div>
           {new Date(entry.created_at).toLocaleString('ru-RU', {
             day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute:'2-digit'
           })}
@@ -87,7 +89,7 @@ export function EntryClient({ entry }: EntryClientProps) {
           
           {entry.intensity && (
             <div className="flex flex-col items-end shrink-0 ml-4">
-              <span className="text-[10px] uppercase font-mono text-gray-500 tracking-widest leading-none mb-1">Интенсивность</span>
+              <span className="text-[10px] uppercase font-mono text-gray-500 tracking-widest leading-none mb-1">{t('intensity')}</span>
               <div className="flex items-center gap-1">
                 {renderIntensityDots(entry.intensity)}
               </div>
@@ -103,7 +105,7 @@ export function EntryClient({ entry }: EntryClientProps) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={entry.image_url}
-            alt="Изображение к записи"
+            alt={t('imageAlt')}
             className="mt-6 w-full max-h-96 object-cover rounded-xl border border-gray-100"
           />
         )}
@@ -129,14 +131,14 @@ export function EntryClient({ entry }: EntryClientProps) {
               <svg className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              <span className="text-primary">Ссылка скопирована</span>
+              <span className="text-primary">{t('linkCopied')}</span>
             </>
           ) : (
             <>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
               </svg>
-              Поделиться сигналом
+              {t('shareSignal')}
             </>
           )}
         </button>

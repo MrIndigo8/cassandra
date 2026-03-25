@@ -28,19 +28,19 @@ const formatDateShort = (dateString: string) => {
 };
 
 /** Иконка источника события */
-function SourceIcon({ source }: { source: string }) {
+function SourceIcon({ source, translations }: { source: string, translations: any }) {
   const s = source?.toLowerCase() || '';
   if (s.includes('usgs') || s.includes('earthquake')) {
-    return <span title="USGS — землетрясения" className="text-base">🌍</span>;
+    return <span title={translations('sourceUsgs')} className="text-base">🌍</span>;
   }
   if (s.includes('relief') || s.includes('disaster')) {
-    return <span title="ReliefWeb — катастрофы" className="text-base">🆘</span>;
+    return <span title={translations('sourceRelief')} className="text-base">🆘</span>;
   }
   if (s.includes('gdelt')) {
-    return <span title="GDELT — глобальные события" className="text-base">📡</span>;
+    return <span title={translations('sourceGdelt')} className="text-base">📡</span>;
   }
   // default — NewsAPI
-  return <span title={`Источник: ${source}`} className="text-base">📰</span>;
+  return <span title={`${translations('sourcePrefix')} ${source}`} className="text-base">📰</span>;
 }
 
 // Тип для совпадения с JOIN-данными
@@ -231,7 +231,7 @@ export default async function EventsPage() {
                 <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
                   <div className="flex items-start gap-3">
                     <div className="mt-0.5">
-                      <SourceIcon source={event.event_source} />
+                      <SourceIcon source={event.event_source} translations={t} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-gray-900 text-lg leading-snug mb-1">
@@ -282,7 +282,7 @@ export default async function EventsPage() {
                   {event.matches
                     .sort((a, b) => b.similarity_score - a.similarity_score)
                     .map((match) => {
-                      const username = match.users?.username || 'аноним';
+                      const username = match.users?.username || t('anonymous');
                       const initial = username[0].toUpperCase();
                       const entryDate = match.entries?.created_at || match.created_at;
                       const contentPreview = match.entries?.content

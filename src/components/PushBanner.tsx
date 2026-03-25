@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { requestPushPermission } from '@/lib/push';
 
 const STORAGE_KEY = 'cassandra_push_banner_dismissed';
@@ -13,17 +13,26 @@ export function PushBanner() {
   const [visible, setVisible] = useState(false);
   const [enabling, setEnabling] = useState(false);
 
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     // Не показывать если уже отклонили или нет поддержки
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
     if (localStorage.getItem(STORAGE_KEY) === 'true') return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
     if (!('Notification' in window)) return;
     if (Notification.permission === 'granted') return;
     if (Notification.permission === 'denied') return;
 
-    // Показываем баннер с небольшой задержкой
-    const timer = setTimeout(() => setVisible(true), 3000);
-    return () => clearTimeout(timer);
+    // Показываем баннер с небольшой задержкой (используем intervalRef как просил юзер для очистки)
+    intervalRef.current = setTimeout(() => setVisible(true), 3000);
+    
+    return () => {
+      if (intervalRef.current) {
+        clearTimeout(intervalRef.current);
+        clearInterval(intervalRef.current);
+      }
+    };
   }, []);
 
   const handleEnable = async () => {

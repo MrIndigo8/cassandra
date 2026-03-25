@@ -57,7 +57,7 @@ export default async function NoospherePage() {
       const countries = geoStr.split(',').map((c: string) => c.trim().replace(/['"]/g, ''));
       
       countries.forEach((country: string) => {
-        if (!country || country === 'Не определено' || country === 'null') return;
+        if (!country || country === t('notDefined') || country === 'null') return;
         
         if (!mapData[country]) {
           mapData[country] = {
@@ -252,7 +252,7 @@ export default async function NoospherePage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[10px] uppercase font-bold text-gray-400">Локации</span>
-                      <span className="font-medium text-gray-900 line-clamp-1">{typeof cluster.geography_data === 'string' ? cluster.geography_data : (cluster.geography_data ? JSON.stringify(cluster.geography_data) : 'Глобально')}</span>
+                      <span className="font-medium text-gray-900 line-clamp-1">{typeof cluster.geography_data === 'string' ? cluster.geography_data : (cluster.geography_data ? JSON.stringify(cluster.geography_data) : t('global'))}</span>
                     </div>
                   </div>
 

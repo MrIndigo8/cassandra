@@ -86,3 +86,39 @@
    - Возможный дубль вызовов и гонки: два анализатора могут обработать одну и ту же запись, если `ai_analyzed_at` проставляется не атомарно.
    - Где: `src/components/InlineEntryForm.tsx` и `src/app/api/analyze/route.ts`
 
+## Актуальные критичные риски (v2)
+
+1. **Несоответствие `entries.type='unknown'` vs миграция 001**
+   - Где: `src/app/api/entries/route.ts` (INSERT `type: 'unknown'`)
+   - Где: `supabase/migrations/001_initial_schema.sql` (CHECK только `dream/premonition`)
+   - Почему: при фактическом применении миграций возможна ошибка CHECK constraint.
+   - Что проверить: актуальные constraints в Supabase (посмотреть реальную структуру таблицы `entries`).
+
+2. **Колонки `entries.ip_country_code`, `entries.ip_geography`, `entries.is_quarantine`**
+   - Где: `src/app/api/entries/route.ts`, `src/lib/clustering/index.ts`, `src/app/api/map-data/route.ts`
+   - Почему: эти поля нужны для антиспама/карантина, построения `activityMap` и `anxietyMap`.
+   - Что проверить: есть ли эти колонки в БД сейчас. Если нет — добавить миграции или откатить код к отсутствующим полям.
+
+3. **Динамический серверный фетч во время `next build` (Next caching restrictions)**
+   - Наблюдение из лога build:
+     - `Dynamic server usage: no-store fetch https://api.rss2json.com/... /api/reddit-test`
+     - по нескольким сабреддитам, итог — получено 0 постов
+   - Почему: часть страниц/роутов вызывает `/api/reddit-test` на этапе генерации страниц, а `no-store fetch` конфликтует с режимом статической оптимизации.
+   - Что проверить: какие именно страницы инициируют `/api/reddit-test` во время build; пометить их `dynamic='force-dynamic'` или перенести fetch на runtime по запросу.
+
+## Актуальные средние риски
+
+4. **Гонки анализа записи**
+   - Где: `InlineEntryForm` fire-and-forget POST `/api/analyze` + cron на `/api/analyze`
+   - Почему: `runAnalysis` берёт entries, где `ai_analyzed_at IS NULL`. При параллельных вызовах возможно двойное обновление/лишняя стоимость токенов.
+   - Что улучшить: “mark before analyze” (атомарно проставлять `ai_analyzed_at` в момент взятия в работу) или вводить флаг `analysis_in_progress`.
+
+5. **Недостаточная валидация JSON тела в некоторых эндпоинтах**
+   - Например: `/api/reactions` принимает `entry_id, emoji` без серверной проверки формата (RLS и CHECK частично спасают).
+   - Что улучшить: zod/valibot на входе, чтобы избегать лишних 500 и обеспечить корректные error messages.
+
+6. **UI навигация без locale-prefixed путей**
+   - Пример: `NotificationBell` пушит `router.push(`/entry/${entryId}`)` без учета locale-префикса.
+   - Что проверить: корректность роутинга на `/en/...` и `/ru/...`.
+
+

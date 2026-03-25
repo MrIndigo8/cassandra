@@ -30,7 +30,7 @@ interface ClusterAIResult {
  * Вызывается по cron
  */
 export async function runClustering(): Promise<{ clusters_found: number; anomalies: number }> {
-  console.log('[Clustering] Начало анализа кластеров...');
+  if (process.env.NODE_ENV !== 'production') console.info('[Clustering] Начало анализа кластеров...');
   
   let clustersFound = 0;
   let anomaliesFound = 0;
@@ -41,7 +41,7 @@ export async function runClustering(): Promise<{ clusters_found: number; anomali
 
   const { data: recentEntries, error: recentError } = await supabase
     .from('entries')
-    .select('id, user_id, ai_images, ai_emotions, ai_geography, ip_geography, timeframe')
+    .select('id, user_id, ai_images, ai_emotions, ai_geography, ip_geography, ip_country_code, timeframe')
     .gte('created_at', fortyEightHoursAgo.toISOString())
     .not('ai_images', 'is', null)
     .neq('is_quarantine', true);
@@ -73,7 +73,7 @@ export async function runClustering(): Promise<{ clusters_found: number; anomali
     .sort((a, b) => b[1].count - a[1].count);
 
   clustersFound = significantImages.length;
-  console.log(`[Clustering] Найдено значимых образов: ${clustersFound}`);
+
 
   // 3. Загружаем baseline (базовую частоту) за 30 дней для сравнения
   const thirtyDaysAgo = new Date();
@@ -109,7 +109,7 @@ export async function runClustering(): Promise<{ clusters_found: number; anomali
     // Аномалия: рост в X раз
     const anomalyFactor = currentData.count / baseline48h;
 
-    console.log(`[Clustering] Образ "${image}": текущая частота ${currentData.count}, норма ${baseline48h.toFixed(1)}, рост ${anomalyFactor.toFixed(1)}x`);
+
 
     // Если текущих упоминаний больше 2 и рост более 2x от нормы
     if (currentData.count > 2 && anomalyFactor > 2.0) {
@@ -119,7 +119,7 @@ export async function runClustering(): Promise<{ clusters_found: number; anomali
       // Расчет intensity_score = (current / baseline) * log(unique_users + 1)
       const intensityScore = anomalyFactor * Math.log(currentData.users.size + 1);
 
-      console.log(`[Clustering] ---> АНОМАЛИЯ обнаружена! Интенсивность: ${intensityScore.toFixed(2)}`);
+      if (process.env.NODE_ENV !== 'production') console.info(`[Clustering] АНОМАЛИЯ обнаружена! Интенсивность: ${intensityScore.toFixed(2)}`);
 
       // Генерация ID кластера на основе базового образа (slugify)
       const clusterId = `cluster_${image.toLowerCase().replace(/[^a-z0-9а-яё]/g, '_')}`;
@@ -127,7 +127,7 @@ export async function runClustering(): Promise<{ clusters_found: number; anomali
       // Если интенсивность > 2.0, подключаем ИИ для прогноза
       let aiAnalysis: ClusterAIResult | null = null;
       if (intensityScore > 2.0 && anthropic) {
-        console.log(`[Clustering] Вызов ИИ для анализа кластера "${image}"...`);
+
         aiAnalysis = await analyzeClusterWithAI(image, currentData, baseline48h, anomalyFactor, recentEntries);
       }
 
@@ -136,7 +136,7 @@ export async function runClustering(): Promise<{ clusters_found: number; anomali
     }
   }
 
-  console.log(`[Clustering] Анализ завершен. Кластеров: ${clustersFound}, Аномалий: ${anomaliesFound}`);
+  if (process.env.NODE_ENV !== 'production') console.info(`[Clustering] Анализ завершен. Кластеров: ${clustersFound}, Аномалий: ${anomaliesFound}`);
   return { clusters_found: clustersFound, anomalies: anomaliesFound };
 }
 
@@ -146,7 +146,7 @@ async function analyzeClusterWithAI(
   data: { count: number; users: Set<string>; entryIds: string[] },
   baseline: number,
   anomalyFactor: number,
-  allEntries: { id: string; ai_geography: string | null; ip_geography: string | null; timeframe: string | null }[]
+  allEntries: { id: string; ai_geography: string | null; ip_geography: string | null; ip_country_code: string | null; timeframe: string | null }[]
 ): Promise<ClusterAIResult | null> {
   try {
     // Собираем контекст из записей этого кластера
@@ -220,20 +220,31 @@ async function analyzeClusterWithAI(
 
 // Собираем географию из двух источников
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function buildGeographyData(entries: any[]): Promise<Record<string, number>> {
+async function buildGeographyData(entries: any[]): Promise<{ countries: Record<string, { count: number; percentage: number }> }> {
   const geoCount: Record<string, number> = {};
+  let total = 0;
   
   for (const entry of entries) {
-    // Приоритет 1: ai_geography (из текста — точнее)
-    const geo = entry.ai_geography || entry.ip_geography;
+    const geo = entry.ip_country_code;
     
     if (geo) {
-      const normalized = geo.trim();
+      const normalized = geo.trim().toUpperCase();
       geoCount[normalized] = (geoCount[normalized] || 0) + 1;
+      total++;
     }
   }
   
-  return geoCount;
+  const countriesData: Record<string, { count: number; percentage: number }> = {};
+  if (total > 0) {
+    for (const [code, count] of Object.entries(geoCount)) {
+      countriesData[code] = {
+        count,
+        percentage: Math.round((count / total) * 100)
+      };
+    }
+  }
+  
+  return { countries: countriesData };
 }
 
 // Вспомогательная функция для сохранения в БД
@@ -245,7 +256,7 @@ async function saveCluster(
   anomalyFactor: number,
   intensityScore: number,
   aiAnalysis: ClusterAIResult | null,
-  allEntries: { id: string; ai_geography: string | null; ip_geography: string | null; timeframe: string | null }[]
+  allEntries: { id: string; ai_geography: string | null; ip_geography: string | null; ip_country_code: string | null; timeframe: string | null }[]
 ) {
   // Собираем geography_data из записей кластера
   const clusterEntries = allEntries.filter(e => data.entryIds.includes(e.id));
@@ -286,6 +297,6 @@ async function saveCluster(
   if (error) {
     console.error(`[Clustering] Ошибка сохранения кластера ${id}:`, error);
   } else {
-    console.log(`[Clustering] Кластер ${id} успешно сохранен/обновлен.`);
+
   }
 }

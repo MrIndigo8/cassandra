@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
 
 interface Comment {
@@ -20,8 +21,10 @@ export default function EntryComments({ entryId, isAuthenticated, currentUsernam
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const supabase = createClient();
+  const t = useTranslations('common');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -29,7 +32,18 @@ export default function EntryComments({ entryId, isAuthenticated, currentUsernam
     // Загрузить комментарии
     fetch(`/api/comments?entry_id=${entryId}`)
       .then(r => r.json())
-      .then(data => setComments(data.data || []));
+      .then(data => {
+        if (data.data) {
+          // Дедупликация при первой загрузке (на всякий случай)
+          const uniqueIds = new Set();
+          const uniqueComments = data.data.filter((c: Comment) => {
+            if (uniqueIds.has(c.id)) return false;
+            uniqueIds.add(c.id);
+            return true;
+          });
+          setComments(uniqueComments);
+        }
+      });
 
     // Realtime подписка
     const channel = supabase
@@ -43,7 +57,16 @@ export default function EntryComments({ entryId, isAuthenticated, currentUsernam
         // Загрузить новый комментарий с автором
         fetch(`/api/comments?entry_id=${entryId}`)
           .then(r => r.json())
-          .then(data => setComments(data.data || []));
+          .then(data => {
+            if (data.data) {
+              setComments(prev => {
+                // Создаем Set всех загруженных новых комментариев, которые есть в prev
+                const existingIds = new Set(prev.map(c => c.id));
+                const newComments = data.data.filter((c: Comment) => !existingIds.has(c.id));
+                return [...prev, ...newComments];
+              });
+            }
+          });
       })
       .subscribe();
 
@@ -53,26 +76,48 @@ export default function EntryComments({ entryId, isAuthenticated, currentUsernam
   const handleSubmit = async () => {
     if (!newComment.trim() || loading) return;
     setLoading(true);
+    setError(null);
+    const commentText = newComment.trim();
 
-    const response = await fetch('/api/comments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ entry_id: entryId, content: newComment.trim() })
-    });
+    try {
+      const response = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entry_id: entryId, content: commentText })
+      });
 
-    if (response.ok) {
+      if (!response.ok) throw new Error('Failed to post comment');
       setNewComment('');
+    } catch (err) {
+      console.error(err);
+      setError(t('errors.generic'));
+      setNewComment(commentText); // Возвращаем текст
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleDelete = async (commentId: string) => {
-    await fetch('/api/comments', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: commentId })
-    });
+    setError(null);
+    
+    // Оптимистичное удаление
+    const previousComments = [...comments];
     setComments(prev => prev.filter(c => c.id !== commentId));
+
+    try {
+      const response = await fetch('/api/comments', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: commentId })
+      });
+
+      if (!response.ok) throw new Error('Failed to delete comment');
+    } catch (err) {
+      console.error(err);
+      alert(t('errors.deleteFailed'));
+      // Откат
+      setComments(previousComments);
+    }
   };
 
   return (
@@ -143,6 +188,11 @@ export default function EntryComments({ entryId, isAuthenticated, currentUsernam
             <p className="text-xs text-gray-400">
               <a href="/login" className="text-green-500 hover:underline">Войдите</a> чтобы комментировать
             </p>
+          )}
+
+          {/* Ошибка */}
+          {error && (
+            <p className="text-xs text-red-500 mt-2">{error}</p>
           )}
         </div>
       )}

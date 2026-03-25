@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { runClustering } from '@/lib/clustering';
+import { verifyCronAuth, unauthorizedResponse } from '@/lib/auth/verifyCron';
 
 export const maxDuration = 60; // Максимальное время выполнения (Vercel Hobby plan = 10-60s)
 
@@ -9,14 +10,8 @@ export const maxDuration = 60; // Максимальное время выпол
  */
 export async function POST(request: Request) {
   try {
-    // В идеале здесь должна быть проверка на авторизацию админа или cron-секрета
-    const authHeader = request.headers.get('authorization');
-    if (
-      process.env.CRON_SECRET &&
-      authHeader !== `Bearer ${process.env.CRON_SECRET}` &&
-      authHeader !== `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`
-    ) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!verifyCronAuth(request)) {
+      return unauthorizedResponse();
     }
 
     const stats = await runClustering();

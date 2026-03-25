@@ -1,12 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import { fetchDreamSubreddits } from '@/lib/external/reddit';
 import { fetchPolymarketEvents } from '@/lib/external/polymarket';
+import { verifyCronAuth } from '@/lib/auth/verifyCron';
 
 export async function POST(request: Request) {
-  // Проверка авторизации для cron
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  if (!verifyCronAuth(request)) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

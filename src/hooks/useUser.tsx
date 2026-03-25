@@ -23,16 +23,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [supabase] = useState(() => createClient());
 
   const fetchProfile = useCallback(async (userId: string) => {
-    console.log('[Auth] fetchProfile INNER start for user:', userId);
+
     try {
-      console.log('[Auth] fetchProfile: making supabase.from("users") request...');
+
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .single();
         
-      console.log('[Auth] fetchProfile: supabase request finished', data?.id, error);
+
       if (error) throw error;
       setProfile(data as CassandraUser);
     } catch (err) {
@@ -44,10 +44,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase]);
 
   useEffect(() => {
-    console.log('[Auth] useEffect mounted');
+
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
-      console.log('[Auth] onAuthStateChange event:', event, session?.user?.id);
+
       
       setUser(session?.user ?? null);
       
@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
-      console.log('[Auth] useEffect unmounted');
+
       subscription.unsubscribe();
     };
   }, [supabase, fetchProfile]);

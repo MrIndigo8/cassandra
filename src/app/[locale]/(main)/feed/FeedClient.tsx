@@ -7,6 +7,8 @@ import { EntryCard, type FeedEntry } from '@/components/EntryCard';
 import { InlineEntryForm } from '@/components/InlineEntryForm';
 import { PushBanner } from '@/components/PushBanner';
 import { useTranslations } from 'next-intl';
+import type { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
+import type { Entry } from '@/types';
 
 type FilterType = 'all' | 'dream' | 'premonition';
 
@@ -20,6 +22,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(initialEntries.length === 20); // Зависит от PAGE_SIZE
+  const [error, setError] = useState<string | null>(null);
 
   const PAGE_SIZE = 20;
   const [supabase] = useState(() => createClient());
@@ -39,9 +42,8 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
           table: 'entries',
           filter: 'is_public=eq.true', // Слушаем только публичные вставки
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        async (payload: any) => {
-          const newEntry = payload.new as import('@/types').Entry; // raw entry
+        async (payload: RealtimePostgresInsertPayload<Entry>) => {
+          const newEntry = payload.new;
           
           let userData = null;
 
@@ -66,8 +68,11 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
             users: userData || null
           };
 
-          // Добавляем в начало списка
-          setEntries((prev) => [fullEntry, ...prev]);
+          // Добавляем в начало списка с дедупликацией
+          setEntries((prev) => {
+            if (prev.some(e => e.id === fullEntry.id)) return prev;
+            return [fullEntry, ...prev];
+          });
         }
       )
       .subscribe();
@@ -104,12 +109,20 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       if (error) throw error;
 
       if (data) {
-        setEntries((prev) => [...prev, ...data as FeedEntry[]]);
+        setEntries((prev) => {
+          // Создаем Set из существующих ID для быстрого поиска
+          const existingIds = new Set(prev.map(e => e.id));
+          // Оставляем только те новые записи, которых еще нет в списке
+          const newEntries = (data as FeedEntry[]).filter(e => !existingIds.has(e.id));
+          return [...prev, ...newEntries];
+        });
         setPage((prev) => prev + 1);
         setHasMore(data.length === PAGE_SIZE);
       }
+      setError(null);
     } catch (err) {
       console.error('Ошибка загрузки ленты:', err);
+      setError(tCommon('errors.loadFailed'));
     } finally {
       setLoadingMore(false);
     }
@@ -143,8 +156,10 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
         setEntries(data as FeedEntry[]);
         setHasMore(data.length === PAGE_SIZE);
       }
+      setError(null);
     } catch (err) {
       console.error('Ошибка фильтрации:', err);
+      setError(tCommon('errors.generic'));
     }
   };
 
@@ -195,8 +210,15 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
         </button>
       </div>
 
-      {/* Сетка карточек */}
-      {filteredEntries.length > 0 ? (
+      {/* Пустое состояние или Ошибка фильтра */}
+      {error && !loadingMore && filteredEntries.length === 0 ? (
+        <div className="card glass text-center py-20 px-6 flex flex-col items-center border-border">
+          <p className="text-red-500 mb-4">{error}</p>
+          <button onClick={() => handleFilterChange(filter)} className="px-6 py-2 rounded-full border border-border text-text-secondary hover:border-primary hover:text-primary transition-colors">
+            {tCommon('errors.tryAgain')}
+          </button>
+        </div>
+      ) : filteredEntries.length > 0 ? (
         <div className="flex flex-col">
           {filteredEntries.map((entry) => (
             <EntryCard key={entry.id} entry={entry} />
@@ -211,24 +233,28 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-text-primary mb-3 line-clamp-2 md:line-clamp-none">{t('empty')}</h2>
-          <p className="text-text-secondary max-w-md mx-auto mb-8">
+          <h2 className="text-2xl font-bold text-text-primary mb-3 line-clamp-2 md:line-clamp-none">
             {filter === 'all' 
-              ? ''
-              : ''}
-          </p>
+              ? t('emptyAll') 
+              : filter === 'dream' 
+                ? t('emptyDreams') 
+                : t('emptyPremonitions')}
+          </h2>
         </div>
       )}
 
-      {/* Кнопка "Загрузить ещё" */}
+      {/* Кнопка "Загрузить ещё" или Ошибка пагинации */}
       {filteredEntries.length > 0 && hasMore && (
-        <div className="mt-12 text-center">
+        <div className="mt-12 text-center flex flex-col items-center gap-4">
+          {error && (
+            <p className="text-red-500 text-sm">{error}</p>
+          )}
           <button
             onClick={loadMore}
             disabled={loadingMore}
             className="px-8 py-3 rounded-full border border-border text-text-secondary hover:border-primary hover:text-primary transition-colors disabled:opacity-50 font-medium"
           >
-            {loadingMore ? tCommon('loading') : t('loadMore')}
+            {loadingMore ? tCommon('loading') : error ? tCommon('errors.tryAgain') : t('loadMore')}
           </button>
         </div>
       )}

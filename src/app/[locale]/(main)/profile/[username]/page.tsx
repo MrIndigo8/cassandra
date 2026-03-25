@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import Image from 'next/image';
-import Link from 'next/link';
+import { Link } from '@/navigation';
+import { notFound } from 'next/navigation';
 import { ProfileEditor } from './ProfileEditor';
 import { LogoutButton } from './LogoutButton';
 import { getTranslations } from 'next-intl/server';

@@ -7,18 +7,18 @@ import { scaleLinear } from 'd3-scale';
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
-// Маппинг названий стран на ISO коды для react-simple-maps
-const countryNameToISO: Record<string, string> = {
-  'Russia': 'RUS', 'United States': 'USA', 'China': 'CHN',
-  'Germany': 'DEU', 'France': 'FRA', 'United Kingdom': 'GBR',
-  'Ukraine': 'UKR', 'Turkey': 'TUR', 'India': 'IND',
-  'Brazil': 'BRA', 'Japan': 'JPN', 'Iran': 'IRN',
-  'Israel': 'ISR', 'Italy': 'ITA', 'Spain': 'ESP',
-  'Poland': 'POL', 'Netherlands': 'NLD', 'Sweden': 'SWE',
-  'Norway': 'NOR', 'Canada': 'CAN', 'Australia': 'AUS',
-  'South Korea': 'KOR', 'Indonesia': 'IDN', 'Pakistan': 'PAK',
-  'Egypt': 'EGY', 'South Africa': 'ZAF', 'Mexico': 'MEX',
-  'Argentina': 'ARG', 'Kazakhstan': 'KAZ', 'Belarus': 'BLR'
+// Маппинг названий стран на ISO Alpha-2 коды
+const countryNameToAlpha2: Record<string, string> = {
+  'Russia': 'RU', 'United States': 'US', 'China': 'CN',
+  'Germany': 'DE', 'France': 'FR', 'United Kingdom': 'GB',
+  'Ukraine': 'UA', 'Turkey': 'TR', 'India': 'IN',
+  'Brazil': 'BR', 'Japan': 'JP', 'Iran': 'IR',
+  'Israel': 'IL', 'Italy': 'IT', 'Spain': 'ES',
+  'Poland': 'PL', 'Netherlands': 'NL', 'Sweden': 'SE',
+  'Norway': 'NO', 'Canada': 'CA', 'Australia': 'AU',
+  'South Korea': 'KR', 'Indonesia': 'ID', 'Pakistan': 'PK',
+  'Egypt': 'EG', 'South Africa': 'ZA', 'Mexico': 'MX',
+  'Argentina': 'AR', 'Kazakhstan': 'KZ', 'Belarus': 'BY'
 };
 
 // ISO код → координаты для маркеров событий
@@ -58,14 +58,14 @@ export default function NoosphereMap() {
     if (!mapData) return '#F3F4F6';
     
     if (activeLayer === 'anxiety') {
-      const isoCode = countryNameToISO[countryName];
-      const score = isoCode ? (mapData.anxietyMap[countryName] || 0) : 0;
+      const alpha2 = countryNameToAlpha2[countryName];
+      const score = alpha2 ? (mapData.anxietyMap[alpha2] || 0) : 0;
       return score > 0 ? anxietyScale(score) : '#F3F4F6';
     }
     
     if (activeLayer === 'activity') {
-      // Маппинг обратный — ищем по названию страны
-      const activityCount = mapData.activityMap[countryName] || 0;
+      const alpha2 = countryNameToAlpha2[countryName];
+      const activityCount = alpha2 ? (mapData.activityMap[alpha2] || 0) : 0;
       return activityCount > 0 ? activityScale(activityCount) : '#F3F4F6';
     }
     

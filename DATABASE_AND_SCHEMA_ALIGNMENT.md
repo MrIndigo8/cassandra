@@ -200,3 +200,62 @@ Realtime subscription на INSERT:
 - `runVerification` использует `profiles` отношение, которого нет в схеме
 - `NoospherePage` ожидает `clusters.geography_data`, а кластеризация не заполняет поле
 
+## Актуальная схема vs код (v2)
+
+Ниже — приоритетное соответствие “текущий код ↔ актуальные миграции”. Предыдущие пункты выше устарели (в текущей версии появилась `type: 'unknown'`, self-report, reactions/comments, `map-data`, и кластеризация теперь заполняет `clusters.geography_data`).
+
+### Добавленные миграциями таблицы/поля (которые сейчас используются)
+
+- `005_user_learning.sql`
+  - `users.dominant_images`, `users.avg_specificity`, `users.avg_lag_days`
+  - используется в `src/lib/learning/index.ts` (`updateUserProfile`)
+- `006_archive.sql`
+  - `historical_cases`
+  - используется в `src/app/[locale]/(main)/archive/*` и `src/app/api/seed/route.ts`
+- `007_self_report.sql`
+  - `self_reports`
+  - расширение `notifications` (добавлены `entry_id`, `action_type`, `scheduled_for`)
+  - используется в `src/app/api/self-report/route.ts` и `src/components/layout/NotificationBell.tsx`
+- `008_external_signals.sql`
+  - `external_signals`
+  - используется в `src/app/api/external-sync/route.ts` и `src/components/ExternalSignals.tsx`
+- `009_comments_reactions.sql`
+  - `comments`, `reactions`
+  - `entries.image_url`
+  - используется в `src/app/api/comments/route.ts`, `src/app/api/reactions/route.ts` и UI `EntryComments/EntryReactions/ImageUpload`
+
+### Ключевые расхождения, которые стоит проверить (критично)
+
+#### 1) `entries.type` CHECK ограничен migration 001
+
+- В `supabase/migrations/001_initial_schema.sql`:
+  - `entries.type TEXT NOT NULL CHECK (type IN ('dream', 'premonition'))`
+- В текущем коде:
+  - `src/app/api/entries/route.ts` вставляет `type: 'unknown'`
+  - `src/lib/claude/parser.ts` допускает `type` из `['dream','premonition','unknown']` через `sanitizeEntryType`
+
+**Следствие:** если CHECK constraint действительно применён как в 001 миграции, INSERT/UPDATE с `unknown` упадёт.
+
+#### 2) Колонки `entries.ip_country_code`, `entries.ip_geography`, `entries.is_quarantine`
+
+- Используются в текущем коде:
+  - `src/app/api/entries/route.ts` вставляет:
+    - `is_quarantine`
+    - `ip_geography`, `ip_country_code`
+  - `src/lib/clustering/index.ts` читает:
+    - `ip_geography`, исключая `is_quarantine=true`
+  - `src/app/api/map-data/route.ts` читает:
+    - `ip_country_code`, `ip_geography`
+
+- Но в миграциях 001–009:
+  - нет `ip_country_code`, `ip_geography`, `is_quarantine` (поиск по миграциям не находит `ip_`/`is_quarantine`).
+
+**Следствие:** при “чистом” применении миграций проект упадёт на runtime при обращениях к этим полям.
+
+### Что сейчас точно согласовано
+
+- `clusters.geography_data JSONB` есть в `004_clusters.sql`, и кластеризация его заполняет (`src/lib/clustering/index.ts`).
+- `comments/reactions` есть в `009_comments_reactions.sql`, и эндпоинты совпадают с RLS-политиками.
+- `self_reports` и расширенные `notifications` есть в `007_self_report.sql`, и UI self-report логически подключён.
+
+

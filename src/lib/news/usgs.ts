@@ -43,7 +43,8 @@ export async function fetchEarthquakes(daysBack: number): Promise<NewsEvent[]> {
     url.searchParams.set('limit', '100');
 
     const response = await fetch(url.toString(), {
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout(5000),
+      next: { revalidate: 3600 }
     });
 
     if (!response.ok) {

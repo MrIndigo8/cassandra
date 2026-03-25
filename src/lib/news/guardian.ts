@@ -24,7 +24,8 @@ export async function fetchGuardianNews(daysBack: number): Promise<NewsEvent[]> 
         'User-Agent': 'CassandraApp/1.0',
         'Accept': 'application/json'
       },
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout(5000),
+      next: { revalidate: 3600 }
     });
     if (!response.ok) {
       const errorText = await response.text();

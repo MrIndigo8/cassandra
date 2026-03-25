@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useUser } from '@/hooks/useUser';
 import { useTranslations } from 'next-intl';
 import ImageUpload from './ImageUpload';
@@ -8,6 +8,7 @@ import ImageUpload from './ImageUpload';
 export function InlineEntryForm() {
   const tFeed = useTranslations('feed');
   const tCommon = useTranslations('common');
+  const tEntry = useTranslations('entry');
   const { profile } = useUser();
   const [content, setContent] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -15,7 +16,28 @@ export function InlineEntryForm() {
   const [error, setError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
+  const formRef = useRef<HTMLDivElement>(null);
+
   const minLength = 30;
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        isExpanded && 
+        content.length === 0 && 
+        !imageUrl && 
+        formRef.current && 
+        !formRef.current.contains(event.target as Node)
+      ) {
+        setIsExpanded(false);
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isExpanded, content, imageUrl]);
 
   const handleSubmit = async () => {
     if (content.length < minLength) return;
@@ -54,7 +76,7 @@ export function InlineEntryForm() {
   };
 
   return (
-    <div className="card glass p-4 mb-6 relative">
+    <div ref={formRef} className="card glass p-4 mb-6 relative">
       <div className="flex gap-4">
         <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0 overflow-hidden text-white font-medium">
           {profile?.avatar_url ? (
@@ -68,7 +90,11 @@ export function InlineEntryForm() {
         </div>
         
         <div className="flex-1">
+          <label htmlFor="entry-content" className="sr-only">
+            {tFeed('placeholder')}
+          </label>
           <textarea
+            id="entry-content"
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onFocus={() => setIsExpanded(true)}
@@ -94,7 +120,7 @@ export function InlineEntryForm() {
           {isExpanded && (
             <div className="flex items-center justify-between mt-4 border-t border-border pt-4">
               <span className={`text-xs ${content.length < minLength ? 'text-text-secondary' : 'text-primary'}`}>
-                {content.length} / {minLength} мин.
+                {content.length} / {minLength} {tEntry('minChars')}
               </span>
               
               <div className="flex gap-2">
@@ -108,6 +134,7 @@ export function InlineEntryForm() {
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting || content.length < minLength}
+                  aria-label={tFeed('submit')}
                   className="px-6 py-2 rounded-full bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? tCommon('loading') : tFeed('submit')}

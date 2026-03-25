@@ -6,7 +6,15 @@
     "error": "An error occurred",
     "save": "Save",
     "cancel": "Cancel",
-    "back": "Back"
+    "back": "Back",
+    "errors": {
+      "generic": "Something went wrong",
+      "tryAgain": "Try again",
+      "loadFailed": "Failed to load data",
+      "deleteFailed": "Failed to delete"
+    },
+    "reaction": "Reaction",
+    "addReaction": "Add reaction"
   },
   "nav": {
     "feed": "Feed",
@@ -24,7 +32,9 @@
       "dreams": "Dreams",
       "premonitions": "Premonitions"
     },
-    "empty": "The noosphere is silent... Be the first to send a signal",
+    "emptyAll": "No entries yet. Be the first to share your signal!",
+    "emptyDreams": "No dreams recorded yet",
+    "emptyPremonitions": "No premonitions recorded yet",
     "loadMore": "Load More",
     "timeAgo": "ago"
   },
@@ -35,7 +45,19 @@
     "shareSignal": "Share Signal",
     "linkCopied": "Link Copied",
     "intensity": "Intensity",
-    "noosphericResonance": "Noospheric Resonance"
+    "noosphericResonance": "Noospheric Resonance",
+    "anonymous": "Anonymous",
+    "readMore": "Read more",
+    "imageAlt": "Entry image",
+    "backToFeed": "Back to feed",
+    "minChars": "min.",
+    "type": {
+      "dream": "Dream",
+      "premonition": "Premonition",
+      "feeling": "Feeling",
+      "vision": "Vision",
+      "unknown": "Unknown"
+    }
   },
   "auth": {
     "login": "Sign In",
@@ -78,6 +100,7 @@
   },
   "noosphere": {
     "title": "Noosphere",
+    "subtitle": "Global collective unconscious tracker",
     "anxietyIndex": "Global Anxiety Index",
     "topImages": "Top Signals Right Now",
     "activeClusters": "Active Signals",
@@ -85,7 +108,22 @@
     "noData": "Not enough data yet",
     "signalLow": "Low",
     "signalMedium": "Medium",
-    "signalHigh": "High"
+    "signalHigh": "High",
+    "last48h": "Over the last 48 hours",
+    "notEnoughSignals": "Not enough signals for statistics yet",
+    "geography": "Anxiety Geography",
+    "activeAnomalies": "Active Anomalies",
+    "signalLevel": "Signal Level",
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "noAnomalies": "No anomalies recorded at the moment",
+    "signal": "Signal",
+    "event": "Event",
+    "accuracy": "Accuracy",
+    "noHistoryYet": "Match history is empty so far",
+    "notDefined": "Undefined",
+    "global": "Global"
   },
   "events": {
     "title": "Events",
@@ -109,10 +147,21 @@
     "levelLow": "Low",
     "levelMedium": "Medium",
     "levelHigh": "High",
-    "signalLabel": "Signal:"
+    "signalLabel": "Signal:",
+    "locations": "Locations",
+    "coverage": "Coverage",
+    "global": "Global",
+    "sourceUsgs": "USGS — earthquakes",
+    "sourceRelief": "ReliefWeb — disasters",
+    "sourceGdelt": "GDELT — global events",
+    "sourcePrefix": "Source:"
   },
   "notifications": {
-    "empty": "All quiet... Write more signals",
+    "empty": "No new notifications",
+    "loading": "Loading notifications...",
+    "errorLoading": "Failed to load notifications",
+    "commented": "commented on your post",
+    "reacted": "reacted to your post",
     "matchFound": "Your signal resonates with a real event 🔮"
   },
   "push": {

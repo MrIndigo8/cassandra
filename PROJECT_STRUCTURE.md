@@ -228,3 +228,74 @@
 - `src/lib/supabase/server.ts` используется в Server Components/Route handlers (через cookies).
 - Service-role операции в cron (`/api/analyze`, `src/lib/clustering`, `src/lib/verification`) используют service key либо `createClient` из `@supabase/supabase-js`.
 
+## Актуальная структура (v2, с i18n и расширенными фичами)
+
+Ниже — приоритетное описание актуального состояния репозитория. Предыдущие секции выше частично устарели (до внедрения `src/app/[locale]/...`, реакций/комментариев, self-report, архивов и внешнего синка).
+
+### i18n (Next-intl) и маршруты
+
+- UI-страницы лежат под `src/app/[locale]/...`
+- `src/app/[locale]/layout.tsx`
+  - `NextIntlClientProvider`
+  - подгружает JSON сообщения из `messages/${locale}.json`
+  - оборачивает в `AuthProvider`
+- `src/middleware.ts`
+  - объединяет `updateSession(request)` (Supabase auth + редиректы)
+  - и `next-intl/middleware` для локали (`/en` префикс по правилу localePrefix)
+- Основные страницы:
+  - `src/app/[locale]/page.tsx` — лендинг + `LanguageRedirect`
+  - `src/app/[locale]/(auth)/login/page.tsx`
+  - `src/app/[locale]/(auth)/register/page.tsx`
+  - `src/app/[locale]/(main)/feed/page.tsx` (+ `FeedClient.tsx`)
+  - `src/app/[locale]/(main)/entry/[id]/page.tsx` (+ `EntryClient.tsx`)
+  - `src/app/[locale]/(main)/noosphere/page.tsx` (+ `NoosphereMap.tsx`)
+  - `src/app/[locale]/(main)/events/page.tsx`
+  - `src/app/[locale]/(main)/archive/page.tsx` (+ `ArchiveClient.tsx`)
+  - `src/app/[locale]/(main)/profile/[username]/page.tsx` (заглушка)
+
+### Ключевые UI-компоненты
+
+- `src/components/layout/Header.tsx` — навигация, аватар, язык
+- `src/components/layout/NotificationBell.tsx` — уведомления (fetch + realtime INSERT)
+- `src/components/LanguageRedirect.tsx`
+- `src/components/PushBanner.tsx` — push permission + баннер
+- `src/components/InlineEntryForm.tsx` — создание записи (POST `/api/entries`)
+- `src/components/ImageUpload.tsx` — загрузка картинки в Supabase Storage (`entry-images`)
+- `src/components/EntryCard.tsx` — карточка + реакции
+- `src/components/EntryReactions.tsx` — реакции (toggle через `/api/reactions`)
+- `src/components/EntryComments.tsx` — комментарии (GET/POST/DELETE `/api/comments` + realtime)
+- `src/components/ExternalSignals.tsx` — внешние сигналы (cron sync через `/api/external-sync`)
+
+### API Routes (расширенный список)
+
+- `src/app/api/entries/route.ts` — POST создание entry (ip_* + anti-spam + self-report reminder)
+- `src/app/api/analyze/route.ts` — POST обработка ИИ (runAnalysis)
+- `src/app/api/verify/route.ts` — POST верификация (runVerification)
+- `src/app/api/cluster/route.ts` — POST кластеризация (runClustering)
+- `src/app/api/map-data/route.ts` — GET данные для ноосферы:
+  - `activityMap` из `entries.ip_country_code`
+  - `anxietyMap` из `clusters.geography_data`
+  - `worldEvents` из `fetchAllEvents(2)`
+- `src/app/api/reactions/route.ts` — GET/POST реакции
+- `src/app/api/comments/route.ts` — GET/POST/DELETE комментарии
+- `src/app/api/external-sync/route.ts` — POST sync external_signals + GET latest
+- `src/app/api/reddit-test/route.ts` — GET тест сборки Reddit RSS
+- `src/app/api/seed/route.ts` — GET seed исторических кейсов (historical_cases)
+- `src/app/api/self-report/route.ts` — POST self-report (обновление entry + users + notifications)
+- `src/app/api/og/route.tsx` — Edge OG generation
+- `src/app/api/auth/callback/route.ts` — OAuth callback
+- `src/app/api/cron/route.ts` — заглушка (часть фич работает через `vercel.json` cron)
+- `src/app/api/news-test/route.ts` — GET тест/статистика по событиям
+
+### Supabase migrations (001–009)
+
+- 001: базовые таблицы + RLS (users/entries/matches/clusters/notifications)
+- 002: AI-поля `entries` + direction/timeframe/quality
+- 003: верификация полей (entries.is_verified, entries.best_match_score, users.rating/role поля)
+- 004: расширение `clusters` (geography_data, прогнозы, метрики)
+- 005: самообучение профиля (`dominant_images`, `avg_specificity`, `avg_lag_days`)
+- 006: `historical_cases` (архив)
+- 007: `self_reports` + расширение `notifications` для action_type/scheduled_for
+- 008: `external_signals`
+- 009: `comments`, `reactions`, `entries.image_url`
+

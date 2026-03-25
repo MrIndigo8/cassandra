@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { fetchAllEvents } from '@/lib/news';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const events = await fetchAllEvents(3);
