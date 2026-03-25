@@ -1,10 +1,17 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getRoleForUser } from '@/lib/scoring';
 import { NextResponse } from 'next/server';
+import { selfReportSchema } from '@/lib/validations';
 
 export async function POST(request: Request) {
   try {
-    const { entry_id, status } = await request.json();
+    const body = await request.json();
+    const parsed = selfReportSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
+    }
+    const { entry_id, status } = parsed.data;
+
     const supabase = createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     

@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { commentSchema, deleteCommentSchema } from '@/lib/validations';
 
 // GET — получить комментарии к записи
 export async function GET(request: Request) {
@@ -23,10 +24,12 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { entry_id, content } = await request.json();
-  if (!content || content.trim().length === 0) {
-    return Response.json({ error: 'Пустой комментарий' }, { status: 400 });
+  const body = await request.json();
+  const parsed = commentSchema.safeParse(body);
+  if (!parsed.success) {
+    return Response.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
   }
+  const { entry_id, content } = parsed.data;
 
   const { data, error } = await supabase
     .from('comments')
@@ -44,7 +47,12 @@ export async function DELETE(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { id } = await request.json();
+  const body = await request.json();
+  const parsed = deleteCommentSchema.safeParse(body);
+  if (!parsed.success) {
+    return Response.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
+  }
+  const { id } = parsed.data;
   const { error } = await supabase
     .from('comments')
     .delete()

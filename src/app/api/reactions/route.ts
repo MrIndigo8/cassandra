@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { reactionSchema } from '@/lib/validations';
 
 // GET — получить реакции к записи
 export async function GET(request: Request) {
@@ -39,7 +40,12 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { entry_id, emoji } = await request.json();
+  const body = await request.json();
+  const parsed = reactionSchema.safeParse(body);
+  if (!parsed.success) {
+    return Response.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
+  }
+  const { entry_id, emoji } = parsed.data;
 
   // Проверяем есть ли уже такая реакция
   const { data: existing } = await supabase

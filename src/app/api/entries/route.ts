@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { checkSpam } from '@/lib/antispam';
+import { createEntrySchema } from '@/lib/validations';
 
 export async function POST(req: Request) {
   try {
@@ -57,14 +58,13 @@ export async function POST(req: Request) {
 
     const ipGeography = countryCode ? (countryNames[countryCode] || countryCode) : null;
 
-    // 2. Получаем данные
+    // 2. Получаем и валидируем данные
     const body = await req.json();
-    const { content, is_public = true, image_url } = body;
-
-    // Валидация
-    if (!content || content.length < 30) {
-      return NextResponse.json({ error: 'Текст сигнала слишком короткий (минимум 30 символов)' }, { status: 400 });
+    const parsed = createEntrySchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
+    const { content, is_public, image_url } = parsed.data;
 
     // 2.5 Антиспам-проверка
     const spamResult = await checkSpam(user.id, content);

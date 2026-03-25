@@ -1,5 +1,5 @@
-// Допустимые значения type в БД (entries.type CHECK constraint)
-const ALLOWED_ENTRY_TYPES = ['dream', 'premonition', 'unknown'] as const;
+// Допустимые значения type в БД (entries.type CHECK constraint — миграция 010)
+const ALLOWED_ENTRY_TYPES = ['dream', 'premonition', 'unknown', 'feeling', 'vision'] as const;
 
 function sanitizeEntryType(type: string): string {
   return ALLOWED_ENTRY_TYPES.includes(type as typeof ALLOWED_ENTRY_TYPES[number])
