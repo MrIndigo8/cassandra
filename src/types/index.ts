@@ -57,7 +57,7 @@ export interface ExternalSignal {
   content: string;
   url: string | null;
   published_at: string;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 }
 

@@ -1,6 +1,5 @@
 import { Metadata } from 'next';
 import { Link } from '@/navigation';
-import { notFound } from 'next/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { EntryClient } from './EntryClient';
 import type { Entry } from '@/types';
@@ -10,7 +9,7 @@ interface Props {
 }
 
 // Расширенный тип, включающий автора
-interface EntryWithUser extends Entry {
+interface EntryWithUser extends Omit<Entry, 'users'> {
   users: {
     username: string;
     avatar_url: string | null;

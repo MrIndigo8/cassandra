@@ -37,7 +37,7 @@ export async function GET() {
 
     const anxietyMap: Record<string, number> = {};
     clusters?.forEach(cluster => {
-      const geoData = cluster.geography_data as any;
+      const geoData = cluster.geography_data as { countries?: Record<string, { count: number; percentage: number }> } | null;
       if (geoData?.countries) {
         Object.entries(geoData.countries).forEach(([country]) => {
           anxietyMap[country] = Math.max(

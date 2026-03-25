@@ -28,7 +28,7 @@ const formatDateShort = (dateString: string) => {
 };
 
 /** Иконка источника события */
-function SourceIcon({ source, translations }: { source: string, translations: any }) {
+function SourceIcon({ source, translations }: { source: string, translations: (key: string) => string }) {
   const s = source?.toLowerCase() || '';
   if (s.includes('usgs') || s.includes('earthquake')) {
     return <span title={translations('sourceUsgs')} className="text-base">🌍</span>;
