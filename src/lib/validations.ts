@@ -31,7 +31,7 @@ export const deleteCommentSchema = z.object({
 export const selfReportSchema = z.object({
   entry_id: z.string().uuid('Некорректный entry_id'),
   status: z.enum(['fulfilled', 'partial', 'not_fulfilled', 'unsure'], {
-    errorMap: () => ({ message: 'Недопустимый статус. Допустимые: fulfilled, partial, not_fulfilled, unsure' }),
+    message: 'Недопустимый статус. Допустимые: fulfilled, partial, not_fulfilled, unsure',
   }),
   description: z.string().max(1000).optional(),
 });
