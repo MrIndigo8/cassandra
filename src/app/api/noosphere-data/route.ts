@@ -64,14 +64,33 @@ export async function GET() {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    const { data: anxietyRaw, error: anxietyError } = await supabase
-      .from('entries')
-      .select('id, anxiety_score, ip_country_code, emotional_intensity, sensory_data, created_at')
-      .not('ip_country_code', 'is', null)
-      .not('anxiety_score', 'is', null)
-      .gte('created_at', sevenDaysAgo)
-      .gte('anxiety_score', 3)
-      .eq('is_public', true);
+    let anxietyRaw: AnxietyEntry[] | null = null;
+    let anxietyError: { message: string } | null = null;
+    {
+      const res = await supabase
+        .from('entries')
+        .select('id, anxiety_score, ip_country_code, emotional_intensity, sensory_data, created_at')
+        .not('ip_country_code', 'is', null)
+        .not('anxiety_score', 'is', null)
+        .gte('created_at', sevenDaysAgo)
+        .gte('anxiety_score', 3)
+        .eq('is_public', true);
+      if (res.error?.message?.includes('sensory_data does not exist')) {
+        const fallback = await supabase
+          .from('entries')
+          .select('id, anxiety_score, ip_country_code, emotional_intensity, created_at')
+          .not('ip_country_code', 'is', null)
+          .not('anxiety_score', 'is', null)
+          .gte('created_at', sevenDaysAgo)
+          .gte('anxiety_score', 3)
+          .eq('is_public', true);
+        anxietyRaw = ((fallback.data || []) as AnxietyEntry[]).map((row) => ({ ...row, sensory_data: null }));
+        anxietyError = fallback.error ? { message: fallback.error.message } : null;
+      } else {
+        anxietyRaw = (res.data || []) as AnxietyEntry[];
+        anxietyError = res.error ? { message: res.error.message } : null;
+      }
+    }
 
     if (anxietyError) {
       return NextResponse.json({ error: anxietyError.message }, { status: 500 });
@@ -115,18 +134,42 @@ export async function GET() {
       avgAnxiety: Math.round((country.totalAnxiety / country.entryCount) * 10) / 10,
     }));
 
-    const { data: confirmedRaw, error: confirmedError } = await supabase
-      .from('matches')
-      .select(`
+    let confirmedRaw: MatchRow[] | null = null;
+    let confirmedError: { message: string } | null = null;
+    {
+      const res = await supabase
+        .from('matches')
+        .select(`
         id, similarity_score, event_title, event_description, event_url, event_date, matched_symbols, created_at,
         entries:entry_id (
           id, geography_iso, anxiety_score, threat_type, ai_summary, content, sensory_data, ip_country_code, created_at,
           users:user_id (username, avatar_url)
         )
       `)
-      .gt('similarity_score', 0.6)
-      .order('created_at', { ascending: false })
-      .limit(20);
+        .gt('similarity_score', 0.6)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (res.error?.message?.includes('sensory_data does not exist')) {
+        const fallback = await supabase
+          .from('matches')
+          .select(`
+            id, similarity_score, event_title, event_description, event_url, event_date, matched_symbols, created_at,
+            entries:entry_id (
+              id, geography_iso, anxiety_score, threat_type, ai_summary, content, ip_country_code, created_at,
+              users:user_id (username, avatar_url)
+            )
+          `)
+          .gt('similarity_score', 0.6)
+          .order('created_at', { ascending: false })
+          .limit(20);
+        confirmedRaw = (fallback.data || []) as MatchRow[];
+        confirmedError = fallback.error ? { message: fallback.error.message } : null;
+      } else {
+        confirmedRaw = (res.data || []) as MatchRow[];
+        confirmedError = res.error ? { message: res.error.message } : null;
+      }
+    }
 
     if (confirmedError) {
       return NextResponse.json({ error: confirmedError.message }, { status: 500 });
