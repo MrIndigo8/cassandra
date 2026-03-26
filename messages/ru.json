@@ -249,6 +249,23 @@
     "wrote": "написал",
     "daysBeforeEvent": "{days} дн. до события"
   },
+  "match": {
+    "confirmed": "Совпадение подтверждено ({score}%)",
+    "daysBefore": "За {days} дн. до события",
+    "event": "Реальное событие",
+    "source": "Источник",
+    "sensoryMatch": "Совпавшие ощущения",
+    "eventNature": "Характер события",
+    "exactGeo": "Точное совпадение",
+    "seeAllMatches": "Все совпадения",
+    "openSource": "Открыть источник",
+    "showOnMap": "Показать на карте",
+    "yourEntry": "Ваша запись",
+    "matchedWith": "Совпало с",
+    "explanation": "Как связано",
+    "entryFrom": "Запись от {date}",
+    "eventFrom": "Событие от {date}"
+  },
   "notifications": {
     "empty": "Нет новых уведомлений",
     "loading": "Загрузка уведомлений...",

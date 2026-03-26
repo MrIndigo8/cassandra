@@ -5,6 +5,8 @@ import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 're
 import { scaleLinear } from 'd3-scale';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/navigation';
+import { useSearchParams } from 'next/navigation';
+import MatchDetail from '@/components/MatchDetail';
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
@@ -25,6 +27,8 @@ type MatchPoint = {
   avgScore: number;
   topMatch: {
     id: string;
+    entryId: string;
+    geographyIso: string;
     score: number;
     eventTitle: string;
     eventDate: string;
@@ -107,6 +111,7 @@ function isoToFlag(iso: string): string {
 
 export default function NoosphereClient() {
   const t = useTranslations('noosphere');
+  const searchParams = useSearchParams();
   const [data, setData] = useState<NoosphereApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -120,6 +125,8 @@ export default function NoosphereClient() {
   const [mapCenter, setMapCenter] = useState<[number, number]>([10, 20]);
   const [mapZoom, setMapZoom] = useState(1);
   const mapRef = useRef<HTMLDivElement | null>(null);
+  const highlightISO = (searchParams.get('highlight') || '').toUpperCase();
+  const highlightMatchId = searchParams.get('match');
 
   const heatScale = useMemo(
     () =>
@@ -164,6 +171,20 @@ export default function NoosphereClient() {
     const id = setInterval(fetchData, 5 * 60 * 1000);
     return () => clearInterval(id);
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!data) return;
+    if (highlightISO) {
+      focusCountry(highlightISO);
+    }
+    if (highlightMatchId) {
+      const pointed = data.matchPoints.find((point) => point.topMatch.id === highlightMatchId);
+      if (pointed) {
+        setSelectedMatch(pointed);
+        focusCountry(pointed.iso);
+      }
+    }
+  }, [data, highlightISO, highlightMatchId]);
 
   const focusCountry = (iso: string) => {
     const coords = ISO_TO_COORDS[iso];
@@ -232,14 +253,15 @@ export default function NoosphereClient() {
                   const iso = COUNTRY_NAME_TO_ISO[countryName];
                   const anxietyCountry = iso ? anxietyByIso.get(iso) : undefined;
                   const rising = iso ? data.risingZones.includes(iso) : false;
+                  const highlighted = Boolean(iso && highlightISO && iso === highlightISO);
                   return (
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
                       fill={anxietyCountry ? heatScale(anxietyCountry.avgAnxiety) : '#f8fafc'}
-                      stroke={rising ? '#f97316' : '#d1d5db'}
-                      strokeWidth={rising ? 1.5 : 0.6}
-                      className={rising ? 'animate-border-pulse' : ''}
+                      stroke={highlighted ? '#f59e0b' : rising ? '#f97316' : '#d1d5db'}
+                      strokeWidth={highlighted ? 2 : rising ? 1.5 : 0.6}
+                      className={highlighted || rising ? 'animate-border-pulse' : ''}
                       style={{
                         default: { outline: 'none', transition: 'fill 150ms ease' },
                         hover: {
@@ -374,6 +396,9 @@ export default function NoosphereClient() {
         </div>
 
         <h2 className="text-lg font-semibold text-gray-900 mb-3">{t('sections.confirmedMatches')}</h2>
+        <div className="mb-2">
+          <Link href="/events?tab=matches" className="text-sm text-primary hover:underline">All matches</Link>
+        </div>
         {confirmedMatches.length === 0 ? (
           <p className="text-sm text-gray-500">{t('noMatchesYet')}</p>
         ) : (
@@ -403,16 +428,36 @@ export default function NoosphereClient() {
 
       {selectedMatch ? (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setSelectedMatch(null)}>
-          <div className="bg-white rounded-2xl p-5 max-w-xl w-full" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-semibold">{selectedMatch.iso} — {selectedMatch.topMatch.eventTitle}</h3>
-            <p className="text-sm text-gray-600 mt-2">{selectedMatch.topMatch.entryContent || selectedMatch.topMatch.entrySummary}</p>
-            <p className="text-sm text-gray-600 mt-2">{t('matchCard.match', { score: Math.round(selectedMatch.topMatch.score * 100) })}</p>
-            <p className="text-sm text-gray-600">{t('matchCard.author')}: {selectedMatch.topMatch.authorUsername} {t('matchCard.from')} {selectedMatch.topMatch.authorCountry || '--'}</p>
-            {selectedMatch.topMatch.eventUrl ? (
-              <a className="btn-secondary inline-flex mt-4" href={selectedMatch.topMatch.eventUrl} target="_blank" rel="noreferrer">
-                {t('matchCard.openEvent')}
-              </a>
-            ) : null}
+          <div className="bg-white rounded-2xl p-5 max-w-xl w-full relative" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="absolute top-3 right-3 text-gray-400 hover:text-gray-700" onClick={() => setSelectedMatch(null)}>×</button>
+            <MatchDetail
+              variant="compact"
+              match={{
+                id: selectedMatch.topMatch.id,
+                entry_id: selectedMatch.topMatch.entryId,
+                similarity_score: selectedMatch.topMatch.score,
+                matched_symbols: selectedMatch.topMatch.matchedSymbols || [],
+                event_title: selectedMatch.topMatch.eventTitle,
+                event_description: null,
+                event_url: selectedMatch.topMatch.eventUrl,
+                event_date: selectedMatch.topMatch.eventDate,
+                created_at: selectedMatch.topMatch.eventDate,
+                geography_match: {
+                  entry_geography: selectedMatch.topMatch.authorCountry,
+                  event_geography: selectedMatch.topMatch.geographyIso || selectedMatch.iso,
+                  match_type: 'region',
+                },
+              }}
+              entry={{
+                id: selectedMatch.topMatch.entryId,
+                title: selectedMatch.topMatch.entrySummary,
+                content: selectedMatch.topMatch.entryContent || selectedMatch.topMatch.entrySummary,
+                type: 'vision',
+                created_at: selectedMatch.topMatch.eventDate,
+              }}
+              showEntryLink
+              showEventLink
+            />
           </div>
         </div>
       ) : null}

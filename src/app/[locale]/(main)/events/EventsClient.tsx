@@ -3,9 +3,11 @@
 import { useMemo, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS, ru } from 'date-fns/locale';
-import { Activity, ChevronDown, ChevronUp, ExternalLink, GitCompare, Link2 } from 'lucide-react';
+import { Activity, ChevronDown, ChevronUp, GitCompare } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/navigation';
+import MatchDetail from '@/components/MatchDetail';
+import { useSearchParams } from 'next/navigation';
 
 type Tab = 'matches' | 'worldEvents';
 type Section = 'relevant' | 'all';
@@ -24,6 +26,22 @@ interface InitialMatch {
   id: string;
   similarity_score: number;
   matched_symbols: string[] | null;
+  verification_data?: {
+    sensory_match?: {
+      matched_sensations?: string[];
+      event_nature?: string;
+      mapping_quality?: string;
+    };
+    geography_match?: {
+      entry_geography?: string | null;
+      event_geography?: string;
+      match_type?: string;
+    };
+    temporal_match?: {
+      days_before_event?: number;
+      is_prediction?: boolean;
+    };
+  } | null;
   event_title: string;
   event_description: string | null;
   event_url: string | null;
@@ -35,6 +53,7 @@ interface InitialMatch {
         title: string | null;
         content: string;
         type: string;
+        geography_iso?: string | null;
         ai_summary: string | null;
         created_at: string;
         users:
@@ -59,6 +78,7 @@ interface InitialMatch {
         title: string | null;
         content: string;
         type: string;
+        geography_iso?: string | null;
         ai_summary: string | null;
         created_at: string;
         users:
@@ -117,21 +137,6 @@ interface EventsClientProps {
   initialClusters: InitialCluster[];
 }
 
-function roleBadgeClass(role: string): string {
-  if (role === 'oracle') return 'badge-role-oracle';
-  if (role === 'sensitive') return 'badge-role-sensitive';
-  if (role === 'chronicler') return 'badge-role-chronicler';
-  return 'badge-role-observer';
-}
-
-function typeBadgeClass(type: string): string {
-  if (type === 'dream') return 'badge-type-dream';
-  if (type === 'premonition') return 'badge-type-premonition';
-  if (type === 'feeling') return 'badge-type-feeling';
-  if (type === 'vision') return 'badge-type-vision';
-  return 'badge-type-unknown';
-}
-
 function categoryDotClass(category: string | null): string {
   const c = (category || '').toLowerCase();
   if (c.includes('conflict') || c.includes('war')) return 'category-dot-conflict';
@@ -143,12 +148,12 @@ function categoryDotClass(category: string | null): string {
 
 export default function EventsClient({ initialMatches, initialClusters }: EventsClientProps) {
   const tEvents = useTranslations('events');
-  const tEntry = useTranslations('entry');
-  const tRole = useTranslations('role');
   const locale = useLocale();
+  const searchParams = useSearchParams();
   const dateLocale = locale === 'en' ? enUS : ru;
+  const initialTab = searchParams.get('tab') === 'worldEvents' ? 'worldEvents' : 'matches';
 
-  const [tab, setTab] = useState<Tab>('matches');
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [section, setSection] = useState<Section>('relevant');
   const [events, setEvents] = useState<EventApiItem[]>([]);
   const [page, setPage] = useState(1);
@@ -270,69 +275,53 @@ export default function EventsClient({ initialMatches, initialClusters }: Events
               <p className="text-sm text-gray-500 mt-2">{tEvents('noMatchesHint')}</p>
             </div>
           ) : (
-            normalizedMatches.map(({ match, entry, user }) => {
-              const score = Math.round((match.similarity_score || 0) * 100);
-              const high = score > 80;
-              const symbols = (match.matched_symbols || [])
-                .map((s) => s.trim())
-                .filter(Boolean)
-                .slice(0, 3);
-              const role = user?.role || 'observer';
-              const entryTitle = entry?.title || entry?.content?.slice(0, 60) || '...';
+            normalizedMatches.map(({ match, entry }) => {
               return (
                 <article key={match.id} className="match-card">
-                  <div className="match-card-grid">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs text-primary font-semibold">
-                          {(user?.username || 'A')[0].toUpperCase()}
-                        </div>
-                        <span className="text-sm font-medium text-gray-900 truncate">{user?.username || tEntry('anonymous')}</span>
-                        <span className={roleBadgeClass(role)}>{tRole(role as 'observer' | 'chronicler' | 'sensitive' | 'oracle')}</span>
-                      </div>
-                      <Link href={`/entry/${entry?.id || ''}`} className="font-semibold text-gray-900 hover:text-primary line-clamp-2 break-words">
-                        {entryTitle}
-                      </Link>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className={typeBadgeClass(entry?.type || 'unknown')}>
-                          {tEntry(`type.${entry?.type || 'unknown'}`)}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {entry?.created_at
-                            ? formatDistanceToNow(new Date(entry.created_at), { addSuffix: true, locale: dateLocale })
-                            : ''}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-center gap-2 min-w-[88px]">
-                      <div className={`match-score-circle ${high ? 'match-score-high' : 'match-score-medium'}`}>{score}%</div>
-                      <Link2 size={16} className="text-gray-400" />
-                      <div className="flex flex-wrap justify-center gap-1 max-w-[220px]">
-                        {symbols.map((symbol) => (
-                          <span key={symbol} className="symbol-tag max-w-[200px] truncate">{symbol}</span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 break-words line-clamp-6">{match.event_title}</p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {formatDistanceToNow(new Date(match.event_date), { addSuffix: true, locale: dateLocale })}
-                      </p>
-                      {match.event_url && (
-                        <a
-                          href={match.event_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-2 inline-flex items-center gap-1 text-sm text-primary hover:underline"
-                        >
-                          <ExternalLink size={14} />
-                          {tEvents('eventSource')}
-                        </a>
-                      )}
-                    </div>
-                  </div>
+                  <MatchDetail
+                    variant="compact"
+                    match={{
+                      id: match.id,
+                      entry_id: entry?.id || '',
+                      similarity_score: match.similarity_score,
+                      matched_symbols: match.matched_symbols || [],
+                      event_title: match.event_title,
+                      event_description: match.event_description,
+                      event_url: match.event_url,
+                      event_date: match.event_date,
+                      created_at: match.created_at,
+                      sensory_match: match.verification_data?.sensory_match
+                        ? {
+                            matched_sensations: match.verification_data.sensory_match.matched_sensations || [],
+                            event_nature: match.verification_data.sensory_match.event_nature || '',
+                            mapping_quality: match.verification_data.sensory_match.mapping_quality || '',
+                          }
+                        : undefined,
+                      geography_match: {
+                        entry_geography: entry?.geography_iso || null,
+                        event_geography:
+                          match.verification_data?.geography_match?.event_geography ||
+                          entry?.geography_iso ||
+                          '',
+                        match_type: match.verification_data?.geography_match?.match_type || 'region',
+                      },
+                      temporal_match: match.verification_data?.temporal_match
+                        ? {
+                            days_before_event: match.verification_data.temporal_match.days_before_event || 0,
+                            is_prediction: Boolean(match.verification_data.temporal_match.is_prediction),
+                          }
+                        : undefined,
+                    }}
+                    entry={entry ? {
+                      id: entry.id,
+                      title: entry.title,
+                      content: entry.content,
+                      type: entry.type,
+                      created_at: entry.created_at,
+                    } : undefined}
+                    showEntryLink
+                    showEventLink
+                  />
                 </article>
               );
             })

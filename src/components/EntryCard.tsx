@@ -7,6 +7,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/navigation';
 import CardComments from './CardComments';
 import EntryLike from './EntryLike';
+import MatchDetail from './MatchDetail';
+import type { MatchData } from '@/lib/matches';
 
 export interface FeedEntry {
   id: string;
@@ -28,6 +30,7 @@ export interface FeedEntry {
   likes_count: number;
   comments_count: number;
   user_liked: boolean;
+  match?: MatchData | null;
 }
 
 interface EntryCardProps {
@@ -52,6 +55,7 @@ interface EntryCardProps {
   likes_count: number;
   comments_count: number;
   user_liked: boolean;
+  match?: MatchData | null;
 }
 
 function avatarColor(username: string): string {
@@ -66,6 +70,7 @@ export function EntryCard({
   likes_count,
   comments_count,
   user_liked,
+  match,
 }: EntryCardProps) {
   const tEntry = useTranslations('entry');
   const tRole = useTranslations('role');
@@ -201,12 +206,7 @@ export function EntryCard({
           </div>
         )}
 
-        {entry.is_verified && entry.best_match_score && entry.best_match_score > 0.6 && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 mt-3 inline-flex items-center gap-2 text-emerald-700 text-sm">
-            <span className="animate-pulse">✓</span>
-            <span>{tEntry('verified', { score: Math.round(entry.best_match_score * 100) })}</span>
-          </div>
-        )}
+        {match && <MatchDetail match={match} variant="inline" showEntryLink={false} showEventLink />}
       </div>
 
       <div className="flex items-center gap-6 pt-3 mt-3 border-t border-border/20">

@@ -249,6 +249,23 @@
     "wrote": "wrote",
     "daysBeforeEvent": "{days}d before event"
   },
+  "match": {
+    "confirmed": "Match confirmed ({score}%)",
+    "daysBefore": "{days}d before event",
+    "event": "Real-world event",
+    "source": "Source",
+    "sensoryMatch": "Matched sensations",
+    "eventNature": "Event nature",
+    "exactGeo": "Exact match",
+    "seeAllMatches": "All matches",
+    "openSource": "Open source",
+    "showOnMap": "Show on map",
+    "yourEntry": "Your entry",
+    "matchedWith": "Matched with",
+    "explanation": "How it's related",
+    "entryFrom": "Entry from {date}",
+    "eventFrom": "Event from {date}"
+  },
   "notifications": {
     "empty": "No new notifications",
     "loading": "Loading notifications...",

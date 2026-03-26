@@ -10,8 +10,8 @@ export default async function EventsPage() {
     .from('matches')
     .select(`
       id, event_title, event_description, event_url, event_date,
-      similarity_score, matched_symbols, created_at,
-      entries:entry_id (id, title, content, type, ai_images, ai_summary, created_at,
+      similarity_score, matched_symbols, verification_data, created_at,
+      entries:entry_id (id, title, content, type, geography_iso, ai_images, ai_summary, created_at,
         users:user_id (id, username, avatar_url, role, rating_score))
     `)
     .gt('similarity_score', 0.6)

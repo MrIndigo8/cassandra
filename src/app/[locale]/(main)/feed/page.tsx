@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { FeedClient } from './FeedClient';
 import type { FeedEntry } from '@/components/EntryCard';
+import { getMatchesForEntries } from '@/lib/matches';
 
 // Force dynamic so that the feed is always fresh on load
 export const dynamic = 'force-dynamic';
@@ -111,6 +112,16 @@ export default async function FeedPage() {
     user_liked: likedByCurrentUser.has(entry.id),
   }));
 
-  return <FeedClient initialEntries={initialEntries} />;
+  const verifiedIds = initialEntries
+    .filter((entry) => entry.is_verified && (entry.best_match_score || 0) > 0.6)
+    .map((entry) => entry.id);
+  const matches = verifiedIds.length > 0 ? await getMatchesForEntries(verifiedIds, supabase) : [];
+  const matchByEntry = new Map(matches.map((m) => [m.entry_id, m]));
+  const enrichedEntries = initialEntries.map((entry) => ({
+    ...entry,
+    match: matchByEntry.get(entry.id) || null,
+  }));
+
+  return <FeedClient initialEntries={enrichedEntries} />;
 }
 

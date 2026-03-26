@@ -5,6 +5,8 @@ import { Link } from '@/navigation';
 import type { Entry } from '@/types';
 import EntryComments from '@/components/EntryComments';
 import EntryReactions from '@/components/EntryReactions';
+import MatchDetail from '@/components/MatchDetail';
+import type { MatchData } from '@/lib/matches';
 import { useUser } from '@/hooks/useUser';
 import { useTranslations } from 'next-intl';
 
@@ -18,9 +20,10 @@ interface EntryWithUser extends Omit<Entry, 'users'> {
 
 interface EntryClientProps {
   entry: EntryWithUser;
+  match: MatchData | null;
 }
 
-export function EntryClient({ entry }: EntryClientProps) {
+export function EntryClient({ entry, match }: EntryClientProps) {
   const t = useTranslations('entry');
   const [copied, setCopied] = useState(false);
   const { user, profile } = useUser();
@@ -108,6 +111,31 @@ export function EntryClient({ entry }: EntryClientProps) {
             alt={t('imageAlt')}
             className="mt-6 w-full max-h-96 object-cover rounded-xl border border-gray-100"
           />
+        )}
+
+        {match && (
+          <div className="mt-6">
+            <MatchDetail
+              match={match}
+              entry={{
+                id: entry.id,
+                title: entry.title,
+                content: entry.content,
+                type: entry.type,
+                created_at: entry.created_at,
+                user: entry.users
+                  ? {
+                      username: entry.users.username,
+                      avatar_url: entry.users.avatar_url,
+                      role: 'observer',
+                    }
+                  : undefined,
+              }}
+              variant="full"
+              showEntryLink={false}
+              showEventLink
+            />
+          </div>
         )}
 
         <div className="mt-4 pt-4 border-t border-gray-100">

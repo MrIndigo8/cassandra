@@ -9,6 +9,7 @@ import { PushBanner } from '@/components/PushBanner';
 import { useTranslations } from 'next-intl';
 import type { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 import type { Entry, User } from '@/types';
+import { getMatchesForEntries } from '@/lib/matches';
 
 type FilterType = 'all' | 'dream' | 'premonition';
 type BaseEntryRow = {
@@ -119,7 +120,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       likes_count: likesCount.get(entry.id) || 0,
       comments_count: commentsCount.get(entry.id) || 0,
       user_liked: likedSet.has(entry.id),
-    }));
+    })).map((entry) => ({ ...entry, match: null }));
   };
 
   // Supabase Realtime подписка
@@ -223,10 +224,19 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
 
       if (data) {
         const hydrated = await hydrateEntries(data as BaseEntryRow[]);
+        const verifiedIds = hydrated
+          .filter((entry) => entry.is_verified && (entry.best_match_score || 0) > 0.6)
+          .map((entry) => entry.id);
+        const matches = verifiedIds.length ? await getMatchesForEntries(verifiedIds, supabase) : [];
+        const matchByEntry = new Map(matches.map((m) => [m.entry_id, m]));
+        const hydratedWithMatches = hydrated.map((entry) => ({
+          ...entry,
+          match: matchByEntry.get(entry.id) || null,
+        }));
 
         setEntries((prev) => {
           const existingIds = new Set(prev.map(e => e.id));
-          const newEntries = hydrated.filter(e => !existingIds.has(e.id));
+          const newEntries = hydratedWithMatches.filter(e => !existingIds.has(e.id));
           return [...prev, ...newEntries];
         });
         setPage((prev) => prev + 1);
@@ -268,8 +278,17 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
 
       if (data) {
         const hydrated = await hydrateEntries(data as BaseEntryRow[]);
-        setEntries(hydrated);
-        setHasMore(hydrated.length === PAGE_SIZE);
+        const verifiedIds = hydrated
+          .filter((entry) => entry.is_verified && (entry.best_match_score || 0) > 0.6)
+          .map((entry) => entry.id);
+        const matches = verifiedIds.length ? await getMatchesForEntries(verifiedIds, supabase) : [];
+        const matchByEntry = new Map(matches.map((m) => [m.entry_id, m]));
+        const hydratedWithMatches = hydrated.map((entry) => ({
+          ...entry,
+          match: matchByEntry.get(entry.id) || null,
+        }));
+        setEntries(hydratedWithMatches);
+        setHasMore(hydratedWithMatches.length === PAGE_SIZE);
       }
       setError(null);
     } catch (err) {
@@ -357,6 +376,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
               likes_count={entry.likes_count ?? 0}
               comments_count={entry.comments_count ?? 0}
               user_liked={Boolean(entry.user_liked)}
+              match={entry.match || null}
             />
           ))}
         </div>

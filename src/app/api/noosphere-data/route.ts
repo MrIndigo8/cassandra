@@ -182,6 +182,8 @@ export async function GET() {
       avgScore: number;
       topMatch: {
         id: string;
+        entryId: string;
+        geographyIso: string;
         score: number;
         eventTitle: string;
         eventDate: string;
@@ -218,6 +220,8 @@ export async function GET() {
           avgScore: 0,
           topMatch: {
             id: match.id,
+            entryId: entry.id,
+            geographyIso: iso,
             score,
             eventTitle: match.event_title || '',
             eventDate: eventDateRaw,
@@ -239,6 +243,8 @@ export async function GET() {
       if (score > g.topMatch.score) {
         g.topMatch = {
           id: match.id,
+          entryId: entry.id,
+          geographyIso: iso,
           score,
           eventTitle: match.event_title || '',
           eventDate: eventDateRaw,

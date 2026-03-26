@@ -3,6 +3,7 @@ import { Link } from '@/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { EntryClient } from './EntryClient';
 import type { Entry } from '@/types';
+import { getMatchForEntry } from '@/lib/matches';
 
 interface Props {
   params: { id: string };
@@ -86,6 +87,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function EntryPage({ params }: Props) {
   const entry = await getEntry(params.id);
+  const supabase = createServerSupabaseClient();
+  const match = entry ? await getMatchForEntry(entry.id, supabase) : null;
 
   if (!entry) {
     return (
@@ -107,5 +110,5 @@ export default async function EntryPage({ params }: Props) {
     );
   }
 
-  return <EntryClient entry={entry} />;
+  return <EntryClient entry={entry} match={match} />;
 }
