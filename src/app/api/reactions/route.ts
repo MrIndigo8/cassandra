@@ -5,6 +5,7 @@ import { reactionSchema } from '@/lib/validations';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const entryId = searchParams.get('entry_id');
+  const type = searchParams.get('type');
   if (!entryId) return Response.json({ error: 'entry_id required' }, { status: 400 });
 
   const supabase = createServerSupabaseClient();
@@ -16,6 +17,15 @@ export async function GET(request: Request) {
     .eq('entry_id', entryId);
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
+
+  if (type === 'like') {
+    const likes = data?.filter((r) => r.emoji === 'like') || [];
+    const userLiked = user ? likes.some((r) => r.user_id === user.id) : false;
+    return Response.json({
+      likes_count: likes.length,
+      user_liked: userLiked,
+    });
+  }
 
   // Группируем по эмодзи
   const grouped: Record<string, { count: number; hasMyReaction: boolean }> = {};
@@ -58,13 +68,15 @@ export async function POST(request: Request) {
 
   if (existing) {
     // Убираем реакцию
-    await supabase.from('reactions').delete().eq('id', existing.id);
+    const { error: deleteError } = await supabase.from('reactions').delete().eq('id', existing.id);
+    if (deleteError) return Response.json({ error: deleteError.message }, { status: 500 });
     return Response.json({ action: 'removed' });
   } else {
     // Добавляем реакцию
-    await supabase.from('reactions').insert({
+    const { error: insertError } = await supabase.from('reactions').insert({
       entry_id, user_id: user.id, emoji
     });
+    if (insertError) return Response.json({ error: insertError.message }, { status: 500 });
     return Response.json({ action: 'added' });
   }
 }

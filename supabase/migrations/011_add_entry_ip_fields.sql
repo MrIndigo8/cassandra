@@ -44,12 +44,27 @@ CREATE INDEX IF NOT EXISTS idx_entries_is_quarantine
 -- поэтому дополнительно создаём security-barrier view для публичного доступа.
 
 CREATE OR REPLACE VIEW entries_public AS
-  SELECT 
-    id, user_id, type, title, content, 
-    analysis, symbols, emotions, archetypes,
-    is_precognitive, is_public, is_anonymous,
+  SELECT
+    id,
+    user_id,
+    type,
+    title,
+    content,
+    image_url,
+    ai_summary,
+    ai_images,
+    ai_emotions,
+    ai_scale,
+    ai_geography,
+    ai_specificity,
+    is_verified,
+    best_match_score,
+    is_public,
+    is_anonymous,
     is_quarantine,
-    created_at, updated_at, verified_at
+    view_count,
+    created_at,
+    updated_at
   FROM entries
   WHERE is_public = true;
 

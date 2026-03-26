@@ -8,9 +8,33 @@ import { InlineEntryForm } from '@/components/InlineEntryForm';
 import { PushBanner } from '@/components/PushBanner';
 import { useTranslations } from 'next-intl';
 import type { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
-import type { Entry } from '@/types';
+import type { Entry, User } from '@/types';
 
 type FilterType = 'all' | 'dream' | 'premonition';
+type BaseEntryRow = {
+  id: string;
+  type: string;
+  title: string | null;
+  content: string;
+  image_url: string | null;
+  is_verified: boolean | null;
+  best_match_score: number | null;
+  view_count: number | null;
+  created_at: string;
+  users: {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+    role: string | null;
+    rating_score: number | null;
+  } | {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+    role: string | null;
+    rating_score: number | null;
+  }[] | null;
+};
 
 interface FeedClientProps {
   initialEntries: FeedEntry[];
@@ -29,6 +53,74 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
   const { user, profile } = useUser();
   const t = useTranslations('feed');
   const tCommon = useTranslations('common');
+  const tf = (key: string, fallback: string) => {
+    try {
+      return t(key);
+    } catch {
+      return fallback;
+    }
+  };
+
+  const hydrateEntries = async (baseRows: BaseEntryRow[]): Promise<FeedEntry[]> => {
+    const entryIds = baseRows.map((e) => e.id);
+    if (entryIds.length === 0) return [];
+
+    const [likesRes, commentsRes, likedRes] = await Promise.all([
+      supabase
+        .from('reactions')
+        .select('entry_id')
+        .eq('emoji', 'like')
+        .in('entry_id', entryIds),
+      supabase
+        .from('comments')
+        .select('entry_id')
+        .in('entry_id', entryIds),
+      user
+        ? supabase
+            .from('reactions')
+            .select('entry_id')
+            .eq('user_id', user.id)
+            .eq('emoji', 'like')
+            .in('entry_id', entryIds)
+        : Promise.resolve({ data: [] as Array<{ entry_id: string }> }),
+    ]);
+
+    const likesCount = new Map<string, number>();
+    const commentsCount = new Map<string, number>();
+    const likedSet = new Set<string>();
+
+    likesRes.data?.forEach((row: { entry_id: string }) => {
+      likesCount.set(row.entry_id, (likesCount.get(row.entry_id) || 0) + 1);
+    });
+
+    commentsRes.data?.forEach((row: { entry_id: string }) => {
+      commentsCount.set(row.entry_id, (commentsCount.get(row.entry_id) || 0) + 1);
+    });
+
+    likedRes.data?.forEach((row: { entry_id: string }) => likedSet.add(row.entry_id));
+
+    return baseRows.map((entry) => ({
+      id: entry.id,
+      type: entry.type,
+      title: entry.title,
+      content: entry.content,
+      image_url: entry.image_url,
+      is_verified: Boolean(entry.is_verified),
+      best_match_score: entry.best_match_score,
+      view_count: entry.view_count ?? 0,
+      created_at: entry.created_at,
+      user: {
+        id: (Array.isArray(entry.users) ? entry.users[0]?.id : entry.users?.id) || '',
+        username: (Array.isArray(entry.users) ? entry.users[0]?.username : entry.users?.username) || 'anonymous',
+        avatar_url: (Array.isArray(entry.users) ? entry.users[0]?.avatar_url : entry.users?.avatar_url) || null,
+        role: (Array.isArray(entry.users) ? entry.users[0]?.role : entry.users?.role) || 'observer',
+        rating_score: Number((Array.isArray(entry.users) ? entry.users[0]?.rating_score : entry.users?.rating_score) || 0),
+      },
+      likes_count: likesCount.get(entry.id) || 0,
+      comments_count: commentsCount.get(entry.id) || 0,
+      user_liked: likedSet.has(entry.id),
+    }));
+  };
 
   // Supabase Realtime подписка
   useEffect(() => {
@@ -50,22 +142,42 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
           // Оптимизация N+1: если это наша запись, берем данные из профиля
           if (user && profile && newEntry.user_id === user.id) {
             userData = {
+              id: user.id,
               username: profile.username,
-              avatar_url: profile.avatar_url
+              avatar_url: profile.avatar_url,
+              role: (profile as User & { role?: string }).role || 'observer',
+              rating_score: Number((profile as User & { rating_score?: number }).rating_score || 0),
             };
           } else {
             // Иначе делаем запрос (один)
             const { data } = await supabase
               .from('users')
-              .select('username, avatar_url')
+              .select('id, username, avatar_url, role, rating_score')
               .eq('id', newEntry.user_id)
               .single();
             userData = data;
           }
 
           const fullEntry: FeedEntry = {
-            ...newEntry,
-            users: userData || null
+            id: newEntry.id,
+            type: newEntry.type,
+            title: newEntry.title,
+            content: newEntry.content,
+            image_url: newEntry.image_url || null,
+            is_verified: Boolean((newEntry as Entry & { is_verified?: boolean }).is_verified),
+            best_match_score: (newEntry as Entry & { best_match_score?: number | null }).best_match_score ?? null,
+            view_count: (newEntry as Entry & { view_count?: number | null }).view_count ?? 0,
+            created_at: newEntry.created_at,
+            user: {
+              id: userData?.id || newEntry.user_id,
+              username: userData?.username || 'anonymous',
+              avatar_url: userData?.avatar_url || null,
+              role: userData?.role || 'observer',
+              rating_score: Number(userData?.rating_score || 0),
+            },
+            likes_count: 0,
+            comments_count: 0,
+            user_liked: false,
           };
 
           // Добавляем в начало списка с дедупликацией
@@ -93,8 +205,9 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       let query = supabase
         .from('entries')
         .select(`
-          *,
-          users:user_id (username, avatar_url)
+          id, type, title, content, image_url, is_verified, best_match_score,
+          view_count, created_at,
+          users:user_id (id, username, avatar_url, role, rating_score)
         `)
         .eq('is_public', true)
         .order('created_at', { ascending: false })
@@ -109,15 +222,15 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       if (error) throw error;
 
       if (data) {
+        const hydrated = await hydrateEntries(data as BaseEntryRow[]);
+
         setEntries((prev) => {
-          // Создаем Set из существующих ID для быстрого поиска
           const existingIds = new Set(prev.map(e => e.id));
-          // Оставляем только те новые записи, которых еще нет в списке
-          const newEntries = (data as FeedEntry[]).filter(e => !existingIds.has(e.id));
+          const newEntries = hydrated.filter(e => !existingIds.has(e.id));
           return [...prev, ...newEntries];
         });
         setPage((prev) => prev + 1);
-        setHasMore(data.length === PAGE_SIZE);
+        setHasMore(hydrated.length === PAGE_SIZE);
       }
       setError(null);
     } catch (err) {
@@ -138,8 +251,9 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       let query = supabase
         .from('entries')
         .select(`
-          *,
-          users:user_id (username, avatar_url)
+          id, type, title, content, image_url, is_verified, best_match_score,
+          view_count, created_at,
+          users:user_id (id, username, avatar_url, role, rating_score)
         `)
         .eq('is_public', true)
         .order('created_at', { ascending: false })
@@ -153,8 +267,9 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       if (error) throw error;
 
       if (data) {
-        setEntries(data as FeedEntry[]);
-        setHasMore(data.length === PAGE_SIZE);
+        const hydrated = await hydrateEntries(data as BaseEntryRow[]);
+        setEntries(hydrated);
+        setHasMore(hydrated.length === PAGE_SIZE);
       }
       setError(null);
     } catch (err) {
@@ -167,7 +282,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
   const filteredEntries = entries.filter(e => filter === 'all' || e.type === filter);
 
   return (
-    <div className="max-w-[680px] mx-auto py-6 px-4">
+    <div className="max-w-2xl mx-auto py-6 px-4">
       {/* Баннер утренних напоминаний */}
       <PushBanner />
 
@@ -178,35 +293,33 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-none">
         <button
           onClick={() => handleFilterChange('all')}
-          className={`px-6 py-2 rounded-full border text-sm font-bold uppercase tracking-wider transition-colors shrink-0 ${
+          className={`rounded-full px-4 py-2 text-sm font-medium transition-colors shrink-0 ${
             filter === 'all' 
-              ? 'bg-primary text-white border-primary' 
-              : 'bg-surface text-text-secondary border-border hover:border-text-secondary/50'
+              ? 'bg-primary text-white'
+              : 'bg-white border border-gray-200 text-gray-600 hover:border-primary/50'
           }`}
         >
-          {t('filters.all')}
+          {tf('allSignals', tf('filters.all', 'All'))}
         </button>
         <button
           onClick={() => handleFilterChange('dream')}
-          className={`px-6 py-2 rounded-full border text-sm font-bold uppercase tracking-wider transition-colors shrink-0 flex items-center gap-2 ${
+          className={`rounded-full px-4 py-2 text-sm font-medium transition-colors shrink-0 ${
             filter === 'dream' 
-              ? 'bg-[#EFF6FF] text-secondary border-[#BAE6FD]' 
-              : 'bg-surface text-text-secondary border-border hover:border-[#BAE6FD]'
+              ? 'bg-primary text-white'
+              : 'bg-white border border-gray-200 text-gray-600 hover:border-primary/50'
           }`}
         >
-          <span className={`w-2 h-2 rounded-full ${filter === 'dream' ? 'bg-secondary' : 'bg-border'}`}></span>
-          {t('filters.dreams')}
+          {tf('dreams', tf('filters.dreams', 'Dreams'))}
         </button>
         <button
           onClick={() => handleFilterChange('premonition')}
-          className={`px-6 py-2 rounded-full border text-sm font-bold uppercase tracking-wider transition-colors shrink-0 flex items-center gap-2 ${
+          className={`rounded-full px-4 py-2 text-sm font-medium transition-colors shrink-0 ${
             filter === 'premonition' 
-              ? 'bg-[#ECFDF5] text-primary border-[#A7F3D0]' 
-              : 'bg-surface text-text-secondary border-border hover:border-[#A7F3D0]'
+              ? 'bg-primary text-white'
+              : 'bg-white border border-gray-200 text-gray-600 hover:border-primary/50'
           }`}
         >
-          <span className={`w-2 h-2 rounded-full ${filter === 'premonition' ? 'bg-primary' : 'bg-border'}`}></span>
-          {t('filters.premonitions')}
+          {tf('premonitions', tf('filters.premonitions', 'Premonitions'))}
         </button>
       </div>
 
@@ -219,7 +332,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
           </button>
         </div>
       ) : filteredEntries.length > 0 ? (
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-4">
           {filteredEntries.map((entry) => (
             <EntryCard
               key={entry.id}
@@ -229,17 +342,17 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
                 title: entry.title,
                 content: entry.content,
                 image_url: entry.image_url || null,
-                is_verified: Boolean((entry as FeedEntry & { is_verified?: boolean }).is_verified),
-                best_match_score: (entry as FeedEntry & { best_match_score?: number | null }).best_match_score ?? null,
-                view_count: (entry as FeedEntry & { view_count?: number | null }).view_count ?? 0,
+                is_verified: entry.is_verified,
+                best_match_score: entry.best_match_score,
+                view_count: entry.view_count ?? 0,
                 created_at: entry.created_at,
               }}
               user={{
-                id: entry.user_id,
-                username: entry.users?.username || 'anonymous',
-                avatar_url: entry.users?.avatar_url || null,
-                role: entry.users?.role || 'observer',
-                rating_score: Number(entry.users?.rating_score || 0),
+                id: entry.user.id,
+                username: entry.user.username || 'anonymous',
+                avatar_url: entry.user.avatar_url || null,
+                role: entry.user.role || 'observer',
+                rating_score: Number(entry.user.rating_score || 0),
               }}
               likes_count={entry.likes_count ?? 0}
               comments_count={entry.comments_count ?? 0}
@@ -258,10 +371,10 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
           </div>
           <h2 className="text-2xl font-bold text-text-primary mb-3 line-clamp-2 md:line-clamp-none">
             {filter === 'all' 
-              ? t('emptyAll') 
+              ? tf('empty', t('emptyAll')) 
               : filter === 'dream' 
-                ? t('emptyDreams') 
-                : t('emptyPremonitions')}
+                ? tf('emptyDreams', t('emptyDreams')) 
+                : tf('emptyPremonitions', t('emptyPremonitions'))}
           </h2>
         </div>
       )}
@@ -277,8 +390,20 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
             disabled={loadingMore}
             className="px-8 py-3 rounded-full border border-border text-text-secondary hover:border-primary hover:text-primary transition-colors disabled:opacity-50 font-medium"
           >
-            {loadingMore ? tCommon('loading') : error ? tCommon('errors.tryAgain') : t('loadMore')}
+            {loadingMore ? tCommon('loading') : error ? tCommon('errors.tryAgain') : tf('loadMore', t('loadMore'))}
           </button>
+        </div>
+      )}
+      {loadingMore && (
+        <div className="mt-6 space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-2xl border border-gray-100 p-5">
+              <div className="h-4 w-1/3 skeleton mb-3" />
+              <div className="h-3 w-full skeleton mb-2" />
+              <div className="h-3 w-5/6 skeleton mb-2" />
+              <div className="h-3 w-2/3 skeleton" />
+            </div>
+          ))}
         </div>
       )}
     </div>

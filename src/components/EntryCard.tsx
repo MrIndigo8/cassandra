@@ -1,26 +1,33 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS, ru } from 'date-fns/locale';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/navigation';
-import type { Entry } from '@/types';
-import { useUser } from '@/hooks/useUser';
-import EntryComments from './EntryComments';
+import CardComments from './CardComments';
+import EntryLike from './EntryLike';
 
-export interface FeedEntry extends Omit<Entry, 'users'> {
-  users: {
-    id?: string;
+export interface FeedEntry {
+  id: string;
+  type: string;
+  title: string | null;
+  content: string;
+  image_url: string | null;
+  is_verified: boolean;
+  best_match_score: number | null;
+  view_count: number;
+  created_at: string;
+  user: {
+    id: string;
     username: string;
     avatar_url: string | null;
-    role?: string | null;
-    rating_score?: number | null;
-  } | null;
-  likes_count?: number | null;
-  comments_count?: number | null;
-  user_liked?: boolean | null;
-  view_count?: number | null;
+    role: string;
+    rating_score: number;
+  };
+  likes_count: number;
+  comments_count: number;
+  user_liked: boolean;
 }
 
 interface EntryCardProps {
@@ -53,37 +60,6 @@ function avatarColor(username: string): string {
   return colors[hash % colors.length];
 }
 
-function EntryLike({
-  initialCount,
-  initialLiked,
-  onClick,
-}: {
-  initialCount: number;
-  initialLiked: boolean;
-  onClick?: () => void;
-}) {
-  const [liked, setLiked] = useState(initialLiked);
-  const [count, setCount] = useState(initialCount);
-
-  const handleToggle = () => {
-    setLiked((prev) => !prev);
-    setCount((prev) => (liked ? Math.max(0, prev - 1) : prev + 1));
-    onClick?.();
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={handleToggle}
-      className={`inline-flex items-center gap-1.5 text-sm transition-colors ${liked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
-      aria-pressed={liked}
-    >
-      <span>{liked ? '❤️' : '🤍'}</span>
-      <span>{count}</span>
-    </button>
-  );
-}
-
 export function EntryCard({
   entry,
   user,
@@ -95,10 +71,12 @@ export function EntryCard({
   const tRole = useTranslations('role');
   const tActions = useTranslations('actions');
   const locale = useLocale();
-  const { user: currentUser, profile } = useUser();
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [localCommentsCount, setLocalCommentsCount] = useState(comments_count);
+  const [localViewCount, setLocalViewCount] = useState(entry.view_count || 0);
   const [linkCopied, setLinkCopied] = useState(false);
+  const cardRef = useRef<HTMLElement | null>(null);
+  const viewTrackedRef = useRef(false);
 
   const dateLocale = locale === 'en' ? enUS : ru;
   const timeAgo = formatDistanceToNow(new Date(entry.created_at), { addSuffix: true, locale: dateLocale });
@@ -128,8 +106,42 @@ export function EntryCard({
     setTimeout(() => setLinkCopied(false), 1600);
   };
 
+  useEffect(() => {
+    const target = cardRef.current;
+    if (!target || viewTrackedRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (!first?.isIntersecting || viewTrackedRef.current) return;
+        viewTrackedRef.current = true;
+
+        // fire-and-forget tracking once per card mount
+        fetch('/api/views', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ entry_id: entry.id }),
+        })
+          .then(async (res) => {
+            if (!res.ok) return;
+            const data = await res.json();
+            if (typeof data?.view_count === 'number') {
+              setLocalViewCount(data.view_count);
+            }
+          })
+          .catch(() => {});
+
+        observer.disconnect();
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [entry.id]);
+
   return (
-    <article className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all duration-200">
+    <article ref={cardRef} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all duration-200">
       <header className="flex items-start gap-3">
         <div className={`w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white font-semibold ${avatarColor(user.username)}`}>
           {user.avatar_url ? (
@@ -197,7 +209,7 @@ export function EntryCard({
 
       <div className="flex items-center gap-6 pt-3 mt-3 border-t border-border/20">
         <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-          <EntryLike initialCount={likes_count} initialLiked={user_liked} />
+          <EntryLike entryId={entry.id} initialCount={likes_count} initialLiked={user_liked} />
         </div>
 
         <button
@@ -215,7 +227,7 @@ export function EntryCard({
 
         <span className="inline-flex items-center gap-1.5 text-sm text-gray-500">
           <span>👁</span>
-          <span>{entry.view_count || 0}</span>
+          <span>{localViewCount}</span>
         </span>
 
         <button type="button" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700" onClick={handleShare}>
@@ -226,14 +238,12 @@ export function EntryCard({
         {linkCopied && <span className="text-xs text-primary">{tEntry('linkCopied')}</span>}
       </div>
 
-      <div className={`overflow-hidden transition-all duration-300 ${isCommentsOpen ? 'max-h-[520px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
-        <EntryComments
-          entryId={entry.id}
-          isAuthenticated={!!currentUser}
-          currentUsername={profile?.username}
-          onCountChange={setLocalCommentsCount}
-        />
-      </div>
+      <CardComments
+        entryId={entry.id}
+        isOpen={isCommentsOpen}
+        commentCount={localCommentsCount}
+        onCountChange={setLocalCommentsCount}
+      />
     </article>
   );
 }

@@ -8,23 +8,109 @@ export const dynamic = 'force-dynamic';
 export default async function FeedPage() {
   const supabase = createServerSupabaseClient();
 
-  // Загружаем начальные 20 записей (только публичные) + джоиним таблицу users для получения автора
-  const { data: initialEntries, error } = await supabase
+  const { data: entries, error } = await supabase
     .from('entries')
     .select(`
-      *,
-      users:user_id (username, avatar_url)
+      id, type, title, content, image_url, is_verified, best_match_score,
+      view_count, created_at,
+      users:user_id (id, username, avatar_url, role, rating_score)
     `)
     .eq('is_public', true)
     .order('created_at', { ascending: false })
-    .limit(20);
+    .range(0, 19);
 
   if (error) {
     console.error('Ошибка загрузки ленты на сервере:', error);
   }
 
-  return (
-    <FeedClient initialEntries={(initialEntries as FeedEntry[]) || []} />
-  );
+  const baseEntries = ((entries || []) as unknown as Array<{
+    id: string;
+    type: string;
+    title: string | null;
+    content: string;
+    image_url: string | null;
+    is_verified: boolean | null;
+    best_match_score: number | null;
+    view_count: number | null;
+    created_at: string;
+    users: {
+      id: string;
+      username: string;
+      avatar_url: string | null;
+      role: string | null;
+      rating_score: number | null;
+    } | {
+      id: string;
+      username: string;
+      avatar_url: string | null;
+      role: string | null;
+      rating_score: number | null;
+    }[] | null;
+  }>);
+
+  const entryIds = baseEntries.map((e) => e.id);
+  const likesCountByEntry = new Map<string, number>();
+  const commentsCountByEntry = new Map<string, number>();
+  const likedByCurrentUser = new Set<string>();
+
+  if (entryIds.length > 0) {
+    const { data: likesRows } = await supabase
+      .from('reactions')
+      .select('entry_id')
+      .eq('emoji', 'like')
+      .in('entry_id', entryIds);
+
+    likesRows?.forEach((row) => {
+      likesCountByEntry.set(row.entry_id, (likesCountByEntry.get(row.entry_id) || 0) + 1);
+    });
+
+    const { data: commentsRows } = await supabase
+      .from('comments')
+      .select('entry_id')
+      .in('entry_id', entryIds);
+
+    commentsRows?.forEach((row) => {
+      commentsCountByEntry.set(row.entry_id, (commentsCountByEntry.get(row.entry_id) || 0) + 1);
+    });
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const { data: likedRows } = await supabase
+        .from('reactions')
+        .select('entry_id')
+        .eq('user_id', user.id)
+        .eq('emoji', 'like')
+        .in('entry_id', entryIds);
+
+      likedRows?.forEach((row) => likedByCurrentUser.add(row.entry_id));
+    }
+  }
+
+  const initialEntries: FeedEntry[] = baseEntries.map((entry) => ({
+    id: entry.id,
+    type: entry.type,
+    title: entry.title,
+    content: entry.content,
+    image_url: entry.image_url,
+    is_verified: Boolean(entry.is_verified),
+    best_match_score: entry.best_match_score,
+    view_count: entry.view_count ?? 0,
+    created_at: entry.created_at,
+    user: {
+      id: (Array.isArray(entry.users) ? entry.users[0]?.id : entry.users?.id) || '',
+      username: (Array.isArray(entry.users) ? entry.users[0]?.username : entry.users?.username) || 'anonymous',
+      avatar_url: (Array.isArray(entry.users) ? entry.users[0]?.avatar_url : entry.users?.avatar_url) || null,
+      role: (Array.isArray(entry.users) ? entry.users[0]?.role : entry.users?.role) || 'observer',
+      rating_score: Number((Array.isArray(entry.users) ? entry.users[0]?.rating_score : entry.users?.rating_score) || 0),
+    },
+    likes_count: likesCountByEntry.get(entry.id) || 0,
+    comments_count: commentsCountByEntry.get(entry.id) || 0,
+    user_liked: likedByCurrentUser.has(entry.id),
+  }));
+
+  return <FeedClient initialEntries={initialEntries} />;
 }
 

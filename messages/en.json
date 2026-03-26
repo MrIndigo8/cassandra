@@ -27,15 +27,21 @@
   "feed": {
     "placeholder": "What did you dream about or what do you feel...",
     "submit": "Send Signal",
+    "allSignals": "All signals",
+    "dreams": "Dreams",
+    "premonitions": "Premonitions",
     "filters": {
       "all": "All Signals",
       "dreams": "Dreams",
       "premonitions": "Premonitions"
     },
+    "empty": "No entries yet. Share your signal!",
     "emptyAll": "No entries yet. Be the first to share your signal!",
     "emptyDreams": "No dreams recorded yet",
-    "emptyPremonitions": "No premonitions recorded yet",
-    "loadMore": "Load More",
+    "emptyPremonitions": "No premonitions yet",
+    "loadMore": "Load more",
+    "loading": "Loading...",
+    "backToFeed": "Back to feed",
     "timeAgo": "ago"
   },
   "entry": {
@@ -45,6 +51,8 @@
     "shareSignal": "Share Signal",
     "linkCopied": "Link Copied",
     "intensity": "Intensity",
+    "verified": "Match confirmed ({score}%)",
+    "share": "Share",
     "noosphericResonance": "Noospheric Resonance",
     "anonymous": "Anonymous",
     "readMore": "Read more",
@@ -56,8 +64,31 @@
       "premonition": "Premonition",
       "feeling": "Feeling",
       "vision": "Vision",
-      "unknown": "Unknown"
+      "unknown": "Signal"
     }
+  },
+  "role": {
+    "observer": "Observer",
+    "chronicler": "Chronicler",
+    "sensitive": "Sensitive",
+    "oracle": "Oracle"
+  },
+  "comments": {
+    "placeholder": "Write a comment...",
+    "send": "Send",
+    "showAll": "Show all ({count})",
+    "empty": "No comments yet",
+    "error": "Failed to send",
+    "openThread": "Open thread",
+    "authRequired": "Sign in to comment",
+    "anonymous": "Anonymous",
+    "you": "You"
+  },
+  "actions": {
+    "like": "Like",
+    "comment": "Comments",
+    "views": "{count} views",
+    "share": "Share"
   },
   "auth": {
     "login": "Sign In",
