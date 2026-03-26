@@ -12,16 +12,16 @@ export default async function HomePage() {
     <div className="min-h-screen flex flex-col">
       <LanguageRedirect />
       {/* Навигация */}
-      <header className="border-b border-void-border/50 backdrop-blur-sm bg-void/50 sticky top-0 z-50">
+      <header className="border-b border-gray-100 backdrop-blur-sm bg-white/90 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-aurora flex items-center justify-center" aria-hidden="true">
               <span className="text-white font-bold text-sm">К</span>
             </div>
-            <span className="text-xl font-bold text-mist">Кассандра</span>
+            <span className="text-xl font-bold text-gray-900">Кассандра</span>
           </div>
           <nav className="flex items-center gap-4">
-            <Link href="/login" className="text-mist-dim hover:text-mist transition-colors">
+            <Link href="/login" className="text-gray-500 hover:text-gray-900 transition-colors">
               {t('login')}
             </Link>
             <Link href="/register" className="btn-primary text-sm">
@@ -35,22 +35,22 @@ export default async function HomePage() {
       <main className="flex-1 flex flex-col items-center justify-center px-4 text-center">
         <div className="max-w-3xl mx-auto">
           {/* Бейдж */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cassandra-900/50 border border-cassandra-700/30 mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gray-50 border border-gray-200 mb-8">
             <span className="w-2 h-2 rounded-full bg-accent animate-pulse-slow" aria-hidden="true" />
-            <span className="text-sm text-cassandra-300">
+            <span className="text-sm text-gray-600">
               {t('badge')}
             </span>
           </div>
 
           {/* Заголовок */}
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
-            <span className="text-mist">{t('title1')}</span>
+            <span className="text-gray-700">{t('title1')}</span>
             <br />
             <span className="text-gradient">{t('title2')}</span>
           </h1>
 
           {/* Подзаголовок */}
-          <p className="text-lg sm:text-xl text-mist-dim max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto mb-10 leading-relaxed">
             {t('desc')}
           </p>
 
@@ -65,7 +65,7 @@ export default async function HomePage() {
           </div>
 
           {/* Дисклеймер */}
-          <p className="text-xs text-mist-faint max-w-md mx-auto">
+          <p className="text-xs text-gray-400 max-w-md mx-auto">
             {t('disclaimer')}
           </p>
         </div>
@@ -78,7 +78,7 @@ export default async function HomePage() {
       {/* Как это работает */}
       <section id="how-it-works" className="py-24 px-4">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-16 text-mist">
+          <h2 className="text-3xl font-bold text-center mb-16 text-gray-900">
             {t('howItWorks')}
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
@@ -87,8 +87,8 @@ export default async function HomePage() {
               <div className="w-14 h-14 rounded-xl bg-dream/10 border border-dream/20 flex items-center justify-center mx-auto mb-4 group-hover:shadow-glow-sm transition-shadow" aria-hidden="true">
                 <span className="text-2xl">🌙</span>
               </div>
-              <h3 className="text-lg font-semibold text-mist mb-2">{t('step1.title')}</h3>
-              <p className="text-mist-dim text-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('step1.title')}</h3>
+              <p className="text-gray-600 text-sm">
                 {t('step1.desc')}
               </p>
             </div>
@@ -98,8 +98,8 @@ export default async function HomePage() {
               <div className="w-14 h-14 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center mx-auto mb-4 group-hover:shadow-glow-sm transition-shadow" aria-hidden="true">
                 <span className="text-2xl">🧠</span>
               </div>
-              <h3 className="text-lg font-semibold text-mist mb-2">{t('step2.title')}</h3>
-              <p className="text-mist-dim text-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('step2.title')}</h3>
+              <p className="text-gray-600 text-sm">
                 {t('step2.desc')}
               </p>
             </div>
@@ -109,8 +109,8 @@ export default async function HomePage() {
               <div className="w-14 h-14 rounded-xl bg-match/10 border border-match/20 flex items-center justify-center mx-auto mb-4 group-hover:shadow-glow-sm transition-shadow" aria-hidden="true">
                 <span className="text-2xl">✨</span>
               </div>
-              <h3 className="text-lg font-semibold text-mist mb-2">{t('step3.title')}</h3>
-              <p className="text-mist-dim text-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('step3.title')}</h3>
+              <p className="text-gray-600 text-sm">
                 {t('step3.desc')}
               </p>
             </div>
@@ -119,15 +119,15 @@ export default async function HomePage() {
       </section>
 
       {/* Футер */}
-      <footer className="border-t border-void-border/50 py-8 px-4">
+      <footer className="border-t border-gray-100 py-8 px-4">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded bg-aurora flex items-center justify-center" aria-hidden="true">
               <span className="text-white font-bold text-xs">К</span>
             </div>
-            <span className="text-sm text-mist-dim">Кассандра © 2026</span>
+            <span className="text-sm text-gray-600">Кассандра © 2026</span>
           </div>
-          <p className="text-xs text-mist-faint">
+          <p className="text-xs text-gray-400">
             {t('footer')}
           </p>
         </div>

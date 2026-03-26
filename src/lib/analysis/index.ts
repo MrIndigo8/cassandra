@@ -55,6 +55,11 @@ export async function runAnalysis(): Promise<{ processed: number }> {
                             ai_geography: analysis.geography,
                             ai_specificity: analysis.specificity,
                             ai_summary: analysis.summary,
+                            anxiety_score: analysis.anxiety_score,
+                            threat_type: analysis.threat_type,
+                            temporal_urgency: analysis.temporal_urgency,
+                            emotional_intensity: analysis.emotional_intensity,
+                            geography_iso: analysis.geography_iso,
                             ai_analyzed_at: new Date().toISOString(),
                         })
                         .eq('id', entry.id);

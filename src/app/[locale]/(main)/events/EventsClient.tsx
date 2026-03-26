@@ -262,21 +262,24 @@ export default function EventsClient({ initialMatches, initialClusters }: Events
             normalizedMatches.map(({ match, entry, user }) => {
               const score = Math.round((match.similarity_score || 0) * 100);
               const high = score > 80;
-              const symbols = (match.matched_symbols || []).slice(0, 4);
+              const symbols = (match.matched_symbols || [])
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .slice(0, 3);
               const role = user?.role || 'observer';
               const entryTitle = entry?.title || entry?.content?.slice(0, 60) || '...';
               return (
                 <article key={match.id} className="match-card">
                   <div className="match-card-grid">
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-2">
                         <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs text-primary font-semibold">
                           {(user?.username || 'A')[0].toUpperCase()}
                         </div>
-                        <span className="text-sm font-medium text-gray-900">{user?.username || tEntry('anonymous')}</span>
+                        <span className="text-sm font-medium text-gray-900 truncate">{user?.username || tEntry('anonymous')}</span>
                         <span className={roleBadgeClass(role)}>{tRole(role as 'observer' | 'chronicler' | 'sensitive' | 'oracle')}</span>
                       </div>
-                      <Link href={`/entry/${entry?.id || ''}`} className="font-semibold text-gray-900 hover:text-primary">
+                      <Link href={`/entry/${entry?.id || ''}`} className="font-semibold text-gray-900 hover:text-primary line-clamp-2 break-words">
                         {entryTitle}
                       </Link>
                       <div className="mt-2 flex items-center gap-2">
@@ -291,18 +294,18 @@ export default function EventsClient({ initialMatches, initialClusters }: Events
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-center gap-2">
+                    <div className="flex flex-col items-center gap-2 min-w-[88px]">
                       <div className={`match-score-circle ${high ? 'match-score-high' : 'match-score-medium'}`}>{score}%</div>
                       <Link2 size={16} className="text-gray-400" />
-                      <div className="flex flex-wrap justify-center gap-1">
+                      <div className="flex flex-wrap justify-center gap-1 max-w-[220px]">
                         {symbols.map((symbol) => (
-                          <span key={symbol} className="symbol-tag">{symbol}</span>
+                          <span key={symbol} className="symbol-tag max-w-[200px] truncate">{symbol}</span>
                         ))}
                       </div>
                     </div>
 
-                    <div>
-                      <p className="font-semibold text-gray-900">{match.event_title}</p>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 break-words line-clamp-6">{match.event_title}</p>
                       <p className="text-xs text-gray-400 mt-1">
                         {formatDistanceToNow(new Date(match.event_date), { addSuffix: true, locale: dateLocale })}
                       </p>

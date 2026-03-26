@@ -52,12 +52,22 @@ const config: Config = {
           "0%, 100%": { transform: "scale(1)" },
           "50%": { transform: "scale(1.25)" },
         },
+        pulseRed: {
+          "0%, 100%": { transform: "scale(1)", opacity: "0.8" },
+          "50%": { transform: "scale(1.4)", opacity: "0.4" },
+        },
+        borderPulse: {
+          "0%, 100%": { strokeOpacity: "0.3" },
+          "50%": { strokeOpacity: "1" },
+        },
       },
       animation: {
         "fade-in": "fadeIn 0.5s ease-out",
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "ping-slow": "ping 3s cubic-bezier(0, 0, 0.2, 1) infinite",
         "like-pop": "likePop 0.25s ease-in-out",
+        "pulse-red": "pulseRed 2s ease-in-out infinite",
+        "border-pulse": "borderPulse 2s ease-in-out infinite",
       },
       boxShadow: {
         "glow-sm": "0 0 10px rgba(16, 185, 129, 0.3)",

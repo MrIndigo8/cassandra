@@ -168,7 +168,7 @@
     @apply bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all duration-200;
   }
   .match-card-grid {
-    @apply grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] gap-4 items-center;
+    @apply grid grid-cols-1 md:grid-cols-[minmax(0,1.15fr),auto,minmax(0,1fr)] gap-4 items-center;
   }
 
   /* Match score circle */
@@ -220,6 +220,40 @@
   }
   .tab-pill-inactive {
     @apply bg-white border border-gray-200 text-gray-600 hover:border-primary/50;
+  }
+
+  /* Ноосфера — индекс тревожности */
+  .anxiety-circle {
+    @apply flex items-center justify-center w-20 h-20 rounded-full text-white text-2xl font-bold;
+  }
+  .anxiety-calm { @apply bg-emerald-500; }
+  .anxiety-moderate { @apply bg-amber-400; }
+  .anxiety-elevated { @apply bg-orange-500; }
+  .anxiety-critical { @apply bg-red-600; }
+
+  /* Горячая зона — строка */
+  .hot-zone-row {
+    @apply flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer;
+  }
+
+  /* Anxiety bar */
+  .anxiety-bar {
+    @apply h-2 rounded-full;
+    background: linear-gradient(to right, #10b981, #fbbf24, #f97316, #ef4444);
+  }
+
+  /* Пульсирующая точка на карте */
+  .map-pulse-dot {
+    @apply absolute rounded-full bg-red-500;
+    animation: pulseRed 2s ease-in-out infinite;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+  }
+
+  /* Легенда */
+  .legend-gradient {
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, #d1fae5, #fbbf24, #f97316, #ef4444, #991b1b);
   }
 }
 
