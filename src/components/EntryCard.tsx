@@ -1,118 +1,239 @@
-import { Link } from '@/navigation';
-import { formatDistanceToNow } from 'date-fns';
-import { ru } from 'date-fns/locale';
-import type { Entry } from '@/types';
-import { useTranslations } from 'next-intl';
-import EntryReactions from './EntryReactions';
-import { useUser } from '@/hooks/useUser';
+'use client';
 
-// Расширенный тип записи для ленты (содержит автора)
+import { useMemo, useState } from 'react';
+import { formatDistanceToNow } from 'date-fns';
+import { enUS, ru } from 'date-fns/locale';
+import { useLocale, useTranslations } from 'next-intl';
+import { Link } from '@/navigation';
+import type { Entry } from '@/types';
+import { useUser } from '@/hooks/useUser';
+import EntryComments from './EntryComments';
+
 export interface FeedEntry extends Omit<Entry, 'users'> {
   users: {
+    id?: string;
     username: string;
     avatar_url: string | null;
+    role?: string | null;
+    rating_score?: number | null;
   } | null;
+  likes_count?: number | null;
+  comments_count?: number | null;
+  user_liked?: boolean | null;
+  view_count?: number | null;
 }
 
 interface EntryCardProps {
-  entry: FeedEntry;
+  entry: {
+    id: string;
+    type: string;
+    title: string | null;
+    content: string;
+    image_url: string | null;
+    is_verified: boolean;
+    best_match_score: number | null;
+    view_count: number;
+    created_at: string;
+  };
+  user: {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+    role: string;
+    rating_score: number;
+  };
+  likes_count: number;
+  comments_count: number;
+  user_liked: boolean;
 }
 
-export function EntryCard({ entry }: EntryCardProps) {
-  const t = useTranslations('entry');
-  const { user } = useUser();
-  // Форматируем время создания
-  const timeAgo = formatDistanceToNow(new Date(entry.created_at), { addSuffix: true, locale: ru });
+function avatarColor(username: string): string {
+  const colors = ['bg-blue-500', 'bg-emerald-500', 'bg-violet-500', 'bg-rose-500', 'bg-cyan-500'];
+  const hash = username.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+  return colors[hash % colors.length];
+}
 
-  // Отрисовка точек интенсивности
-  const renderIntensityDots = (intensity: number) => {
-    return Array.from({ length: 10 }).map((_, i) => (
-      <div 
-        key={i} 
-        aria-hidden="true"
-        className={`w-1.5 h-1.5 rounded-full ${i < intensity ? 'bg-primary' : 'bg-gray-200'}`} 
-      />
-    ));
+function EntryLike({
+  initialCount,
+  initialLiked,
+  onClick,
+}: {
+  initialCount: number;
+  initialLiked: boolean;
+  onClick?: () => void;
+}) {
+  const [liked, setLiked] = useState(initialLiked);
+  const [count, setCount] = useState(initialCount);
+
+  const handleToggle = () => {
+    setLiked((prev) => !prev);
+    setCount((prev) => (liked ? Math.max(0, prev - 1) : prev + 1));
+    onClick?.();
   };
 
   return (
-    <Link href={`/entry/${entry.id}`} className="block block group border-b border-gray-100 py-5 hover:bg-gray-50/50 transition-colors">
-      <article className="flex flex-row gap-4">
-        {/* Аватар (Слева) */}
-        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0 overflow-hidden text-white font-medium" aria-hidden="true">
-          {entry.users?.avatar_url ? (
+    <button
+      type="button"
+      onClick={handleToggle}
+      className={`inline-flex items-center gap-1.5 text-sm transition-colors ${liked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
+      aria-pressed={liked}
+    >
+      <span>{liked ? '❤️' : '🤍'}</span>
+      <span>{count}</span>
+    </button>
+  );
+}
+
+export function EntryCard({
+  entry,
+  user,
+  likes_count,
+  comments_count,
+  user_liked,
+}: EntryCardProps) {
+  const tEntry = useTranslations('entry');
+  const tRole = useTranslations('role');
+  const tActions = useTranslations('actions');
+  const locale = useLocale();
+  const { user: currentUser, profile } = useUser();
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [localCommentsCount, setLocalCommentsCount] = useState(comments_count);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const dateLocale = locale === 'en' ? enUS : ru;
+  const timeAgo = formatDistanceToNow(new Date(entry.created_at), { addSuffix: true, locale: dateLocale });
+
+  const roleBadge = useMemo(() => {
+    const role = user.role || 'observer';
+    if (role === 'oracle') return { icon: '⭐', cls: 'bg-amber-100 text-amber-700 shadow-glow-sm', label: tRole('oracle') };
+    if (role === 'sensitive') return { icon: '🌊', cls: 'bg-violet-100 text-violet-700', label: tRole('sensitive') };
+    if (role === 'chronicler') return { icon: '📘', cls: 'bg-blue-100 text-blue-700', label: tRole('chronicler') };
+    return { icon: '👁️', cls: 'bg-gray-100 text-gray-700', label: tRole('observer') };
+  }, [tRole, user.role]);
+
+  const typeBadge = useMemo(() => {
+    const type = entry.type || 'unknown';
+    if (type === 'dream') return { icon: '🌙', cls: 'bg-indigo-100 text-indigo-700', label: tEntry('type.dream') };
+    if (type === 'premonition') return { icon: '⚡', cls: 'bg-amber-100 text-amber-700', label: tEntry('type.premonition') };
+    if (type === 'feeling') return { icon: '💜', cls: 'bg-pink-100 text-pink-700', label: tEntry('type.feeling') };
+    if (type === 'vision') return { icon: '👁', cls: 'bg-violet-100 text-violet-700', label: tEntry('type.vision') };
+    return { icon: '❓', cls: 'bg-gray-100 text-gray-600', label: tEntry('type.unknown') };
+  }, [entry.type, tEntry]);
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await navigator.clipboard.writeText(`${window.location.origin}/entry/${entry.id}`);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 1600);
+  };
+
+  return (
+    <article className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all duration-200">
+      <header className="flex items-start gap-3">
+        <div className={`w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white font-semibold ${avatarColor(user.username)}`}>
+          {user.avatar_url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={entry.users.avatar_url} alt="" className="w-full h-full object-cover" />
+            <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />
           ) : (
-            <span>
-              {(entry.users?.username || t('anonymous'))[0].toUpperCase()}
+            <span>{(user.username || '?')[0].toUpperCase()}</span>
+          )}
+        </div>
+
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-gray-900 truncate">{user.username}</span>
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${roleBadge.cls}`}>
+              <span>{roleBadge.icon}</span>
+              <span>{roleBadge.label}</span>
             </span>
-          )}
+          </div>
+          <div className="text-xs text-gray-500 mt-0.5 inline-flex items-center gap-1.5">
+            <span>⚡ {Number(user.rating_score || 0).toFixed(1)}</span>
+            <span>·</span>
+            <span>{timeAgo}</span>
+          </div>
         </div>
 
-        {/* Контент (Справа) */}
-        <div className="flex-1 min-w-0">
-          {/* Шапка: Имя, время, бейдж */}
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="font-medium text-gray-900">{entry.users?.username || t('anonymous')}</span>
-            <span className="text-sm text-gray-500">{timeAgo}</span>
-            {entry.type && entry.type !== 'unknown' && (
-              <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${
-                entry.type === 'dream' 
-                  ? 'bg-[#EFF6FF] text-secondary border-[#BAE6FD]' 
-                  : entry.type === 'premonition' 
-                    ? 'bg-[#ECFDF5] text-primary border-[#A7F3D0]'
-                    : 'bg-gray-100 text-gray-600 border-gray-200'
-              }`}>
-                {entry.type === 'dream' ? t('type.dream') : entry.type === 'premonition' ? t('type.premonition') : entry.type === 'feeling' ? t('type.feeling') : entry.type === 'vision' ? t('type.vision') : t('type.unknown')}
-              </span>
-            )}
-          </div>
-
-          {/* Заголовок */}
-          <h3 className="text-base font-semibold text-gray-900 mb-1 line-clamp-1">
-            {entry.title.startsWith('Без заголовка') ? (
-              <span className="text-gray-500 italic font-normal">{entry.title}</span>
-            ) : (
-              entry.title
-            )}
-          </h3>
-
-          {/* Текст (макс 3 строки) */}
-          <p className="text-gray-700 text-sm line-clamp-3 mb-2">
-            {entry.content}
-          </p>
-
-          {/* Картинка (если есть) */}
-          {entry.image_url && (
-            <div className="mb-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={entry.image_url}
-                alt={t('imageAlt')}
-                className="max-h-64 w-full object-cover rounded-xl border border-gray-100"
-              />
-            </div>
-          )}
-
-          <span className="text-sm text-gray-500 hover:text-gray-700 font-medium mb-3 inline-block transition-colors">
-            {t('readMore')}
+        <div className="ml-auto">
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${typeBadge.cls}`}>
+            <span>{typeBadge.icon}</span>
+            <span>{typeBadge.label}</span>
           </span>
-
-          {/* Подвал: Интенсивность и статус */}
-          <div className="flex justify-between items-center mt-1">
-            <div className="flex items-center gap-1" title={`${t('intensity')}: ${entry.intensity || 0}/10`}>
-              {entry.intensity ? renderIntensityDots(entry.intensity) : null}
-            </div>
-          </div>
-          <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }} className="mt-2 text-left w-full">
-            <EntryReactions 
-              entryId={entry.id} 
-              isAuthenticated={!!user}
-            />
-          </div>
         </div>
-      </article>
-    </Link>
+      </header>
+
+      <div className="mt-3">
+        {entry.title && (
+          <h3 className="text-lg font-bold text-gray-900 mb-2 leading-snug">
+            <Link href={`/entry/${entry.id}`} className="hover:text-primary transition-colors">
+              {entry.title}
+            </Link>
+          </h3>
+        )}
+
+        <p className="text-base text-text-secondary line-clamp-3">{entry.content}</p>
+
+        <div className="mt-2">
+          <Link href={`/entry/${entry.id}`} className="text-sm text-primary hover:underline">
+            {tEntry('readMore')}
+          </Link>
+        </div>
+
+        {entry.image_url && (
+          <div className="mt-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={entry.image_url} alt={entry.title || 'entry-image'} className="rounded-xl max-h-64 w-full object-cover" />
+          </div>
+        )}
+
+        {entry.is_verified && entry.best_match_score && entry.best_match_score > 0.6 && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 mt-3 inline-flex items-center gap-2 text-emerald-700 text-sm">
+            <span className="animate-pulse">✓</span>
+            <span>{tEntry('verified', { score: Math.round(entry.best_match_score * 100) })}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center gap-6 pt-3 mt-3 border-t border-border/20">
+        <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+          <EntryLike initialCount={likes_count} initialLiked={user_liked} />
+        </div>
+
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsCommentsOpen((prev) => !prev);
+          }}
+        >
+          <span>💬</span>
+          <span>{localCommentsCount}</span>
+        </button>
+
+        <span className="inline-flex items-center gap-1.5 text-sm text-gray-500">
+          <span>👁</span>
+          <span>{entry.view_count || 0}</span>
+        </span>
+
+        <button type="button" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700" onClick={handleShare}>
+          <span>🔗</span>
+          <span>{tActions('share')}</span>
+        </button>
+
+        {linkCopied && <span className="text-xs text-primary">{tEntry('linkCopied')}</span>}
+      </div>
+
+      <div className={`overflow-hidden transition-all duration-300 ${isCommentsOpen ? 'max-h-[520px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+        <EntryComments
+          entryId={entry.id}
+          isAuthenticated={!!currentUser}
+          currentUsername={profile?.username}
+          onCountChange={setLocalCommentsCount}
+        />
+      </div>
+    </article>
   );
 }

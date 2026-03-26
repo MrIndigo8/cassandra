@@ -1,37 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CASSANDRA
 
-## Getting Started
+Next.js + Supabase + Claude project for collecting dream/premonition signals, analyzing them with AI, and comparing with real-world events.
 
-First, run the development server:
+## Quick Start
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Main Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Next.js App Router + TypeScript
+- Supabase (Auth, Postgres, RLS, Realtime, Storage)
+- Anthropic Claude (`@anthropic-ai/sdk`)
+- Tailwind CSS + PostCSS
+- i18n via `next-intl` (`ru`/`en`)
 
-## Learn More
+## Main App Areas
 
-To learn more about Next.js, take a look at the following resources:
+- `src/app/[locale]/(auth)` — login/register
+- `src/app/[locale]/(main)/feed` — feed + realtime
+- `src/app/[locale]/(main)/entry/[id]` — entry details + reactions/comments
+- `src/app/[locale]/(main)/noosphere` — map + cluster analytics
+- `src/app/[locale]/(main)/events` — verification matches + world events
+- `src/app/[locale]/(main)/archive` — historical cases
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Background Endpoints
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `POST /api/analyze` — AI analysis of entries
+- `POST /api/verify` — match verification
+- `POST /api/cluster` — clustering/anomaly detection
+- `GET /api/map-data` — noosphere map data
 
-## Deploy on Vercel
+## AI Handoff Files (important)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Read these files first for up-to-date context:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# cassandra
+1. `AI_CONTEXT_INDEX.md` (entry point for AI)
+2. `WORKABILITY_AND_GOAL_ACHIEVEMENT.md`
+3. `UI_REVIEW_AND_PROPOSED_CHANGES.md`
+4. `DATABASE_AND_SCHEMA_ALIGNMENT.md`
+5. `BUGS_RISKS_AND_GAPS.md`
+6. `PROJECT_STRUCTURE.md`
+7. `ARCHITECTURE_AND_DATA_FLOW.md`
+8. `STYLES_AND_CODING_STANDARDS.md`
+9. `PROJECT_GOALS_AND_DESIGN_DECISIONS.md`
+
+## Verification Commands
+
+```bash
+npm run lint
+npm run build
+```

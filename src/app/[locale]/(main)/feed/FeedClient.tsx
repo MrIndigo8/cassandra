@@ -221,7 +221,30 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       ) : filteredEntries.length > 0 ? (
         <div className="flex flex-col">
           {filteredEntries.map((entry) => (
-            <EntryCard key={entry.id} entry={entry} />
+            <EntryCard
+              key={entry.id}
+              entry={{
+                id: entry.id,
+                type: entry.type,
+                title: entry.title,
+                content: entry.content,
+                image_url: entry.image_url || null,
+                is_verified: Boolean((entry as FeedEntry & { is_verified?: boolean }).is_verified),
+                best_match_score: (entry as FeedEntry & { best_match_score?: number | null }).best_match_score ?? null,
+                view_count: (entry as FeedEntry & { view_count?: number | null }).view_count ?? 0,
+                created_at: entry.created_at,
+              }}
+              user={{
+                id: entry.user_id,
+                username: entry.users?.username || 'anonymous',
+                avatar_url: entry.users?.avatar_url || null,
+                role: entry.users?.role || 'observer',
+                rating_score: Number(entry.users?.rating_score || 0),
+              }}
+              likes_count={entry.likes_count ?? 0}
+              comments_count={entry.comments_count ?? 0}
+              user_liked={Boolean(entry.user_liked)}
+            />
           ))}
         </div>
       ) : (

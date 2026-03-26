@@ -1,0 +1,52 @@
+---
+description: Core system context and guardrails for CASSANDRA
+alwaysApply: true
+---
+
+# CASSANDRA System Context
+
+## Product
+- CASSANDRA is a collective premonition platform: users submit dreams/premonitions, AI analyzes signals, system matches with real-world events, verified matches affect user rating/role.
+
+## Stack
+- Next.js 14 App Router, TypeScript (`strict: true`)
+- Supabase (Auth, Postgres, RLS, Realtime, Storage)
+- Tailwind + PostCSS
+- `next-intl` (`ru`/`en`, messages in `messages/ru.json`, `messages/en.json`)
+- Anthropic Claude (`@anthropic-ai/sdk`)
+- `react-simple-maps` + `d3-scale`, `date-fns`
+- Vercel + cron routes from `vercel.json`
+
+## Routing and i18n
+- UI routes are under `src/app/[locale]/...`.
+- Use locale-aware navigation helpers from `src/navigation.ts`.
+- In client components, use `Link` and `useRouter` from `@/navigation` (not `next/navigation` for app links).
+
+## Middleware
+- `src/middleware.ts` combines:
+  - Supabase session/auth redirects via `src/lib/supabase/middleware.ts`
+  - `next-intl/middleware` locale handling
+- Redirect rules:
+  - unauthenticated + non-public/non-api -> `/login`
+  - authenticated on `/login` or `/register` -> `/feed`
+
+## Supabase clients
+- Client components: `src/lib/supabase/client.ts`
+- Server components/route handlers: `src/lib/supabase/server.ts`
+- Cron/background routes use service-role access.
+
+## Key known issues (always consider)
+1) `entries.type` constraint mismatch (`dream|premonition` in migrations vs code using `unknown`).
+2) Code uses `entries.ip_country_code`, `entries.ip_geography`, `entries.is_quarantine`; verify columns exist in real DB.
+3) `verification/index.ts` may still contain legacy join assumptions (`profiles` vs `users`) in some branches.
+4) Tailwind custom tokens/animations must exist in `tailwind.config.ts` when referenced in UI.
+5) Avoid hardcoded RU strings in UI; prefer `next-intl`.
+6) Analyze race risk: immediate `/api/analyze` call plus cron.
+
+## Coding rules for this project
+- Keep TypeScript strict and explicit.
+- Prefer existing project architecture and APIs over introducing parallel patterns.
+- Keep UI text translatable (`useTranslations` / `getTranslations`).
+- Respect locale-aware routing and auth flow in middleware.
+- Validate DB/schema assumptions before changing data-flow logic.
+

@@ -14,9 +14,10 @@ interface Props {
   entryId: string;
   isAuthenticated: boolean;
   currentUsername?: string;
+  onCountChange?: (count: number) => void;
 }
 
-export default function EntryComments({ entryId, isAuthenticated, currentUsername }: Props) {
+export default function EntryComments({ entryId, isAuthenticated, currentUsername, onCountChange }: Props) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,6 +43,7 @@ export default function EntryComments({ entryId, isAuthenticated, currentUsernam
             return true;
           });
           setComments(uniqueComments);
+          onCountChange?.(uniqueComments.length);
         }
       });
 
@@ -63,7 +65,9 @@ export default function EntryComments({ entryId, isAuthenticated, currentUsernam
                 // Создаем Set всех загруженных новых комментариев, которые есть в prev
                 const existingIds = new Set(prev.map(c => c.id));
                 const newComments = data.data.filter((c: Comment) => !existingIds.has(c.id));
-                return [...prev, ...newComments];
+                const next = [...prev, ...newComments];
+                onCountChange?.(next.length);
+                return next;
               });
             }
           });
@@ -71,7 +75,7 @@ export default function EntryComments({ entryId, isAuthenticated, currentUsernam
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [entryId, isOpen, supabase]);
+  }, [entryId, isOpen, onCountChange, supabase]);
 
   const handleSubmit = async () => {
     if (!newComment.trim() || loading) return;
@@ -102,7 +106,11 @@ export default function EntryComments({ entryId, isAuthenticated, currentUsernam
     
     // Оптимистичное удаление
     const previousComments = [...comments];
-    setComments(prev => prev.filter(c => c.id !== commentId));
+    setComments(prev => {
+      const next = prev.filter(c => c.id !== commentId);
+      onCountChange?.(next.length);
+      return next;
+    });
 
     try {
       const response = await fetch('/api/comments', {
@@ -117,6 +125,7 @@ export default function EntryComments({ entryId, isAuthenticated, currentUsernam
       alert(t('errors.deleteFailed'));
       // Откат
       setComments(previousComments);
+      onCountChange?.(previousComments.length);
     }
   };
 
