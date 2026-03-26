@@ -3,59 +3,82 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-type EntryRow = {
+type AnxietyEntry = {
   id: string;
   anxiety_score: number | null;
-  threat_type: string | null;
-  temporal_urgency: string | null;
   emotional_intensity: string | null;
-  geography_iso: string | null;
-  ai_summary: string | null;
+  ip_country_code: string | null;
+  sensory_data: {
+    verification_keywords?: string[];
+  } | null;
   created_at: string;
-  best_match_score: number | null;
-  is_verified: boolean | null;
+};
+
+type SubjectEntry = {
+  geography_iso: string | null;
+  threat_type: string | null;
+  anxiety_score: number | null;
+  temporal_urgency: string | null;
+  created_at: string;
+};
+
+type MatchJoinedEntry = {
+  id: string;
+  geography_iso: string | null;
+  anxiety_score: number | null;
+  threat_type: string | null;
+  ai_summary: string | null;
+  content: string | null;
+  sensory_data: {
+    verification_keywords?: string[];
+  } | null;
+  ip_country_code: string | null;
+  created_at: string;
+  users:
+    | {
+        username: string | null;
+        avatar_url: string | null;
+      }
+    | Array<{
+        username: string | null;
+        avatar_url: string | null;
+      }>
+    | null;
 };
 
 type MatchRow = {
+  id: string;
   similarity_score: number | null;
   event_title: string | null;
+  event_description: string | null;
+  event_url: string | null;
+  event_date: string | null;
+  matched_symbols: string[] | null;
   created_at: string;
-  entries:
-    | {
-        geography_iso: string | null;
-        anxiety_score: number | null;
-        ai_summary: string | null;
-      }
-    | Array<{
-        geography_iso: string | null;
-        anxiety_score: number | null;
-        ai_summary: string | null;
-      }>
-    | null;
+  entries: MatchJoinedEntry | MatchJoinedEntry[] | null;
 };
 
 export async function GET() {
   try {
     const supabase = createServerSupabaseClient();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    const { data: entriesRaw, error: entriesError } = await supabase
+    const { data: anxietyRaw, error: anxietyError } = await supabase
       .from('entries')
-      .select('id, anxiety_score, threat_type, temporal_urgency, emotional_intensity, geography_iso, ai_summary, created_at, best_match_score, is_verified')
-      .not('geography_iso', 'is', null)
+      .select('id, anxiety_score, ip_country_code, emotional_intensity, sensory_data, created_at')
+      .not('ip_country_code', 'is', null)
       .not('anxiety_score', 'is', null)
       .gte('created_at', sevenDaysAgo)
       .gte('anxiety_score', 3)
-      .eq('is_public', true)
-      .order('created_at', { ascending: false });
+      .eq('is_public', true);
 
-    if (entriesError) {
-      return NextResponse.json({ error: entriesError.message }, { status: 500 });
+    if (anxietyError) {
+      return NextResponse.json({ error: anxietyError.message }, { status: 500 });
     }
 
-    const entries = (entriesRaw || []) as EntryRow[];
-
-    const countryMap: Record<
+    const anxietyEntries = (anxietyRaw || []) as AnxietyEntry[];
+    const anxietyByUserCountry: Record<
       string,
       {
         iso: string;
@@ -63,77 +86,46 @@ export async function GET() {
         entryCount: number;
         avgAnxiety: number;
         maxAnxiety: number;
-        dominantThreat: string;
-        hasConfirmedMatch: boolean;
-        urgencyBreakdown: Record<string, number>;
-        threatBreakdown: Record<string, number>;
-        recentEntries: Array<{ id: string; summary: string; anxiety: number; threat: string; date: string }>;
+        panicCount: number;
       }
     > = {};
-
-    for (const entry of entries) {
-      const iso = (entry.geography_iso || '').toUpperCase();
+    for (const entry of anxietyEntries) {
+      const iso = (entry.ip_country_code || '').toUpperCase();
       if (!iso) continue;
-
-      if (!countryMap[iso]) {
-        countryMap[iso] = {
+      if (!anxietyByUserCountry[iso]) {
+        anxietyByUserCountry[iso] = {
           iso,
           totalAnxiety: 0,
           entryCount: 0,
           avgAnxiety: 0,
           maxAnxiety: 0,
-          dominantThreat: 'unknown',
-          hasConfirmedMatch: false,
-          urgencyBreakdown: {},
-          threatBreakdown: {},
-          recentEntries: [],
+          panicCount: 0,
         };
       }
-
-      const c = countryMap[iso];
+      const c = anxietyByUserCountry[iso];
       const anxiety = entry.anxiety_score || 0;
-      const threat = entry.threat_type || 'unknown';
-      const urgency = entry.temporal_urgency || 'unclear';
-
       c.totalAnxiety += anxiety;
       c.entryCount += 1;
       c.maxAnxiety = Math.max(c.maxAnxiety, anxiety);
-      c.urgencyBreakdown[urgency] = (c.urgencyBreakdown[urgency] || 0) + 1;
-      c.threatBreakdown[threat] = (c.threatBreakdown[threat] || 0) + 1;
-
-      if (entry.is_verified && entry.best_match_score && entry.best_match_score > 0.6) {
-        c.hasConfirmedMatch = true;
-      }
-
-      if (c.recentEntries.length < 5) {
-        c.recentEntries.push({
-          id: entry.id,
-          summary: entry.ai_summary || '',
-          anxiety,
-          threat,
-          date: entry.created_at,
-        });
-      }
+      if (entry.emotional_intensity === 'panic') c.panicCount += 1;
     }
 
-    const countries = Object.values(countryMap).map((country) => {
-      country.avgAnxiety = Math.round((country.totalAnxiety / country.entryCount) * 10) / 10;
-      country.dominantThreat =
-        Object.entries(country.threatBreakdown).sort((a, b) => b[1] - a[1])[0]?.[0] || 'unknown';
-      return country;
-    });
-
-    const allAnxieties = entries.map((e) => e.anxiety_score || 0);
-    const globalAnxietyIndex =
-      allAnxieties.length > 0
-        ? Math.round((allAnxieties.reduce((sum, score) => sum + score, 0) / allAnxieties.length) * 10) / 10
-        : 0;
+    const anxietyHeatmap = Object.values(anxietyByUserCountry).map((country) => ({
+      ...country,
+      avgAnxiety: Math.round((country.totalAnxiety / country.entryCount) * 10) / 10,
+    }));
 
     const { data: confirmedRaw, error: confirmedError } = await supabase
       .from('matches')
-      .select('similarity_score, event_title, created_at, entries:entry_id (geography_iso, anxiety_score, ai_summary)')
+      .select(`
+        id, similarity_score, event_title, event_description, event_url, event_date, matched_symbols, created_at,
+        entries:entry_id (
+          id, geography_iso, anxiety_score, threat_type, ai_summary, content, sensory_data, ip_country_code, created_at,
+          users:user_id (username, avatar_url)
+        )
+      `)
       .gt('similarity_score', 0.6)
-      .gte('created_at', sevenDaysAgo)
+      .order('created_at', { ascending: false })
       .limit(20);
 
     if (confirmedError) {
@@ -141,41 +133,164 @@ export async function GET() {
     }
 
     const confirmedMatches = (confirmedRaw || []) as MatchRow[];
-    const pulsingPoints = confirmedMatches
-      .map((match) => {
-        const matchEntry = Array.isArray(match.entries) ? match.entries[0] : match.entries;
-        if (!matchEntry?.geography_iso) return null;
-        return {
-          iso: matchEntry.geography_iso.toUpperCase(),
-          score: match.similarity_score || 0,
-          eventTitle: match.event_title || '',
-          summary: matchEntry.ai_summary || '',
-          date: match.created_at,
+    type MatchPoint = {
+      iso: string;
+      matchCount: number;
+      avgScore: number;
+      topMatch: {
+        id: string;
+        score: number;
+        eventTitle: string;
+        eventDate: string;
+        eventUrl: string | null;
+        entrySummary: string;
+        entryContent: string;
+        threatType: string;
+        matchedSymbols: string[];
+        authorUsername: string;
+        authorCountry: string | null;
+        daysBefore: number;
+      };
+      allMatches: Array<{ score: number; eventTitle: string; threatType: string }>;
+    };
+    const matchByGeo: Record<string, MatchPoint> = {};
+
+    for (const match of confirmedMatches) {
+      const entry = Array.isArray(match.entries) ? match.entries[0] : match.entries;
+      if (!entry?.geography_iso) continue;
+      const iso = entry.geography_iso.toUpperCase();
+      const score = match.similarity_score || 0;
+      const threatType = entry.threat_type || 'unknown';
+      const eventDateRaw = match.event_date || match.created_at;
+      const daysBefore = Math.round(
+        (new Date(eventDateRaw).getTime() - new Date(entry.created_at || match.created_at).getTime()) /
+          (1000 * 60 * 60 * 24)
+      );
+      const user = Array.isArray(entry.users) ? entry.users[0] : entry.users;
+
+      if (!matchByGeo[iso]) {
+        matchByGeo[iso] = {
+          iso,
+          matchCount: 0,
+          avgScore: 0,
+          topMatch: {
+            id: match.id,
+            score,
+            eventTitle: match.event_title || '',
+            eventDate: eventDateRaw,
+            eventUrl: match.event_url || null,
+            entrySummary: entry.ai_summary || entry.content?.slice(0, 100) || '',
+            entryContent: entry.content?.slice(0, 200) || '',
+            threatType,
+            matchedSymbols: match.matched_symbols || [],
+            authorUsername: user?.username || 'anonymous',
+            authorCountry: entry.ip_country_code || null,
+            daysBefore: Math.max(0, daysBefore),
+          },
+          allMatches: [],
         };
-      })
-      .filter(Boolean);
-
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const risingZones: string[] = [];
-
-    for (const country of countries) {
-      const recent = entries.filter((e) => e.geography_iso?.toUpperCase() === country.iso && e.created_at >= oneDayAgo).length;
-      const older = country.entryCount - recent;
-      const olderDaily = older / 6;
-
-      if (recent > 0 && olderDaily > 0 && recent / olderDaily > 2) {
-        risingZones.push(country.iso);
       }
-      if ((country.urgencyBreakdown.imminent || 0) > country.entryCount * 0.5 && !risingZones.includes(country.iso)) {
+      const g = matchByGeo[iso];
+      g.matchCount += 1;
+      g.allMatches.push({ score, eventTitle: match.event_title || '', threatType });
+      if (score > g.topMatch.score) {
+        g.topMatch = {
+          id: match.id,
+          score,
+          eventTitle: match.event_title || '',
+          eventDate: eventDateRaw,
+          eventUrl: match.event_url || null,
+          entrySummary: entry.ai_summary || entry.content?.slice(0, 100) || '',
+          entryContent: entry.content?.slice(0, 200) || '',
+          threatType,
+          matchedSymbols: match.matched_symbols || [],
+          authorUsername: user?.username || 'anonymous',
+          authorCountry: entry.ip_country_code || null,
+          daysBefore: Math.max(0, daysBefore),
+        };
+      }
+    }
+
+    const matchPoints = Object.values(matchByGeo).map((g) => ({
+      ...g,
+      avgScore: Math.round((g.allMatches.reduce((sum, item) => sum + item.score, 0) / g.matchCount) * 100) / 100,
+    }));
+
+    const { data: subjectRaw, error: subjectError } = await supabase
+      .from('entries')
+      .select('geography_iso, threat_type, anxiety_score, temporal_urgency, created_at')
+      .not('geography_iso', 'is', null)
+      .not('anxiety_score', 'is', null)
+      .gte('created_at', sevenDaysAgo)
+      .eq('is_public', true);
+
+    if (subjectError) {
+      return NextResponse.json({ error: subjectError.message }, { status: 500 });
+    }
+    const subjectEntries = (subjectRaw || []) as SubjectEntry[];
+    const subjectByGeo: Record<
+      string,
+      {
+        iso: string;
+        entryCount: number;
+        avgAnxiety: number;
+        dominantThreat: string;
+        hasImminentSignals: boolean;
+      }
+    > = {};
+    for (const entry of subjectEntries) {
+      const iso = (entry.geography_iso || '').toUpperCase();
+      if (!iso) continue;
+      if (!subjectByGeo[iso]) {
+        subjectByGeo[iso] = {
+          iso,
+          entryCount: 0,
+          avgAnxiety: 0,
+          dominantThreat: 'unknown',
+          hasImminentSignals: false,
+        };
+      }
+      const s = subjectByGeo[iso];
+      s.entryCount += 1;
+      s.avgAnxiety = (s.avgAnxiety * (s.entryCount - 1) + (entry.anxiety_score || 0)) / s.entryCount;
+      if (entry.temporal_urgency === 'imminent') s.hasImminentSignals = true;
+    }
+    for (const iso of Object.keys(subjectByGeo)) {
+      const threats: Record<string, number> = {};
+      for (const entry of subjectEntries.filter((e) => e.geography_iso?.toUpperCase() === iso)) {
+        const threat = entry.threat_type || 'unknown';
+        threats[threat] = (threats[threat] || 0) + 1;
+      }
+      subjectByGeo[iso].dominantThreat =
+        Object.entries(threats).sort((a, b) => b[1] - a[1])[0]?.[0] || 'unknown';
+      subjectByGeo[iso].avgAnxiety = Math.round(subjectByGeo[iso].avgAnxiety * 10) / 10;
+    }
+    const subjectPoints = Object.values(subjectByGeo);
+
+    const allAnxieties = anxietyEntries.map((entry) => entry.anxiety_score || 0);
+    const globalAnxietyIndex = allAnxieties.length
+      ? Math.round((allAnxieties.reduce((sum, score) => sum + score, 0) / allAnxieties.length) * 10) / 10
+      : 0;
+
+    const risingZones: string[] = [];
+    for (const country of anxietyHeatmap) {
+      const recentCount = anxietyEntries.filter(
+        (entry) => entry.ip_country_code?.toUpperCase() === country.iso && entry.created_at >= oneDayAgo
+      ).length;
+      const olderCount = country.entryCount - recentCount;
+      const olderDaily = olderCount / 6;
+      if (recentCount > 0 && olderDaily > 0 && recentCount / olderDaily > 2) {
         risingZones.push(country.iso);
       }
     }
 
     return NextResponse.json({
       globalAnxietyIndex,
-      totalSignals: entries.length,
-      countries,
-      pulsingPoints,
+      totalSignals: allAnxieties.length,
+      totalMatches: matchPoints.reduce((sum, match) => sum + match.matchCount, 0),
+      anxietyHeatmap,
+      matchPoints,
+      subjectPoints,
       risingZones,
       updatedAt: new Date().toISOString(),
     });

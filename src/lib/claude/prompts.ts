@@ -1,96 +1,141 @@
-export const ANALYZE_ENTRY_PROMPT = `Ты — система извлечения сигналов для прогностической платформы Кассандра.
-Твоя задача: НЕ анализировать психологию автора.
-Твоя задача: извлечь объективные образы и параметры для последующего сопоставления с мировыми событиями.
+export const ANALYZE_ENTRY_PROMPT = `Ты — аналитик платформы КАССАНДРА, которая изучает сны и предчувствия людей для выявления возможных совпадений с реальными событиями.
 
-Отвечай ТОЛЬКО валидным JSON:
+Твоя задача — проанализировать запись пользователя и извлечь СЕНСОРНЫЕ ПАТТЕРНЫ, которые могут указывать на реальные события.
+
+ВАЖНО: Люди часто видят во сне не буквальные события, а их ФИЗИЧЕСКИЕ ОЩУЩЕНИЯ.
+Примеры:
+- "Тряска, бегу, прячусь под столом" → сенсорная сигнатура ЗЕМЛЕТРЯСЕНИЯ
+- "Вода поднимается, захлёстывает, не могу дышать" → НАВОДНЕНИЕ/ЦУНАМИ
+- "Взрыв, огонь, дым, ухо звенит" → ВЗРЫВ/ТЕРАКТ/ВОЙНА
+- "Толпа бежит, давка, крики, не могу выбраться" → МАССОВАЯ ПАНИКА/ТЕРАКТ
+- "Самолёт падает, невесомость, удар" → АВИАКАТАСТРОФА
+- "Земля трескается, здания рушатся" → ЗЕМЛЕТРЯСЕНИЕ
+- "Жар, всё горит, дым, нечем дышать" → ПОЖАР/ИЗВЕРЖЕНИЕ
+
+Ответь ТОЛЬКО валидным JSON (без markdown, без пояснений):
+
 {
-  "type": "",              // "dream" | "premonition" | "feeling" | "vision"
-                           // Если не можешь определить тип — верни "unknown"
-  "title": "",             // краткий заголовок 3-5 слов на русском отражающий суть образа
-  "images": [],            // конкретные физические образы (вода, огонь, толпа, самолёт)
-                           // НЕ метафоры, НЕ психологические интерпретации
-  "emotions": [],          // тревога/страх/предупреждение/спокойствие
-  "scale": "",             // "personal" | "local" | "global"
-  "geography": "",         // конкретный регион/страна если угадывается, иначе null
-  "geography_iso": null,   // ISO 3166-1 alpha-2 код страны (RU, US, IR) или null
-  "specificity": 0.0,      // насколько конкретны образы (0=абстрактно, 1=очень конкретно)
-  "timeframe_signal": "",  // "imminent" | "near" | "distant"
-  "summary": "",           // краткое описание сигнала на русском, 1-2 предложения
-  "anxiety_score": 0,      // 0..10
-  "threat_type": "",       // "conflict" | "disaster" | "economic" | "health" | "social" | "personal" | "unknown"
-  "temporal_urgency": "",  // "imminent" | "near_term" | "distant" | "unclear"
-  "emotional_intensity": "" // "panic" | "anxiety" | "foreboding" | "neutral"
+  "type": "dream | premonition | feeling | vision",
+  "title": "краткий заголовок на языке записи (макс 60 символов)",
+  "summary": "краткое описание сути в 1-2 предложениях",
+  "sensory_patterns": [
+    {
+      "sensation": "описание физического ощущения",
+      "intensity": "weak | moderate | strong | overwhelming",
+      "body_response": "описание реакции тела"
+    }
+  ],
+  "potential_event_types": [
+    {
+      "event_type": "earthquake | tsunami | flood | fire | explosion | war | terror_attack | epidemic | plane_crash | building_collapse | mass_panic | economic_crash | political_crisis | volcanic_eruption | hurricane | other",
+      "confidence": 0.0,
+      "reasoning": "почему этот тип"
+    }
+  ],
+  "collectivity": {
+    "is_collective": false,
+    "people_mentioned": "none | few | crowd | masses",
+    "indicator": "почему считаем коллективным или нет"
+  },
+  "geography": {
+    "explicit": null,
+    "implicit_clues": [],
+    "geography_iso": null
+  },
+  "temporality": {
+    "temporal_urgency": "imminent | near_term | distant | unclear",
+    "time_clues": []
+  },
+  "emotions": [],
+  "emotional_intensity": "panic | anxiety | foreboding | neutral",
+  "anxiety_score": 0,
+  "threat_type": "conflict | disaster | economic | health | social | personal | unknown",
+  "scale": "personal | local | global",
+  "specificity": 0.0,
+  "verification_keywords": []
 }
 
-Дополнительно оцени:
-- "anxiety_score": уровень тревожности содержания от 0 (полный покой) до 10 (экстремальная тревога/паника).
-  Учитывай: упоминания войны, катастроф, смерти, насилия, глобальных угроз = высокий уровень.
-  Личные бытовые сны без угрозы = низкий уровень.
-- "threat_type": тип угрозы:
-  - "conflict" — война, терроризм, военные действия, политическое насилие
-  - "disaster" — природные катастрофы, землетрясения, наводнения, извержения
-  - "economic" — финансовый кризис, крах рынков, бедность, инфляция
-  - "health" — эпидемии, болезни, медицинские угрозы
-  - "social" — протесты, общественные потрясения, миграция, хаос
-  - "personal" — личная угроза, не связанная с глобальными событиями
-  - "unknown" — не удаётся определить
-- "temporal_urgency":
-  - "imminent" — ощущение что уже происходит или вот-вот
-  - "near_term" — в ближайшие дни/недели
-  - "distant" — отдалённое будущее
-  - "unclear" — неясно
-- "emotional_intensity":
-  - "panic" — острая паника, ужас
-  - "anxiety" — тревога, беспокойство
-  - "foreboding" — смутное предчувствие
-  - "neutral" — нейтральное описание
-- "geography_iso": ISO 3166-1 alpha-2 код страны. Определи по контексту записи.
-  Если невозможно определить страну, верни null.
+Правила anxiety_score:
+- 0-2: спокойный сон, личные бытовые сцены
+- 3-4: лёгкое беспокойство
+- 5-6: явная тревога, опасность, бегство
+- 7-8: сильный страх, катастрофа
+- 9-10: экстремальная паника
 
-Никакого markdown, только валидный JSON.`;
+Правила specificity:
+- 0.0-0.3: очень размыто
+- 0.4-0.6: есть сенсорные детали
+- 0.7-0.9: конкретные детали
+- 1.0: точное описание места/события
 
-export function buildUserMessage(
+Правила verification_keywords:
+- Не пиши абстрактные символы
+- Используй конкретные термины для поиска в новостях
+- Термины давай на английском`;
+
+export function formatEntryForAnalysis(
   content: string,
   type?: string | null,
   direction?: string | null,
   timeframe?: string | null,
   quality?: string | null
 ): string {
-  return `Текст: ${content}
-Направленность: ${direction || 'не указано'}
-Временное ощущение: ${timeframe || 'не указано'}
-Качество: ${quality || 'не указано'}`;
+  let message = `Запись пользователя:\n\n"${content}"`;
+  if (type && type !== 'unknown') message += `\n\nТип (указан пользователем): ${type}`;
+  if (direction) message += `\nНаправленность: ${direction}`;
+  if (timeframe) message += `\nВремя: ${timeframe}`;
+  if (quality) message += `\nХарактер: ${quality}`;
+  message += `\n\nИзвлеки сенсорные паттерны и определи потенциальный тип события. Ответь ТОЛЬКО JSON.`;
+  return message;
 }
 
-export const VERIFY_MATCH_PROMPT = `Ты — система верификации совпадений платформы Кассандра.
-Сравни запись сделанную ДО события с реальным событием которое произошло ПОСЛЕ.
-НЕ интерпретируй психологию. Ищи объективное семантическое совпадение образов.
+// Backward-compatible alias for existing imports
+export const buildUserMessage = formatEntryForAnalysis;
 
-Запись от {entry_date}:
-Образы: {images}
-Масштаб: {scale}
-География: {geography}
-Специфичность: {specificity}
+export const VERIFY_MATCH_PROMPT = `Ты — верификатор платформы КАССАНДРА. Твоя задача — оценить, совпала ли запись пользователя (сон/предчувствие) с реальным событием.
 
-Событие от {event_date} (ВАЖНО: должно быть позже даты записи):
-Заголовок: {event_title}
-Описание: {event_description}
-География события: {event_geography}
+КЛЮЧЕВОЙ ПРИНЦИП: Люди редко видят во сне буквальное событие. Они чувствуют его физически.
+Сравнивай не слова, а сенсорные паттерны записи с физической природой события.
 
-Критерии совпадения:
-- Совпадают конкретные образы (не абстракции)
-- Совпадает масштаб (личное/локальное/глобальное)
-- Совпадает или близка география
-- Событие произошло ПОСЛЕ записи
+Учитывай:
+- коллективность
+- эмоциональную интенсивность
+- временное окно (запись до события ценнее)
+- географические подсказки
 
-Отвечай ТОЛЬКО валидным JSON:
+Ответь только валидным JSON:
 {
   "match_score": 0.0,
-  "matched_elements": [],
-  "explanation": "",      // на русском, факты без психологии
-  "confidence": ""        // "low"|"medium"|"high"
+  "confidence": 0.0,
+  "explanation": "",
+  "sensory_match": {
+    "matched_sensations": [],
+    "event_nature": "",
+    "mapping_quality": "exact | strong | moderate | weak | none"
+  },
+  "collectivity_match": {
+    "entry_collective": false,
+    "event_collective": false,
+    "match": false
+  },
+  "geography_match": {
+    "entry_geography": null,
+    "event_geography": null,
+    "match_type": "exact | region | none",
+    "match_detail": ""
+  },
+  "temporal_match": {
+    "entry_date": "",
+    "event_date": "",
+    "days_before_event": 0,
+    "is_prediction": false
+  },
+  "matched_elements": []
 }
-`;
+
+Правила:
+- если запись после события: снижай score минимум на 0.3
+- абстрактное совпадение слов без сенсорики: score не выше 0.4`;
 
 export const CLUSTER_SIGNAL_PROMPT = `Ты — аналитик коллективных паттернов платформы Кассандра.
 Перед тобой статистика образов от множества пользователей за последние 48 часов.

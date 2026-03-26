@@ -4,6 +4,9 @@
     "tagline": "Collective Precognition Platform",
     "loading": "Loading...",
     "error": "An error occurred",
+    "profile": "Profile",
+    "switchLanguageRu": "Russian",
+    "switchLanguageEn": "English",
     "save": "Save",
     "cancel": "Cancel",
     "back": "Back",
@@ -156,10 +159,30 @@
     "error": "Failed to load data",
     "tryAgain": "Refresh",
     "legend": {
-      "heatmap": "Anxiety level",
+      "heatmap": "People's anxiety level in region",
       "pulse": "Confirmed match",
-      "rising": "Rising activity"
+      "rising": "Rising activity",
+      "subject": "Entry focus (not yet confirmed)"
     },
+    "layers": {
+      "anxiety": "People's anxiety",
+      "matches": "Confirmed matches",
+      "subjects": "Entry focus"
+    },
+    "sections": {
+      "whereWorried": "Where people are worried",
+      "confirmedMatches": "Confirmed matches"
+    },
+    "matchCard": {
+      "daysBefore": "{days}d before event",
+      "match": "{score}% match",
+      "openEvent": "Open event",
+      "author": "Author",
+      "from": "from"
+    },
+    "noMatchesYet": "No matches found yet. The system checks entries daily.",
+    "emptyMap": "The map will come alive when users start recording signals.",
+    "writeFirst": "Record first signal",
     "threats": {
       "conflict": "Conflict",
       "disaster": "Disaster",

@@ -52,11 +52,18 @@ export async function runVerification(): Promise<{ checked: number; matched: num
     const entryData: EntryData = {
       id: entry.id,
       created_at: entry.created_at,
+      content: entry.content,
       ai_images: entry.ai_images,
       ai_summary: entry.ai_summary,
       ai_specificity: entry.ai_specificity,
       ai_scale: entry.ai_scale,
       ai_geography: entry.ai_geography,
+      sensory_patterns: entry.sensory_data?.sensory_patterns || [],
+      potential_event_types: entry.sensory_data?.potential_event_types || [],
+      collectivity: entry.sensory_data?.collectivity || null,
+      verification_keywords: entry.sensory_data?.verification_keywords || [],
+      anxiety_score: entry.anxiety_score,
+      geography_iso: entry.geography_iso,
     };
 
     let bestScore = entry.best_match_score || 0;
@@ -76,16 +83,23 @@ export async function runVerification(): Promise<{ checked: number; matched: num
         // UPSERT на случай если мы уже проверили это событие
         await supabase.from('matches').upsert({
           entry_id: entry.id,
-          user_id: entry.user_id, // Добавлено: user_id обязателен в 001
+          user_id: entry.user_id,
           event_id: event.id,
           event_source: event.source,
           event_title: event.title,
           event_url: event.url,
-          event_date: event.publishedAt.toISOString(), // В 001: event_date вместо event_published_at
-          similarity_score: match.match_score, // В 001: similarity_score вместо match_score
-          matched_symbols: match.matched_elements, // В 001: matched_symbols вместо matched_elements
+          event_description: event.description || '',
+          event_date: event.publishedAt.toISOString(),
+          similarity_score: match.match_score,
+          matched_symbols: match.matched_elements,
           explanation: match.explanation,
-          confidence: match.confidence
+          confidence: match.confidence,
+          verification_data: {
+            sensory_match: match.sensory_match || null,
+            collectivity_match: match.collectivity_match || null,
+            geography_match: match.geography_match || null,
+            temporal_match: match.temporal_match || null,
+          },
         }, { onConflict: 'entry_id, event_id' });
 
         // Уведомляем пользователя о найденном совпадении

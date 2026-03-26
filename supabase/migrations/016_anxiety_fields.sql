@@ -3,7 +3,11 @@ ALTER TABLE public.entries ADD COLUMN IF NOT EXISTS threat_type TEXT CHECK (thre
 ALTER TABLE public.entries ADD COLUMN IF NOT EXISTS temporal_urgency TEXT CHECK (temporal_urgency IN ('imminent','near_term','distant','unclear'));
 ALTER TABLE public.entries ADD COLUMN IF NOT EXISTS emotional_intensity TEXT CHECK (emotional_intensity IN ('panic','anxiety','foreboding','neutral'));
 ALTER TABLE public.entries ADD COLUMN IF NOT EXISTS geography_iso TEXT;
+ALTER TABLE public.entries ADD COLUMN IF NOT EXISTS sensory_data JSONB;
+
+ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS verification_data JSONB;
 
 CREATE INDEX IF NOT EXISTS idx_entries_anxiety ON public.entries(anxiety_score) WHERE anxiety_score IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_entries_geography_iso ON public.entries(geography_iso) WHERE geography_iso IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_entries_threat_type ON public.entries(threat_type) WHERE threat_type IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_entries_sensory_gin ON public.entries USING gin(sensory_data) WHERE sensory_data IS NOT NULL;

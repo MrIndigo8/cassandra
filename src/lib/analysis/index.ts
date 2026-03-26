@@ -49,10 +49,10 @@ export async function runAnalysis(): Promise<{ processed: number }> {
                         .update({
                             title: analysis.title,
                             type: analysis.type,
-                            ai_images: analysis.images,
+                            ai_images: analysis.sensory_data?.verification_keywords || [],
                             ai_emotions: analysis.emotions,
                             ai_scale: analysis.scale,
-                            ai_geography: analysis.geography,
+                            ai_geography: analysis.sensory_data?.geography_clues?.explicit || null,
                             ai_specificity: analysis.specificity,
                             ai_summary: analysis.summary,
                             anxiety_score: analysis.anxiety_score,
@@ -60,6 +60,7 @@ export async function runAnalysis(): Promise<{ processed: number }> {
                             temporal_urgency: analysis.temporal_urgency,
                             emotional_intensity: analysis.emotional_intensity,
                             geography_iso: analysis.geography_iso,
+                            sensory_data: analysis.sensory_data,
                             ai_analyzed_at: new Date().toISOString(),
                         })
                         .eq('id', entry.id);

@@ -34,6 +34,18 @@ export interface Entry {
   ai_specificity: number | null;
   ai_summary: string | null;
   ai_analyzed_at: string | null;
+  anxiety_score?: number | null;
+  threat_type?: 'conflict' | 'disaster' | 'economic' | 'health' | 'social' | 'personal' | 'unknown' | null;
+  temporal_urgency?: 'imminent' | 'near_term' | 'distant' | 'unclear' | null;
+  emotional_intensity?: 'panic' | 'anxiety' | 'foreboding' | 'neutral' | null;
+  geography_iso?: string | null;
+  sensory_data?: {
+    sensory_patterns?: Array<{ sensation: string; intensity: string; body_response: string }>;
+    potential_event_types?: Array<{ event_type: string; confidence: number; reasoning: string }>;
+    collectivity?: { is_collective: boolean; people_mentioned: string; indicator: string };
+    geography_clues?: { explicit: string | null; implicit_clues: string[] };
+    verification_keywords?: string[];
+  } | null;
   is_verified: boolean;
   best_match_score: number | null;
   created_at: string;
