@@ -228,10 +228,14 @@
     "loading": "Loading events...",
     "error": "Failed to load events",
     "tryAgain": "Try again",
+    "whyRelevant": "Why this may be related to you",
+    "showDetails": "Details",
+    "hideDetails": "Hide",
     "relevance": {
-      "geography": "Your region",
-      "images": "Related to your symbols",
-      "keywords": "Matches your topics"
+      "geography": "Related to a region from your entries",
+      "sensory": "Your sensations match the nature of this event",
+      "keywords": "Matches topics from your entries",
+      "yourEntry": "Your entry"
     },
     "categories": {
       "conflict": "Conflict",

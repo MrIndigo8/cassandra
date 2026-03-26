@@ -3,13 +3,22 @@
 import { useMemo, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS, ru } from 'date-fns/locale';
-import { Activity, ExternalLink, GitCompare, Link2 } from 'lucide-react';
+import { Activity, ChevronDown, ChevronUp, ExternalLink, GitCompare, Link2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/navigation';
 
 type Tab = 'matches' | 'worldEvents';
 type Section = 'relevant' | 'all';
-type RelevanceReason = 'geography' | 'images' | 'keywords' | null;
+
+type RelevanceReasonType = 'geography' | 'sensory' | 'keywords';
+
+interface RelevanceReasonDetail {
+  type: RelevanceReasonType;
+  detail: string;
+  matchedPatterns?: string[];
+  matchedKeywords?: string[];
+  matchedEntries: Array<{ id: string; title: string; date: string }>;
+}
 
 interface InitialMatch {
   id: string;
@@ -87,12 +96,13 @@ interface EventApiItem {
   id: string;
   title: string;
   description: string | null;
+  originalTitle?: string | null;
   url: string;
   publishedAt: string;
   geography: string | null;
   category: string | null;
   relevanceScore: number;
-  relevanceReason: RelevanceReason;
+  relevanceReasons: RelevanceReasonDetail[];
 }
 
 interface EventsApiResponse {
@@ -145,6 +155,7 @@ export default function EventsClient({ initialMatches, initialClusters }: Events
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedReasons, setExpandedReasons] = useState<Record<string, boolean>>({});
   const [loadedForSection, setLoadedForSection] = useState<Record<Section, boolean>>({
     relevant: false,
     all: false,
@@ -162,7 +173,7 @@ export default function EventsClient({ initialMatches, initialClusters }: Events
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`/api/events?section=${targetSection}&page=${targetPage}&limit=20`);
+      const res = await fetch(`/api/events?section=${targetSection}&page=${targetPage}&limit=20&locale=${locale}`);
       if (!res.ok) throw new Error('load_failed');
       const data = (await res.json()) as EventsApiResponse;
       setEvents((prev) => (append ? [...prev, ...data.events] : data.events));
@@ -380,20 +391,87 @@ export default function EventsClient({ initialMatches, initialClusters }: Events
                 <span className={`category-dot ${categoryDotClass(event.category)}`} />
                 <div className="min-w-0 flex-1">
                   <p className="text-base font-medium text-gray-900">{event.title}</p>
+                  {locale === 'ru' && event.originalTitle && event.originalTitle !== event.title && (
+                    <p className="text-xs text-gray-400 italic mt-0.5 line-clamp-1">{event.originalTitle}</p>
+                  )}
                   {event.description && (
                     <p className="text-sm text-gray-500 line-clamp-2 mt-1">{event.description}</p>
                   )}
                   <div className="mt-2 text-xs text-gray-400 flex flex-wrap items-center gap-2">
                     <span>{formatDistanceToNow(new Date(event.publishedAt), { addSuffix: true, locale: dateLocale })}</span>
                     {event.geography && <span>· {event.geography}</span>}
-                    {section === 'relevant' && event.relevanceReason && (
+                    {section === 'relevant' && event.relevanceReasons?.[0] && (
                       <span className="relevance-badge">
-                        {event.relevanceReason === 'geography' && `📍 ${tEvents('relevance.geography')}`}
-                        {event.relevanceReason === 'images' && `🔗 ${tEvents('relevance.images')}`}
-                        {event.relevanceReason === 'keywords' && `✨ ${tEvents('relevance.keywords')}`}
+                        {event.relevanceReasons[0].type === 'geography' && `📍 ${tEvents('relevance.geography')}`}
+                        {event.relevanceReasons[0].type === 'sensory' && `🧠 ${tEvents('relevance.sensory')}`}
+                        {event.relevanceReasons[0].type === 'keywords' && `✨ ${tEvents('relevance.keywords')}`}
                       </span>
                     )}
+                    {section === 'relevant' && event.relevanceReasons?.length > 0 && (
+                      <button
+                        type="button"
+                        className="text-xs text-primary inline-flex items-center gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedReasons((prev) => ({ ...prev, [event.id]: !prev[event.id] }));
+                        }}
+                      >
+                        {expandedReasons[event.id] ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        {expandedReasons[event.id] ? tEvents('hideDetails') : tEvents('showDetails')}
+                      </button>
+                    )}
                   </div>
+
+                  {section === 'relevant' && expandedReasons[event.id] && event.relevanceReasons?.length > 0 && (
+                    <div className="mt-3 p-4 bg-primary/5 rounded-xl border border-primary/10" onClick={(e) => e.stopPropagation()}>
+                      <h4 className="text-sm font-semibold mb-3">{tEvents('whyRelevant')}</h4>
+                      {event.relevanceReasons.map((reason, i) => (
+                        <div key={`${event.id}-reason-${i}`} className="flex items-start gap-3 mb-3 last:mb-0">
+                          <span className="text-lg mt-0.5">
+                            {reason.type === 'geography' && '📍'}
+                            {reason.type === 'sensory' && '🧠'}
+                            {reason.type === 'keywords' && '✨'}
+                          </span>
+                          <div className="flex-1">
+                            <p className="text-sm text-gray-700">{reason.detail}</p>
+                            {reason.matchedPatterns && reason.matchedPatterns.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {reason.matchedPatterns.map((pattern) => (
+                                  <span key={pattern} className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
+                                    {pattern}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {reason.matchedKeywords && reason.matchedKeywords.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {reason.matchedKeywords.map((keyword) => (
+                                  <span key={keyword} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                    {keyword}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {reason.matchedEntries?.map((entry) => (
+                              <Link
+                                key={entry.id}
+                                href={`/entry/${entry.id}`}
+                                className="flex items-center gap-2 mt-2 p-2 bg-white rounded-lg border border-gray-100 hover:border-primary/30 transition-colors"
+                              >
+                                <div className="w-1 h-8 bg-primary/30 rounded-full" />
+                                <div>
+                                  <p className="text-sm font-medium text-gray-800 line-clamp-1">{entry.title}</p>
+                                  <p className="text-xs text-gray-400">
+                                    {formatDistanceToNow(new Date(entry.date), { addSuffix: true, locale: dateLocale })}
+                                  </p>
+                                </div>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
