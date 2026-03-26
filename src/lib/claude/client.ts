@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ANALYZE_ENTRY_PROMPT, buildUserMessage } from './prompts';
 import { parseClaudeResponse, ClaudeAnalysisResult } from './parser';
+import { getModel } from './models';
 
 // Инициализация клиента
 // Если ключа нет (например, на этапе сборки), создаем заглушку, чтобы не падало
@@ -33,7 +34,7 @@ export async function analyzeEntry(
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: getModel('analysis'),
       max_tokens: 1024,
       temperature: 0.3, // Низкая температура для более структурированного JSON ответа
       system: ANALYZE_ENTRY_PROMPT,

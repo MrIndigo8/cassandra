@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createAdminClient, createServerSupabaseClient } from '@/lib/supabase/server';
 import { fetchAllEvents } from '@/lib/news';
 import type { NewsEvent } from '@/lib/news/types';
+import { getModel } from '@/lib/claude/models';
 
 type Section = 'relevant' | 'all';
 type Locale = 'ru' | 'en';
@@ -97,26 +98,31 @@ function hashText(text: string): string {
 }
 
 async function callClaudeTranslation(
-  payload: Array<{ id: number; title: string; desc: string }>
-): Promise<Array<{ id: number; title: string; desc: string }>> {
+  payload: Array<{ id: number; title: string }>
+): Promise<Array<{ id: number; title: string }>> {
   if (!process.env.ANTHROPIC_API_KEY || payload.length === 0) return payload;
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const input = payload.map((item) => `${item.id}|${item.title}`).join('\n');
 
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 4000,
+    model: getModel('utility'),
+    max_tokens: 3000,
     temperature: 0,
     messages: [
       {
         role: 'user',
-        content: `Переведи заголовки и описания новостей на русский язык. Сохрани смысл и новостной стиль.\n\nВходные данные (JSON):\n${JSON.stringify(payload)}\n\nОтветь только JSON-массивом: [{"id":0,"title":"...","desc":"..."}]`,
+        content: `Переведи каждый заголовок новости на русский. Формат ответа: номер|перевод. Без пояснений.\n\n${input}`,
       },
     ],
   });
 
   const text = response.content.find((block) => block.type === 'text')?.text || '';
-  const clean = text.replace(/```json\s*|```/g, '').trim();
-  const parsed = JSON.parse(clean) as Array<{ id: number; title: string; desc: string }>;
+  const lines = text.trim().split('\n').filter(Boolean);
+  const parsed = payload.map((item) => {
+    const line = lines.find((row) => row.startsWith(`${item.id}|`));
+    const translated = line?.split('|').slice(1).join('|').trim();
+    return { id: item.id, title: translated || item.title };
+  });
   return parsed;
 }
 
@@ -131,7 +137,6 @@ async function translateWithCache(
   const items = capped.map((event, id) => ({
     id,
     title: event.title,
-    desc: (event.description || '').slice(0, 200),
     hash: hashText(event.title),
   }));
 
@@ -145,19 +150,17 @@ async function translateWithCache(
   const cachedMap = new Map<string, string>(cached.map((row) => [row.source_hash, row.translated_text]));
   const missing = items.filter((item) => !cachedMap.has(item.hash));
 
-  let newTranslations: Array<{ id: number; title: string; desc: string }> = [];
+  let newTranslations: Array<{ id: number; title: string }> = [];
   if (missing.length > 0) {
     try {
-      newTranslations = await callClaudeTranslation(
-        missing.map((item) => ({ id: item.id, title: item.title, desc: item.desc }))
-      );
+      newTranslations = await callClaudeTranslation(missing.map((item) => ({ id: item.id, title: item.title })));
       const inserts = newTranslations.map((item) => {
         const src = missing.find((m) => m.id === item.id);
         return {
           source_hash: src?.hash || hashText(src?.title || ''),
           source_text: src?.title || '',
           target_locale: locale,
-          translated_text: JSON.stringify({ title: item.title, desc: item.desc }),
+          translated_text: item.title,
         };
       });
       if (inserts.length > 0) {
@@ -178,28 +181,22 @@ async function translateWithCache(
       return {
         ...event,
         title: fromNew.title || event.title,
-        description: fromNew.desc || event.description,
         originalTitle: event.title,
-        originalDescription: event.description,
       };
     }
     if (fromCacheRaw) {
-      try {
-        const parsed = JSON.parse(fromCacheRaw) as { title?: string; desc?: string };
-        return {
-          ...event,
-          title: parsed.title || event.title,
-          description: parsed.desc || event.description,
-          originalTitle: event.title,
-          originalDescription: event.description,
-        };
-      } catch {
-        return {
-          ...event,
-          title: fromCacheRaw || event.title,
-          originalTitle: event.title,
-        };
+      let cachedTitle = fromCacheRaw;
+      if (fromCacheRaw.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(fromCacheRaw) as { title?: string };
+          cachedTitle = parsed.title || cachedTitle;
+        } catch {}
       }
+      return {
+        ...event,
+        title: cachedTitle || event.title,
+        originalTitle: event.title,
+      };
     }
     return event;
   });
