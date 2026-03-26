@@ -157,7 +157,7 @@ export default async function ProfilePage({ params }: { params: { username: stri
           <div className="text-[10px] text-gray-500 uppercase tracking-widest">{t('matches')}</div>
         </div>
         <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
-          <div className="text-2xl font-bold text-amber-600">{(profile.rating || 0).toFixed(1)}</div>
+          <div className="text-2xl font-bold text-amber-600">{Number(profile.rating_score || 0).toFixed(1)}</div>
           <div className="text-[10px] text-gray-500 uppercase tracking-widest">{t('rating')}</div>
         </div>
       </div>

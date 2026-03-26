@@ -6,6 +6,7 @@ export interface UserProfile {
   avatar_url: string | null;
   role: 'observer' | 'chronicler' | 'oracle' | 'sensitive' | null;
   rating_score: number;
+  // Legacy DB field from early schema; UI and scoring use rating_score.
   rating?: number | null;
   created_at: string;
   streak?: number | null;

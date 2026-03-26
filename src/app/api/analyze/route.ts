@@ -12,6 +12,19 @@ export async function POST(request: Request) {
 
     const { processed } = await runAnalysis();
 
+    // Fire-and-forget verification after analysis completes.
+    const cronSecret = process.env.CRON_SECRET;
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
+
+    if (cronSecret && appUrl) {
+      fetch(`${appUrl}/api/verify`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${cronSecret}` },
+      }).catch(() => {});
+    }
+
     return NextResponse.json({ processed });
 
   } catch (error) {

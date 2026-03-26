@@ -80,14 +80,16 @@ export function EntryCard({
 
   const dateLocale = locale === 'en' ? enUS : ru;
   const timeAgo = formatDistanceToNow(new Date(entry.created_at), { addSuffix: true, locale: dateLocale });
+  const userRole = user.role || 'observer';
+  const userRating = user.rating_score ?? 0;
 
   const roleBadge = useMemo(() => {
-    const role = user.role || 'observer';
+    const role = userRole;
     if (role === 'oracle') return { icon: '⭐', cls: 'bg-amber-100 text-amber-700 shadow-glow-sm', label: tRole('oracle') };
     if (role === 'sensitive') return { icon: '🌊', cls: 'bg-violet-100 text-violet-700', label: tRole('sensitive') };
     if (role === 'chronicler') return { icon: '📘', cls: 'bg-blue-100 text-blue-700', label: tRole('chronicler') };
     return { icon: '👁️', cls: 'bg-gray-100 text-gray-700', label: tRole('observer') };
-  }, [tRole, user.role]);
+  }, [tRole, userRole]);
 
   const typeBadge = useMemo(() => {
     const type = entry.type || 'unknown';
@@ -161,7 +163,7 @@ export function EntryCard({
             </span>
           </div>
           <div className="text-xs text-gray-500 mt-0.5 inline-flex items-center gap-1.5">
-            <span>⚡ {Number(user.rating_score || 0).toFixed(1)}</span>
+            <span>⚡ {Number(userRating).toFixed(1)}</span>
             <span>·</span>
             <span>{timeAgo}</span>
           </div>

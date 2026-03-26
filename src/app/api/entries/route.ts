@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { checkSpam } from '@/lib/antispam';
 import { createEntrySchema } from '@/lib/validations';
+import { updateUserScoring } from '@/lib/scoring';
 
 export async function POST(req: Request) {
   try {
@@ -154,6 +155,9 @@ export async function POST(req: Request) {
         })
         .eq('id', user.id);
     }
+
+    // Fire-and-forget scoring refresh (activity component).
+    updateUserScoring(user.id, supabase).catch(() => {});
 
     return NextResponse.json({ data: entry }, { status: 201 });
 

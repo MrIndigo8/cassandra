@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { commentSchema, deleteCommentSchema } from '@/lib/validations';
+import { updateUserScoring } from '@/lib/scoring';
 
 // GET — получить комментарии к записи
 export async function GET(request: Request) {
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error) return Response.json({ error: error.message }, { status: 500 });
+  updateUserScoring(user.id, supabase).catch(() => {});
   return Response.json({ data }, { status: 201 });
 }
 

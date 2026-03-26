@@ -162,6 +162,65 @@
   .action-btn {
     @apply flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-50;
   }
+
+  /* Match card — карточка совпадения */
+  .match-card {
+    @apply bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all duration-200;
+  }
+  .match-card-grid {
+    @apply grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] gap-4 items-center;
+  }
+
+  /* Match score circle */
+  .match-score-circle {
+    @apply flex flex-col items-center justify-center w-16 h-16 rounded-full text-white text-sm font-bold;
+  }
+  .match-score-high { @apply bg-emerald-500; }
+  .match-score-medium { @apply bg-amber-500; }
+
+  /* Event card */
+  .event-card {
+    @apply flex items-start gap-3 p-4 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer border border-transparent hover:border-gray-100;
+  }
+
+  /* Category dots */
+  .category-dot {
+    @apply w-2.5 h-2.5 rounded-full mt-2 flex-shrink-0;
+  }
+  .category-dot-conflict { @apply bg-red-500; }
+  .category-dot-earthquake { @apply bg-orange-500; }
+  .category-dot-politics { @apply bg-blue-500; }
+  .category-dot-economy { @apply bg-green-500; }
+  .category-dot-other { @apply bg-gray-400; }
+
+  /* Relevance badge */
+  .relevance-badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary;
+  }
+
+  /* Signal card (кластер) */
+  .signal-card {
+    @apply flex items-center gap-4 p-4 rounded-xl bg-amber-50 border border-amber-100;
+  }
+  .signal-intensity-bar {
+    @apply h-1.5 rounded-full bg-gradient-to-r from-amber-300 to-red-500;
+  }
+
+  /* Matched symbol tag */
+  .symbol-tag {
+    @apply inline-flex px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600;
+  }
+
+  /* Tab pills (если ещё нет) */
+  .tab-pill {
+    @apply px-4 py-2 rounded-full text-sm font-medium transition-colors;
+  }
+  .tab-pill-active {
+    @apply bg-primary text-white;
+  }
+  .tab-pill-inactive {
+    @apply bg-white border border-gray-200 text-gray-600 hover:border-primary/50;
+  }
 }
 
 @layer utilities {

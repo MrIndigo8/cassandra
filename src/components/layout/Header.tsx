@@ -11,6 +11,7 @@ import { Logo } from './Logo';
 export function Header() {
   const t = useTranslations('nav');
   const tCommon = useTranslations('common');
+  const tRole = useTranslations('role');
   const locale = useLocale();
   const { profile } = useUser();
   const pathname = usePathname();
@@ -40,6 +41,16 @@ export function Header() {
     : '#';
 
   const streak = (profile as Record<string, unknown> | null)?.streak as number | undefined;
+  const currentRole = profile?.role || 'observer';
+  const currentRating = Number(profile?.rating_score ?? 0);
+  const roleColor =
+    currentRole === 'oracle'
+      ? 'bg-amber-500'
+      : currentRole === 'sensitive'
+      ? 'bg-violet-500'
+      : currentRole === 'chronicler'
+      ? 'bg-blue-500'
+      : 'bg-gray-400';
 
   const navLinks = [
     { href: '/feed', label: t('feed') },
@@ -106,6 +117,11 @@ export function Header() {
             </span>
           )}
           <NotificationBell />
+          <span
+            className={`inline-flex w-2.5 h-2.5 rounded-full ${roleColor}`}
+            title={`${tRole(currentRole)} · ${currentRating.toFixed(1)}`}
+            aria-label={`${tRole(currentRole)} ${currentRating.toFixed(1)}`}
+          />
           <Link
             href={profileHref}
             className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white text-sm font-medium hover:bg-primary-hover transition-colors shrink-0"

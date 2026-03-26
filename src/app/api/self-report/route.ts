@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { getRoleForUser } from '@/lib/scoring';
+import { updateUserScoring } from '@/lib/scoring';
 import { NextResponse } from 'next/server';
 import { selfReportSchema } from '@/lib/validations';
 
@@ -35,27 +35,19 @@ export async function POST(request: Request) {
         .update({ is_verified: true })
         .eq('id', entry_id);
 
-      // Пересчитать рейтинг
+      // Инкремент verified_count + единый пересчёт скоринга.
       const { data: profile } = await supabase
         .from('users')
-        .select('verified_count, total_entries, rating_score, created_at')
+        .select('verified_count')
         .eq('id', user.id)
         .single();
 
-      const newVerifiedCount = (profile?.verified_count || 0) + 1;
-      const daysSinceReg = profile?.created_at ? Math.floor((Date.now() - new Date(profile.created_at).getTime()) / (1000 * 3600 * 24)) : 30;
-      
-      const newRole = getRoleForUser({
-        verifiedCount: newVerifiedCount,
-        totalEntries: profile?.total_entries || 0,
-        ratingScore: profile?.rating_score || 0,
-        daysSinceRegistration: daysSinceReg
-      });
+      await supabase
+        .from('users')
+        .update({ verified_count: (profile?.verified_count || 0) + 1 })
+        .eq('id', user.id);
 
-      await supabase.from('users').update({
-        verified_count: newVerifiedCount,
-        role: newRole
-      }).eq('id', user.id);
+      await updateUserScoring(user.id, supabase);
 
       // Уведомление о подтверждении
       await supabase.from('notifications').insert({

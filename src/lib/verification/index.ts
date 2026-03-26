@@ -1,7 +1,7 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { fetchAllEvents } from '../news';
 import { scoreMatch, EntryData } from './scorer';
-import { calculateRatingScore, getRoleForUser } from '../scoring';
+import { updateUserScoring } from '../scoring';
 import { createMatchNotification } from '../notifications';
 import { updateUserProfile } from '../learning';
 
@@ -25,7 +25,7 @@ export async function runVerification(): Promise<{ checked: number; matched: num
 
   const { data: entries, error: entriesError } = await supabase
     .from('entries')
-    .select('*')
+    .select('*, users:user_id (id, username, rating_score, verified_count, total_entries, total_matches, role)')
     .eq('is_verified', false)
     .not('ai_analyzed_at', 'is', null)
     .gte('created_at', thirtyDaysAgo.toISOString())
@@ -109,61 +109,10 @@ export async function runVerification(): Promise<{ checked: number; matched: num
 
     // Если было найдено совпадение, нужно обновить рейтинг и профиль юзера
     if (hasMatch && entry.user_id) {
-       await recalculateUserRating(supabase, entry.user_id);
-       await updateUserProfile(entry.user_id);
+      await updateUserScoring(entry.user_id, supabase);
+      await updateUserProfile(entry.user_id);
     }
   }
 
   return { checked: entries.length, matched: matchedCount };
-}
-
-/**
- * Пересчитывает рейтинг пользователя и его роль
- */
-async function recalculateUserRating(supabase: SupabaseClient, userId: string) {
-  // 1. Считаем verified_count
-  const { data: verifiedEntries } = await supabase
-    .from('entries')
-    .select('id, best_match_score, ai_specificity, created_at')
-    .eq('user_id', userId)
-    .gt('best_match_score', 0.6);
-
-  const verifiedCount = verifiedEntries?.length || 0;
-
-  // 2. Считаем total_entries (для пенальти за спам)
-  const { count: totalEntries } = await supabase
-    .from('entries')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId);
-
-  const total = totalEntries || 1;
-
-  // 3. Вычисляем rating_score по формуле
-  const ratingScore = calculateRatingScore(verifiedEntries || [], total);
-
-  // 4. Считаем возраст аккаунта и количество записей для роли
-  const { data: profile } = await supabase
-    .from('users')
-    .select('created_at')
-    .eq('id', userId)
-    .single();
-  
-  const daysSinceRegistration = profile ? (new Date().getTime() - new Date(profile.created_at).getTime()) / (1000 * 3600 * 24) : 0;
-  
-  // 5. Определяем роль
-  const newRole = getRoleForUser({
-    verifiedCount,
-    ratingScore,
-    daysSinceRegistration,
-    totalEntries: total
-  });
-
-  // 6. Обновляем юзера
-  await supabase.from('users').update({
-    verified_count: verifiedCount,
-    rating_score: ratingScore,
-    role: newRole
-  }).eq('id', userId);
-  
-  if (process.env.NODE_ENV !== 'production') console.info(`[Verification] Обновлен рейтинг юзера ${userId}: score=${ratingScore}, role=${newRole}`);
 }
