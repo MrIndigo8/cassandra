@@ -430,7 +430,10 @@ export async function GET(request: Request) {
         .map((k) => normalizeWord(k))
         .filter((k) => k.length > 3)
     );
-    const interestKeywords = new Set<string>([...keywords, ...verificationKeywords]);
+    const interestKeywords = new Set<string>([
+      ...Array.from(keywords),
+      ...Array.from(verificationKeywords),
+    ]);
 
     const userTextKeywords = new Set(
       entries

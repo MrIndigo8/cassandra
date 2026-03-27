@@ -173,6 +173,14 @@ export default function NoosphereClient() {
     return () => clearInterval(id);
   }, [fetchData]);
 
+  const focusCountry = useCallback((iso: string) => {
+    const coords = ISO_TO_COORDS[iso];
+    if (!coords) return;
+    setMapCenter(coords);
+    setMapZoom(2.2);
+    mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
+
   useEffect(() => {
     if (!data) return;
     if (highlightISO) {
@@ -185,15 +193,7 @@ export default function NoosphereClient() {
         focusCountry(pointed.iso);
       }
     }
-  }, [data, highlightISO, highlightMatchId]);
-
-  const focusCountry = useCallback((iso: string) => {
-    const coords = ISO_TO_COORDS[iso];
-    if (!coords) return;
-    setMapCenter(coords);
-    setMapZoom(2.2);
-    mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, []);
+  }, [data, highlightISO, highlightMatchId, focusCountry]);
 
   const handleTooltipMove = useCallback((x: number, y: number) => {
     const now = Date.now();
