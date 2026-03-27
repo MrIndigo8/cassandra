@@ -7,6 +7,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/navigation';
 import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { useEffect } from 'react';
 
 import { Logo } from './Logo';
 
@@ -69,6 +70,30 @@ export function Header() {
     { href: '/map', label: t('map') },
   ];
   const canAccessAdmin = ['architect', 'admin', 'moderator'].includes(currentRole);
+
+  useEffect(() => {
+    // Warm up global events + translation cache soon after app entry.
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void Promise.all([
+        fetch(`/api/events?section=all&page=1&limit=20&locale=${locale}`, {
+          method: 'GET',
+          signal: controller.signal,
+          keepalive: true,
+        }),
+        fetch(`/api/events?section=relevant&page=1&limit=20&locale=${locale}`, {
+          method: 'GET',
+          signal: controller.signal,
+          keepalive: true,
+        }),
+      ]).catch(() => undefined);
+    }, 700);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [locale]);
 
   return (
     <header className="sticky top-0 z-50 bg-surface border-b border-border backdrop-blur">

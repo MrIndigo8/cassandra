@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS, ru } from 'date-fns/locale';
 import { Activity, ChevronDown, ChevronUp, GitCompare } from 'lucide-react';
@@ -119,6 +119,7 @@ interface EventApiItem {
   description: string | null;
   originalTitle?: string | null;
   url: string;
+  source?: string;
   publishedAt: string;
   geography: string | null;
   category: string | null;
@@ -186,10 +187,17 @@ export default function EventsClient({
     });
   }, [initialMatches]);
 
-  const loadEvents = async (targetSection: Section, targetPage: number, append: boolean) => {
+  const loadEvents = async (
+    targetSection: Section,
+    targetPage: number,
+    append: boolean,
+    options?: { silent?: boolean }
+  ) => {
     try {
-      setLoading(true);
-      setError(null);
+      if (!options?.silent) {
+        setLoading(true);
+        setError(null);
+      }
       const res = await fetch(`/api/events?section=${targetSection}&page=${targetPage}&limit=20&locale=${locale}`);
       if (!res.ok) throw new Error('load_failed');
       const data = (await res.json()) as EventsApiResponse;
@@ -198,11 +206,21 @@ export default function EventsClient({
       setHasMore(data.hasMore);
       setLoadedForSection((prev) => ({ ...prev, [targetSection]: true }));
     } catch {
-      setError(tEvents('error'));
+      if (!options?.silent) {
+        setError(tEvents('error'));
+      }
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
   };
+
+  useEffect(() => {
+    if (loadedForSection.relevant) return;
+    void loadEvents('relevant', 1, false, { silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale, loadedForSection.relevant]);
 
   const openWorldEventsTab = async () => {
     setTab('worldEvents');
@@ -413,6 +431,7 @@ export default function EventsClient({
                   )}
                   <div className="mt-2 text-xs text-text-muted flex flex-wrap items-center gap-2">
                     <span>{formatDistanceToNow(new Date(event.publishedAt), { addSuffix: true, locale: dateLocale })}</span>
+                    {event.source && <span>· {tEvents('eventSource')}: {String(event.source).toUpperCase()}</span>}
                     {event.geography && <span>· {event.geography}</span>}
                     {section === 'relevant' && event.relevanceReasons?.[0] && (
                       <span className="relevance-badge">

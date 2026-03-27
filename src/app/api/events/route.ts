@@ -2,14 +2,14 @@ import crypto from 'crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { createAdminClient, createServerSupabaseClient } from '@/lib/supabase/server';
 import { fetchAllEvents } from '@/lib/news';
-import type { NewsEvent } from '@/lib/news/types';
+import type { NewsAudienceProfile, NewsEvent } from '@/lib/news/types';
 import { getModel } from '@/lib/claude/models';
 
 type Section = 'relevant' | 'all';
 type Locale = 'ru' | 'en';
 type RelevanceType = 'geography' | 'sensory' | 'keywords';
 
-let eventsCache: { data: NewsEvent[]; timestamp: number } | null = null;
+const eventsCache = new Map<string, { data: NewsEvent[]; timestamp: number }>();
 const CACHE_TTL = 15 * 60 * 1000;
 let translatedEventsCache: { data: EventWithTranslation[]; timestamp: number; locale: Locale } | null = null;
 const TRANSLATED_EVENTS_CACHE_TTL = 30 * 60 * 1000;
@@ -83,13 +83,64 @@ function extractKeywords(contents: string[]): string[] {
     .map(([word]) => word);
 }
 
-async function getEventsWithCache(): Promise<NewsEvent[]> {
-  const now = Date.now();
-  if (eventsCache && now - eventsCache.timestamp < CACHE_TTL) {
-    return eventsCache.data;
+function tokenize(text: string): string[] {
+  return normalizeWord(text)
+    .split(/\s+/)
+    .filter((w) => w.length > 3);
+}
+
+function getAudienceKey(audience: NewsAudienceProfile): string {
+  return JSON.stringify({
+    locale: audience.locale || 'en',
+    preferredCountries: [...(audience.preferredCountries || [])].sort(),
+    preferredRegions: [...(audience.preferredRegions || [])].sort(),
+    preferredTopics: [...(audience.preferredTopics || [])].sort(),
+  });
+}
+
+function buildAudienceProfileFromRequest(request: Request, locale: Locale): NewsAudienceProfile {
+  const lang = (request.headers.get('accept-language') || '').toLowerCase();
+  const country = (request.headers.get('x-vercel-ip-country') || '').toLowerCase();
+  const audience: NewsAudienceProfile = {
+    locale,
+    preferredCountries: [],
+    preferredRegions: [],
+    preferredTopics: [],
+  };
+
+  if (country) {
+    audience.preferredCountries?.push(country);
+    if (country === 'pl') {
+      audience.preferredCountries?.push('poland');
+      audience.preferredRegions?.push('europe');
+    }
   }
-  const data = await fetchAllEvents(3);
-  eventsCache = { data, timestamp: now };
+
+  if (lang.includes('pl')) {
+    audience.preferredCountries?.push('pl', 'poland');
+    audience.preferredRegions?.push('europe');
+  }
+  if (lang.includes('de')) audience.preferredCountries?.push('de', 'germany');
+  if (lang.includes('fr')) audience.preferredCountries?.push('fr', 'france');
+  if (lang.includes('it')) audience.preferredCountries?.push('it', 'italy');
+  if (lang.includes('es')) audience.preferredCountries?.push('es', 'spain');
+
+  if (locale === 'ru') {
+    audience.preferredTopics?.push('iran', 'war', 'crypto', 'bitcoin');
+  }
+
+  return audience;
+}
+
+async function getEventsWithCache(audience: NewsAudienceProfile): Promise<NewsEvent[]> {
+  const key = getAudienceKey(audience);
+  const now = Date.now();
+  const cached = eventsCache.get(key);
+  if (cached && now - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  const data = await fetchAllEvents(3, audience);
+  eventsCache.set(key, { data, timestamp: now });
   return data;
 }
 
@@ -302,7 +353,8 @@ export async function GET(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const allEvents = await getEventsWithCache();
+  const audience = buildAudienceProfileFromRequest(request, locale);
+  const allEvents = await getEventsWithCache(audience);
   let localizedEvents: EventWithTranslation[] = allEvents.map((e) => ({ ...e }));
   if (locale === 'ru') {
     const now = Date.now();
@@ -346,16 +398,61 @@ export async function GET(request: Request) {
         .map((e) => normalizeWord(e.ai_geography || ''))
         .filter(Boolean)
     );
+    const geographyFragments = new Set<string>(
+      Array.from(geographies).flatMap((g) => g.split(/\s+/).filter((w) => w.length > 2))
+    );
     const keywords = new Set(extractKeywords(entries.map((e) => e.content || '').filter(Boolean)));
+    const verificationKeywords = new Set(
+      entries
+        .flatMap((e) => e.sensory_data?.verification_keywords || [])
+        .map((k) => normalizeWord(k))
+        .filter((k) => k.length > 3)
+    );
+    const interestKeywords = new Set<string>([...keywords, ...verificationKeywords]);
+
+    const userTextKeywords = new Set(
+      entries
+        .flatMap((e) => tokenize(`${e.title || ''} ${e.content || ''}`))
+        .filter((w) => w.length > 4)
+    );
+    userTextKeywords.forEach((k) => interestKeywords.add(k));
+
+    const userPrefersEurope =
+      Array.from(geographies).some((g) => g.includes('pol') || g.includes('europe') || g.includes('eu')) ||
+      Array.from(interestKeywords).some((k) => ['poland', 'europe', 'eu', 'ukraine'].includes(k));
+
+    const userInterestInIranOrCrypto = Array.from(interestKeywords).some((k) =>
+      ['iran', 'israel', 'middle', 'east', 'bitcoin', 'btc', 'crypto', 'ethereum'].includes(k)
+    );
+
     sortedEvents = sortedEvents
       .map(({ event }) => {
         const haystack = normalizeWord(`${event.title} ${event.description || ''}`);
         const eventGeo = normalizeWord(event.geography || '');
+        const eventGeoTokens = new Set(tokenize(eventGeo));
+        const matchedInterest = Array.from(interestKeywords).filter((word) => word && haystack.includes(word));
 
         let relevanceScore = 0;
-        if (eventGeo && geographies.has(eventGeo)) relevanceScore += 3;
+        if (eventGeo && geographies.has(eventGeo)) relevanceScore += 5;
+        if (eventGeo && Array.from(geographyFragments).some((token) => token && eventGeo.includes(token))) relevanceScore += 3;
         if (Array.from(images).some((word) => word && haystack.includes(word))) relevanceScore += 2;
+        relevanceScore += Math.min(6, matchedInterest.length * 2);
         if (Array.from(keywords).some((word) => word && haystack.includes(word))) relevanceScore += 1;
+
+        if (userPrefersEurope && (eventGeo.includes('usa') || eventGeo.includes('united states'))) {
+          relevanceScore -= 2;
+        }
+        if (
+          userInterestInIranOrCrypto &&
+          !haystack.includes('iran') &&
+          !haystack.includes('israel') &&
+          !haystack.includes('middle east') &&
+          !haystack.includes('bitcoin') &&
+          !haystack.includes('crypto')
+        ) {
+          relevanceScore -= 1;
+        }
+        if (eventGeoTokens.has('europe') || eventGeoTokens.has('poland')) relevanceScore += 1;
 
         const relevanceReasons = buildRelevanceReasons(
           { ...event, title: event.originalTitle || event.title, description: event.originalDescription || event.description },
@@ -364,10 +461,29 @@ export async function GET(request: Request) {
         );
         return { event, relevanceScore, relevanceReasons };
       })
+      .filter(({ relevanceScore }) => relevanceScore > 0)
       .sort((a, b) => {
         if (b.relevanceScore !== a.relevanceScore) return b.relevanceScore - a.relevanceScore;
         return new Date(b.event.publishedAt).getTime() - new Date(a.event.publishedAt).getTime();
       });
+
+    if (sortedEvents.length < 8) {
+      const fallback = localizedEvents
+        .map((event) => ({
+          event,
+          relevanceScore: 0,
+          relevanceReasons: [] as RelevanceReason[],
+        }))
+        .sort((a, b) => new Date(b.event.publishedAt).getTime() - new Date(a.event.publishedAt).getTime());
+      const seen = new Set(sortedEvents.map((item) => item.event.url));
+      const merged = [...sortedEvents];
+      for (const item of fallback) {
+        if (seen.has(item.event.url)) continue;
+        seen.add(item.event.url);
+        merged.push(item);
+      }
+      sortedEvents = merged.slice(0, Math.max(20, sortedEvents.length));
+    }
   } else {
     sortedEvents = sortedEvents.sort(
       (a, b) => new Date(b.event.publishedAt).getTime() - new Date(a.event.publishedAt).getTime()
@@ -386,6 +502,7 @@ export async function GET(request: Request) {
       description: event.description || null,
       originalTitle: event.originalTitle || null,
       url: event.url,
+      source: event.source,
       publishedAt: event.publishedAt.toISOString(),
       geography: event.geography || null,
       category: event.category || 'other',
@@ -395,5 +512,6 @@ export async function GET(request: Request) {
     total,
     page,
     hasMore: to < total,
+    sources: ['newsapi', 'guardian', 'usgs'],
   });
 }

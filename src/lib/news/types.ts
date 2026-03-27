@@ -9,3 +9,10 @@ export interface NewsEvent {
   geography: string | null;
   severity: 'low' | 'medium' | 'high';
 }
+
+export interface NewsAudienceProfile {
+  locale?: 'ru' | 'en';
+  preferredCountries?: string[];
+  preferredRegions?: string[];
+  preferredTopics?: string[];
+}

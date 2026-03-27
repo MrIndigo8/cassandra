@@ -1,4 +1,4 @@
-import { NewsEvent } from './types';
+import { NewsAudienceProfile, NewsEvent } from './types';
 import { fetchRecentNews } from './newsapi';
 import { fetchEarthquakes } from './usgs';
 import { fetchGuardianNews } from './guardian';
@@ -11,9 +11,12 @@ export { type NewsEvent } from './types';
  *
  * @param daysBack - количество дней назад для поиска
  */
-export async function fetchAllEvents(daysBack: number): Promise<NewsEvent[]> {
+export async function fetchAllEvents(
+  daysBack: number,
+  audience?: NewsAudienceProfile
+): Promise<NewsEvent[]> {
   const [newsApiEvents, usgsEvents, guardianEvents] = await Promise.all([
-    fetchRecentNews(daysBack),
+    fetchRecentNews(daysBack, audience),
     fetchEarthquakes(daysBack),
     fetchGuardianNews(daysBack)
   ]);
