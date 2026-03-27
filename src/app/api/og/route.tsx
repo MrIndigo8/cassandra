@@ -6,6 +6,66 @@ export const runtime = 'edge';
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+    const mode = searchParams.get('type') || 'dream';
+
+    if (mode === 'match') {
+      const score = Math.max(0, Math.min(100, Number(searchParams.get('score') || 0)));
+      const quote = searchParams.get('quote') || 'Сигнал пользователя';
+      const eventTitle = searchParams.get('event_title') || 'Совпадение с событием';
+      const author = searchParams.get('author') || 'Аноним';
+      const dateStr = searchParams.get('date') || '';
+      const size = searchParams.get('size') === 'story' ? 'story' : 'og';
+
+      const width = size === 'story' ? 1080 : 1200;
+      const height = size === 'story' ? 1920 : 630;
+      const titleSize = size === 'story' ? 54 : 42;
+      const scoreSize = size === 'story' ? 112 : 88;
+      const pad = size === 'story' ? 72 : 56;
+
+      return new ImageResponse(
+        (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              background: 'linear-gradient(180deg, #0B0F1A 0%, #131B2E 100%)',
+              color: '#E2E8F0',
+              padding: `${pad}px`,
+              fontFamily: 'Inter, sans-serif',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: size === 'story' ? 46 : 34, fontWeight: 700, display: 'flex' }}>🔮 Cassandra</div>
+              <div style={{ fontSize: 24, color: '#A78BFA', display: 'flex' }}>match</div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <div style={{ fontSize: titleSize, fontWeight: 700, lineHeight: 1.25, display: 'flex' }}>
+                “{quote.length > 160 ? `${quote.slice(0, 157)}...` : quote}”
+              </div>
+              <div style={{ fontSize: 24, color: '#94A3B8', display: 'flex' }}>
+                {author}{dateStr ? ` • ${dateStr}` : ''}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+                <div style={{ fontSize: scoreSize, fontWeight: 800, color: '#10B981', display: 'flex' }}>{score}%</div>
+                <div style={{ fontSize: 22, color: '#A78BFA', display: 'flex' }}>подтверждено</div>
+              </div>
+              <div style={{ fontSize: 28, lineHeight: 1.25, color: '#E2E8F0', display: 'flex' }}>
+                {eventTitle.length > 120 ? `${eventTitle.slice(0, 117)}...` : eventTitle}
+              </div>
+              <div style={{ fontSize: 22, color: '#94A3B8', display: 'flex' }}>cassandra.app</div>
+            </div>
+          </div>
+        ),
+        { width, height }
+      );
+    }
 
     // Параметры из URL
     const type = searchParams.get('type') || 'dream'; // 'dream' или 'premonition'

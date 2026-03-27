@@ -1,9 +1,9 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import EventsClient from './EventsClient';
+import EventsClient from '../events/EventsClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function EventsPage() {
+export default async function DiscoveriesPage() {
   const supabase = createServerSupabaseClient();
 
   const { data: matches } = await supabase
@@ -30,5 +30,12 @@ export default async function EventsPage() {
     .select('*')
     .order('date_of_event', { ascending: false });
 
-  return <EventsClient initialMatches={matches || []} initialClusters={clusters || []} initialCases={cases || []} />;
+  return (
+    <EventsClient
+      initialMatches={matches || []}
+      initialClusters={clusters || []}
+      initialCases={cases || []}
+      showTitle
+    />
+  );
 }

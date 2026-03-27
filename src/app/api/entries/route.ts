@@ -65,7 +65,7 @@ export async function POST(req: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
     }
-    const { content, is_public, image_url } = parsed.data;
+    const { content, is_public, image_url, scope } = parsed.data;
 
     // 2.5 Антиспам-проверка
     const spamResult = await checkSpam(user.id, content);
@@ -90,6 +90,7 @@ export async function POST(req: Request) {
         ip_geography: ipGeography,
         ip_country_code: countryCode,
         image_url: image_url || null,
+        scope,
       })
       .select('id, created_at')
       .single();
@@ -99,59 +100,57 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Ошибка сохранения записи' }, { status: 500 });
     }
 
-    // 3.5 Создаем отложенное уведомление через 14 дней
-    await supabase.from('notifications').insert({
-      user_id: user.id,
-      entry_id: entry.id,
-      type: 'self_report_reminder',
-      title: 'Это предчувствие сбылось?',
-      message: content.length > 80 ? content.slice(0, 80) + '...' : content,
-      action_type: 'self_report',
-      status: 'pending',
-      scheduled_for: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-    });
+    // 3.5 Для personal-сигналов создаем серию self-report напоминаний 3/7/14/30 дней.
+    if (scope === 'personal') {
+      const offsets = [3, 7, 14, 30];
+      const reminderRows = offsets.map((days) => ({
+        user_id: user.id,
+        entry_id: entry.id,
+        type: 'self_report_reminder',
+        title: 'Это предчувствие сбылось?',
+        message: content.length > 80 ? `${content.slice(0, 80)}...` : content,
+        action_type: 'self_report',
+        status: 'pending',
+        scheduled_for: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
+      }));
+      await supabase.from('notifications').insert(reminderRows);
+    }
 
-    // 4. Инкремент total_entries + streak система
+    // 4. Инкремент total_entries + streak система (новые поля streak_count/last_entry_date)
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('total_entries, streak, longest_streak, last_entry_at')
+      .select('total_entries, streak_count, last_entry_date')
       .eq('id', user.id)
       .single();
 
     if (!userError && userData) {
-      let newStreak = userData.streak || 0;
+      const currentStreak = Number(userData.streak_count || 0);
+      let newStreak = currentStreak;
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-      if (userData.last_entry_at) {
-        const lastDate = new Date(userData.last_entry_at);
+      if (userData.last_entry_date) {
+        const lastDate = new Date(userData.last_entry_date);
         const lastDay = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
         const diffDays = Math.floor((today.getTime() - lastDay.getTime()) / (1000 * 3600 * 24));
 
         if (diffDays === 1) {
-          // Вчера → streak + 1
-          newStreak = (userData.streak || 0) + 1;
+          newStreak = currentStreak + 1;
         } else if (diffDays === 0) {
-          // Сегодня уже была запись → streak не меняется
-          newStreak = userData.streak || 1;
+          newStreak = currentStreak || 1;
         } else {
-          // Позавчера или раньше → сброс
           newStreak = 1;
         }
       } else {
-        // Первая запись
         newStreak = 1;
       }
-
-      const newLongestStreak = Math.max(userData.longest_streak || 0, newStreak);
 
       await supabase
         .from('users')
         .update({
           total_entries: (userData.total_entries || 0) + 1,
-          streak: newStreak,
-          longest_streak: newLongestStreak,
-          last_entry_at: now.toISOString(),
+          streak_count: newStreak,
+          last_entry_date: today.toISOString().slice(0, 10),
         })
         .eq('id', user.id);
     }

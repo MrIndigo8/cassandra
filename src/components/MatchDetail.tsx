@@ -37,9 +37,34 @@ export default function MatchDetail({
   const t = useTranslations('match');
   const locale = useLocale();
   const [expanded, setExpanded] = useState(variant !== 'inline');
+  const [shareCopied, setShareCopied] = useState(false);
   const dateLocale = locale === 'en' ? enUS : ru;
   const score = Math.round((match.similarity_score || 0) * 100);
   const highlightIso = match.geography_match?.event_geography || match.geography_match?.entry_geography || '';
+  const shareOgUrl = (() => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const params = new URLSearchParams();
+    params.set('type', 'match');
+    params.set('entry_id', entry?.id || match.entry_id);
+    params.set('match_id', match.id);
+    params.set('score', String(score));
+    params.set('event_title', match.event_title || '');
+    params.set('quote', (entry?.content || '').slice(0, 180));
+    params.set('author', entry?.user?.username || '');
+    params.set('date', match.event_date ? new Date(match.event_date).toLocaleDateString() : '');
+    return origin ? `${origin}/api/og?${params.toString()}` : '';
+  })();
+
+  const handleShareMatch = async () => {
+    if (!shareOgUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareOgUrl);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 1500);
+    } catch {
+      setShareCopied(false);
+    }
+  };
 
   if (variant === 'inline') {
     return (
@@ -84,12 +109,12 @@ export default function MatchDetail({
               </div>
             ) : null}
             <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
-              <Link href="/events?tab=matches" className="text-xs text-primary hover:underline flex items-center gap-1">
+              <Link href="/discoveries?tab=matches" className="text-xs text-primary hover:underline flex items-center gap-1">
                 <ArrowRight className="w-3 h-3" />
                 {t('seeAllMatches')}
               </Link>
               {highlightIso ? (
-                <Link href={`/noosphere?highlight=${encodeURIComponent(highlightIso)}`} className="text-xs text-primary hover:underline">
+                <Link href={`/map?highlight=${encodeURIComponent(highlightIso)}`} className="text-xs text-primary hover:underline">
                   {t('showOnMap')}
                 </Link>
               ) : null}
@@ -99,6 +124,10 @@ export default function MatchDetail({
                   {t('openSource')}
                 </a>
               ) : null}
+              <button type="button" onClick={handleShareMatch} className="text-xs text-primary hover:underline">
+                {t('shareMatch')}
+              </button>
+              {shareCopied ? <span className="text-xs text-emerald-600">{t('shareCopied')}</span> : null}
             </div>
           </div>
         )}
@@ -133,12 +162,16 @@ export default function MatchDetail({
           </div>
         </div>
         <div className="mt-2 flex flex-wrap gap-3 text-xs">
-          <Link href="/events?tab=matches" className="text-primary hover:underline">{t('seeAllMatches')}</Link>
+          <Link href="/discoveries?tab=matches" className="text-primary hover:underline">{t('seeAllMatches')}</Link>
           {highlightIso ? (
-            <Link href={`/noosphere?highlight=${encodeURIComponent(highlightIso)}&match=${encodeURIComponent(match.id)}`} className="text-primary hover:underline">
+            <Link href={`/map?highlight=${encodeURIComponent(highlightIso)}&match=${encodeURIComponent(match.id)}`} className="text-primary hover:underline">
               {t('showOnMap')}
             </Link>
           ) : null}
+          <button type="button" onClick={handleShareMatch} className="text-primary hover:underline">
+            {t('shareMatch')}
+          </button>
+          {shareCopied ? <span className="text-emerald-600">{t('shareCopied')}</span> : null}
         </div>
       </div>
     );
@@ -176,13 +209,17 @@ export default function MatchDetail({
         {formatDistanceToNow(new Date(match.event_date), { addSuffix: true, locale: dateLocale })}
       </div>
       <div className="mt-3 flex flex-wrap gap-3 text-sm">
-        <Link href="/events?tab=matches" className="text-primary hover:underline">{t('seeAllMatches')}</Link>
+        <Link href="/discoveries?tab=matches" className="text-primary hover:underline">{t('seeAllMatches')}</Link>
         {highlightIso ? (
-          <Link href={`/noosphere?highlight=${encodeURIComponent(highlightIso)}`} className="text-primary hover:underline">{t('showOnMap')}</Link>
+          <Link href={`/map?highlight=${encodeURIComponent(highlightIso)}`} className="text-primary hover:underline">{t('showOnMap')}</Link>
         ) : null}
         {showEventLink && match.event_url ? (
           <a href={match.event_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{t('openSource')}</a>
         ) : null}
+        <button type="button" onClick={handleShareMatch} className="text-primary hover:underline">
+          {t('shareMatch')}
+        </button>
+        {shareCopied ? <span className="text-emerald-600">{t('shareCopied')}</span> : null}
       </div>
     </div>
   );

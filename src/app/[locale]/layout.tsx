@@ -1,19 +1,24 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import localFont from "next/font/local";
+import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "../globals.css";
 
 import { AuthProvider } from "@/hooks/useUser";
 
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
-  variable: "--font-inter",
+  variable: "--font-sans",
   display: "swap",
 });
 
-const geistMono = localFont({
-  src: "../fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ["latin", "cyrillic"],
+  variable: "--font-mono",
   display: "swap",
 });
 
@@ -60,7 +65,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} className="dark">
-      <body className={`${inter.variable} ${geistMono.variable} font-sans`}>
+      <body className={`${inter.variable} ${spaceGrotesk.variable} ${jetBrainsMono.variable} font-sans`}>
         <NextIntlClientProvider messages={messages} locale={locale}>
           <AuthProvider>{children}</AuthProvider>
         </NextIntlClientProvider>

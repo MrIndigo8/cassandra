@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { analyzeEntry } from '@/lib/claude/client';
+import { averageEmbeddings, generateEmbedding, parseEmbeddingValue, toVectorLiteral } from '@/lib/embeddings';
 
 /**
  * Основная функция анализа записей
@@ -22,7 +23,7 @@ export async function runAnalysis(): Promise<{ processed: number }> {
         // Получаем записи, которые еще не анализировались
         const { data: entries, error: fetchError } = await supabaseAdmin
             .from('entries')
-            .select('id, content, type, direction, timeframe, quality')
+            .select('id, user_id, content, type, direction, timeframe, quality')
             .is('ai_analyzed_at', null)
             .limit(10);
 
@@ -41,6 +42,7 @@ export async function runAnalysis(): Promise<{ processed: number }> {
         for (const entry of entries) {
             try {
                 const analysis = await analyzeEntry(entry.content, entry.type, entry.direction, entry.timeframe, entry.quality);
+                const embedding = await generateEmbedding(entry.content);
 
                 if (analysis) {
                     // Сохраняем результат
@@ -61,6 +63,7 @@ export async function runAnalysis(): Promise<{ processed: number }> {
                             emotional_intensity: analysis.emotional_intensity,
                             geography_iso: analysis.geography_iso,
                             sensory_data: analysis.sensory_data,
+                            embedding: embedding ? toVectorLiteral(embedding) : null,
                             ai_analyzed_at: new Date().toISOString(),
                         })
                         .eq('id', entry.id);
@@ -68,6 +71,25 @@ export async function runAnalysis(): Promise<{ processed: number }> {
                     if (updateError) {
                         console.error(`[Analysis] Ошибка обновления записи ${entry.id}:`, updateError);
                     } else {
+                        // Обновляем baseline embedding пользователя как среднее по всем embeddings его записей.
+                        if (entry.user_id) {
+                            const { data: userEmbeddings } = await supabaseAdmin
+                                .from('entries')
+                                .select('embedding')
+                                .eq('user_id', entry.user_id)
+                                .not('embedding', 'is', null)
+                                .limit(500);
+                            const vectors = (userEmbeddings || [])
+                                .map((row) => parseEmbeddingValue((row as { embedding: unknown }).embedding))
+                                .filter((arr) => arr.length > 0);
+                            const baseline = averageEmbeddings(vectors);
+                            if (baseline) {
+                                await supabaseAdmin
+                                    .from('users')
+                                    .update({ dream_baseline_embedding: toVectorLiteral(baseline) })
+                                    .eq('id', entry.user_id);
+                            }
+                        }
                         processedCount++;
                     }
                 }

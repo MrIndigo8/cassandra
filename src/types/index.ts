@@ -10,6 +10,8 @@ export interface UserProfile {
   rating?: number | null;
   created_at: string;
   streak?: number | null;
+  streak_count?: number | null;
+  last_entry_date?: string | null;
 }
 
 /** Alias for backward-compatibility with useUser hook */
@@ -50,6 +52,7 @@ export interface Entry {
   best_match_score: number | null;
   created_at: string;
   intensity?: number | null;
+  prediction_potential?: number | null;
   
   // joined fields
   users?: UserProfile | null;

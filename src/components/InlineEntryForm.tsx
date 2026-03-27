@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useUser } from '@/hooks/useUser';
 import { useTranslations } from 'next-intl';
+import { Mic, Square, Plus, X } from 'lucide-react';
 import ImageUpload from './ImageUpload';
 
 export function InlineEntryForm() {
@@ -14,9 +15,16 @@ export function InlineEntryForm() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [scope, setScope] = useState<'world' | 'personal' | 'unknown'>('unknown');
+  const [isMobileComposerOpen, setIsMobileComposerOpen] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   const formRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
 
   const minLength = 30;
 
@@ -39,31 +47,75 @@ export function InlineEntryForm() {
     };
   }, [isExpanded, content, imageUrl]);
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop());
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        if (!audioBlob.size) return;
+        setIsTranscribing(true);
+        setError(null);
+        try {
+          const formData = new FormData();
+          formData.append('file', audioBlob, 'voice-note.webm');
+          const res = await fetch('/api/transcribe', { method: 'POST', body: formData });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || tCommon('error'));
+          setContent((prev) => `${prev}${prev ? ' ' : ''}${String(data.text || '').trim()}`);
+        } catch (err: unknown) {
+          setError(err instanceof Error ? err.message : tCommon('error'));
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+    } catch {
+      setError(tCommon('error'));
+    }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+  };
+
   const handleSubmit = async () => {
     if (content.length < minLength) return;
     setIsSubmitting(true);
     setError(null);
+    setSuccess(null);
 
     try {
-      // 1. Сохраняем запись в БД (post -> /api/entries)
       const res = await fetch('/api/entries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, image_url: imageUrl }),
+        body: JSON.stringify({ content, image_url: imageUrl, scope }),
       });
 
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.error || tCommon('error'));
       }
+      const payload = await res.json();
 
-      // Очищаем форму
       setContent('');
       setImageUrl(null);
+      setScope('unknown');
       setIsExpanded(false);
-
-      // Фоновый запуск анализа
-      fetch('/api/analyze', { method: 'POST' }).catch(console.error);
+      setIsMobileComposerOpen(false);
+      setSuccess(tFeed('submittedAnalyzing'));
+      const createdEntryId = payload?.data?.id;
+      if (createdEntryId) {
+        window.dispatchEvent(new CustomEvent('entry:created', { detail: { entryId: createdEntryId } }));
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -76,7 +128,44 @@ export function InlineEntryForm() {
   };
 
   return (
-    <div ref={formRef} className="card glass p-4 mb-6 relative">
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setIsExpanded(true);
+          setIsMobileComposerOpen(true);
+        }}
+        className="md:hidden fixed bottom-20 right-4 z-40 w-12 h-12 rounded-full bg-primary text-white shadow-lg flex items-center justify-center"
+        aria-label={tFeed('openComposer')}
+      >
+        <Plus size={20} />
+      </button>
+
+      <div
+        ref={formRef}
+        className={`card glass p-4 mb-6 relative ${
+          isMobileComposerOpen
+            ? 'fixed inset-0 z-50 m-0 rounded-none overflow-y-auto'
+            : 'hidden md:block'
+        } md:static md:inset-auto md:z-auto md:m-0 md:rounded-2xl md:overflow-visible`}
+      >
+        {isMobileComposerOpen && (
+          <div className="md:hidden flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-text-primary">{tFeed('newSignal')}</p>
+            <button
+              type="button"
+              className="btn-ghost inline-flex items-center justify-center w-8 h-8"
+              onClick={() => {
+                setIsMobileComposerOpen(false);
+                if (!content && !imageUrl) setIsExpanded(false);
+              }}
+              aria-label={tCommon('cancel')}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
       <div className="flex gap-4">
         <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0 overflow-hidden text-white font-medium">
           {profile?.avatar_url ? (
@@ -99,14 +188,36 @@ export function InlineEntryForm() {
             onChange={(e) => setContent(e.target.value)}
             onFocus={() => setIsExpanded(true)}
             placeholder={tFeed('placeholder')}
-            className={`w-full bg-transparent border-none focus:ring-0 text-text-primary placeholder:text-text-secondary/60 resize-none transition-all duration-300 ${
+            className={`w-full bg-transparent border-none focus:ring-0 text-text-primary placeholder:text-text-muted resize-none transition-all duration-300 ${
               isExpanded ? 'min-h-[120px]' : 'min-h-[40px]'
             }`}
             disabled={isSubmitting}
           />
-          
+
+          {success && (
+            <div className="text-green-400 text-sm mt-2">{success}</div>
+          )}
           {error && (
             <div className="text-red-400 text-sm mt-2">{error}</div>
+          )}
+
+          {isExpanded && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(['world', 'personal', 'unknown'] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setScope(value)}
+                  className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
+                    scope === value
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-surface text-text-secondary border-border hover:text-text-primary'
+                  }`}
+                >
+                  {tFeed(`scope.${value}`)}
+                </button>
+              ))}
+            </div>
           )}
 
           {isExpanded && (
@@ -122,9 +233,22 @@ export function InlineEntryForm() {
               <span className={`text-xs ${content.length < minLength ? 'text-text-secondary' : 'text-primary'}`}>
                 {content.length} / {minLength} {tEntry('minChars')}
               </span>
-              
+
               <div className="flex gap-2">
                 <button
+                  type="button"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={isSubmitting || isTranscribing}
+                  className="px-3 py-2 rounded-full border border-border text-text-secondary hover:text-text-primary disabled:opacity-50 inline-flex items-center gap-2"
+                  aria-label={isRecording ? tFeed('voice.stop') : tFeed('voice.start')}
+                >
+                  {isRecording ? <Square size={14} /> : <Mic size={14} />}
+                  <span className="text-xs">
+                    {isTranscribing ? tFeed('voice.transcribing') : isRecording ? tFeed('voice.stop') : tFeed('voice.start')}
+                  </span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setIsExpanded(false)}
                   className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
                   disabled={isSubmitting}
@@ -132,6 +256,7 @@ export function InlineEntryForm() {
                   {tCommon('cancel')}
                 </button>
                 <button
+                  type="button"
                   onClick={handleSubmit}
                   disabled={isSubmitting || content.length < minLength}
                   aria-label={tFeed('submit')}
@@ -144,6 +269,7 @@ export function InlineEntryForm() {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

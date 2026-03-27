@@ -397,7 +397,7 @@ export default function NoosphereClient() {
 
         <h2 className="text-lg font-semibold text-gray-900 mb-3">{t('sections.confirmedMatches')}</h2>
         <div className="mb-2">
-          <Link href="/events?tab=matches" className="text-sm text-primary hover:underline">All matches</Link>
+          <Link href="/discoveries?tab=matches" className="text-sm text-primary hover:underline">All matches</Link>
         </div>
         {confirmedMatches.length === 0 ? (
           <p className="text-sm text-gray-500">{t('noMatchesYet')}</p>

@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/useUser';
 import { EntryCard, type FeedEntry } from '@/components/EntryCard';
 import { InlineEntryForm } from '@/components/InlineEntryForm';
 import { PushBanner } from '@/components/PushBanner';
+import MorningDigestBanner from '@/components/MorningDigestBanner';
 import { useTranslations } from 'next-intl';
 import type { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 import type { Entry, User } from '@/types';
@@ -21,6 +22,11 @@ type BaseEntryRow = {
   is_verified: boolean | null;
   best_match_score: number | null;
   view_count: number | null;
+  prediction_potential: number | null;
+  sensory_data: {
+    sensory_patterns?: Array<{ sensation?: string }>;
+    verification_keywords?: string[];
+  } | null;
   created_at: string;
   users: {
     id: string;
@@ -62,7 +68,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
     }
   };
 
-  const hydrateEntries = async (baseRows: BaseEntryRow[]): Promise<FeedEntry[]> => {
+  const hydrateEntries = useCallback(async (baseRows: BaseEntryRow[]): Promise<FeedEntry[]> => {
     const entryIds = baseRows.map((e) => e.id);
     if (entryIds.length === 0) return [];
 
@@ -109,6 +115,8 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       is_verified: Boolean(entry.is_verified),
       best_match_score: entry.best_match_score,
       view_count: entry.view_count ?? 0,
+      prediction_potential: entry.prediction_potential ?? null,
+      sensory_data: entry.sensory_data ?? null,
       created_at: entry.created_at,
       user: {
         id: (Array.isArray(entry.users) ? entry.users[0]?.id : entry.users?.id) || '',
@@ -121,7 +129,26 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       comments_count: commentsCount.get(entry.id) || 0,
       user_liked: likedSet.has(entry.id),
     })).map((entry) => ({ ...entry, match: null }));
-  };
+  }, [supabase, user]);
+
+  const appendSingleEntry = useCallback(async (entryId: string) => {
+    const { data, error } = await supabase
+      .from('entries')
+      .select(`
+        id, type, title, content, image_url, is_verified, best_match_score,
+        view_count, prediction_potential, sensory_data, created_at,
+        users:user_id (id, username, avatar_url, role, rating_score)
+      `)
+      .eq('id', entryId)
+      .single();
+    if (error || !data) return;
+    const hydrated = await hydrateEntries([data as BaseEntryRow]);
+    if (!hydrated.length) return;
+    setEntries((prev) => {
+      if (prev.some((e) => e.id === entryId)) return prev;
+      return [hydrated[0], ...prev];
+    });
+  }, [supabase, hydrateEntries]);
 
   // Supabase Realtime подписка
   useEffect(() => {
@@ -168,6 +195,8 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
             is_verified: Boolean((newEntry as Entry & { is_verified?: boolean }).is_verified),
             best_match_score: (newEntry as Entry & { best_match_score?: number | null }).best_match_score ?? null,
             view_count: (newEntry as Entry & { view_count?: number | null }).view_count ?? 0,
+            prediction_potential: (newEntry as Entry & { prediction_potential?: number | null }).prediction_potential ?? null,
+            sensory_data: (newEntry as Entry & { sensory_data?: BaseEntryRow['sensory_data'] }).sensory_data ?? null,
             created_at: newEntry.created_at,
             user: {
               id: userData?.id || newEntry.user_id,
@@ -195,6 +224,16 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
     };
   }, [supabase, user, profile]);
 
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ entryId?: string }>).detail;
+      if (!detail?.entryId) return;
+      void appendSingleEntry(detail.entryId);
+    };
+    window.addEventListener('entry:created', handler);
+    return () => window.removeEventListener('entry:created', handler);
+  }, [appendSingleEntry]);
+
   const loadMore = async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
@@ -207,7 +246,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
         .from('entries')
         .select(`
           id, type, title, content, image_url, is_verified, best_match_score,
-          view_count, created_at,
+          view_count, prediction_potential, sensory_data, created_at,
           users:user_id (id, username, avatar_url, role, rating_score)
         `)
         .eq('is_public', true)
@@ -262,7 +301,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
         .from('entries')
         .select(`
           id, type, title, content, image_url, is_verified, best_match_score,
-          view_count, created_at,
+          view_count, prediction_potential, sensory_data, created_at,
           users:user_id (id, username, avatar_url, role, rating_score)
         `)
         .eq('is_public', true)
@@ -303,6 +342,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
   return (
     <div className="max-w-2xl mx-auto py-6 px-4">
       {/* Баннер утренних напоминаний */}
+      <MorningDigestBanner />
       <PushBanner />
 
       {/* Форма публикации сигнала */}
@@ -315,7 +355,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
           className={`rounded-full px-4 py-2 text-sm font-medium transition-colors shrink-0 ${
             filter === 'all' 
               ? 'bg-primary text-white'
-              : 'bg-white border border-gray-200 text-gray-600 hover:border-primary/50'
+              : 'bg-surface border border-border text-text-secondary hover:border-primary/50 hover:text-text-primary'
           }`}
         >
           {tf('allSignals', tf('filters.all', 'All'))}
@@ -325,7 +365,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
           className={`rounded-full px-4 py-2 text-sm font-medium transition-colors shrink-0 ${
             filter === 'dream' 
               ? 'bg-primary text-white'
-              : 'bg-white border border-gray-200 text-gray-600 hover:border-primary/50'
+              : 'bg-surface border border-border text-text-secondary hover:border-primary/50 hover:text-text-primary'
           }`}
         >
           {tf('dreams', tf('filters.dreams', 'Dreams'))}
@@ -335,7 +375,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
           className={`rounded-full px-4 py-2 text-sm font-medium transition-colors shrink-0 ${
             filter === 'premonition' 
               ? 'bg-primary text-white'
-              : 'bg-white border border-gray-200 text-gray-600 hover:border-primary/50'
+              : 'bg-surface border border-border text-text-secondary hover:border-primary/50 hover:text-text-primary'
           }`}
         >
           {tf('premonitions', tf('filters.premonitions', 'Premonitions'))}
@@ -364,6 +404,8 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
                 is_verified: entry.is_verified,
                 best_match_score: entry.best_match_score,
                 view_count: entry.view_count ?? 0,
+                prediction_potential: entry.prediction_potential ?? null,
+                sensory_data: entry.sensory_data ?? null,
                 created_at: entry.created_at,
               }}
               user={{
@@ -417,7 +459,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       {loadingMore && (
         <div className="mt-6 space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="rounded-2xl border border-gray-100 p-5">
+            <div key={i} className="rounded-2xl border border-border p-5">
               <div className="h-4 w-1/3 skeleton mb-3" />
               <div className="h-3 w-full skeleton mb-2" />
               <div className="h-3 w-5/6 skeleton mb-2" />

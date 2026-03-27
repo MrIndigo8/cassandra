@@ -189,13 +189,13 @@ export default function CardComments({ entryId, isOpen, commentCount, onCountCha
         isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
       }`}
     >
-      <div className="bg-gray-50/50 rounded-xl mt-3 p-4">
+      <div className="bg-surface-hover rounded-xl mt-3 p-4 border border-border">
         <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
           {visibleComments.map((comment) => {
             const username = comment.users?.username || t('anonymous');
             const isMine = !!user && comment.user_id === user.id;
             return (
-              <div key={comment.id} className="group border-b border-gray-50 pb-2 last:border-b-0">
+              <div key={comment.id} className="group border-b border-border pb-2 last:border-b-0">
                 <div className="flex items-start gap-2">
                   <div className={`w-6 h-6 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-[10px] text-white font-semibold ${avatarColor(username)}`}>
                     {comment.users?.avatar_url ? (
@@ -208,22 +208,22 @@ export default function CardComments({ entryId, isOpen, commentCount, onCountCha
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-900">{username}</span>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-sm font-medium text-text-primary">{username}</span>
+                      <span className="text-xs text-text-muted">
                         {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: dateLocale })}
                       </span>
                       {isMine && (
                         <button
                           type="button"
                           onClick={() => handleDelete(comment.id)}
-                          className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500"
+                          className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-text-muted hover:text-red-500"
                           aria-label="delete-comment"
                         >
                           <X size={14} />
                         </button>
                       )}
                     </div>
-                    <p className="text-sm text-gray-700 mt-0.5 break-words">{comment.content}</p>
+                    <p className="text-sm text-text-secondary mt-0.5 break-words">{comment.content}</p>
                   </div>
                 </div>
               </div>
@@ -240,8 +240,8 @@ export default function CardComments({ entryId, isOpen, commentCount, onCountCha
             >
               {t('showAll', { count: effectiveCount })}
             </button>
-            <span className="text-xs text-gray-400 mx-2">·</span>
-            <Link href={`/entry/${entryId}`} className="text-xs text-gray-500 hover:text-gray-700 hover:underline">
+            <span className="text-xs text-text-muted mx-2">·</span>
+            <Link href={`/entry/${entryId}`} className="text-xs text-text-secondary hover:text-text-primary hover:underline">
               {t('openThread')}
             </Link>
           </div>
@@ -249,7 +249,7 @@ export default function CardComments({ entryId, isOpen, commentCount, onCountCha
 
         {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
 
-        <div className="flex items-center gap-2 pt-3 border-t border-gray-100 mt-3">
+        <div className="flex items-center gap-2 pt-3 border-t border-border mt-3">
           <div className={`w-6 h-6 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-[10px] text-white font-semibold ${avatarColor(profile?.username || 'me')}`}>
             {profile?.avatar_url ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -270,7 +270,7 @@ export default function CardComments({ entryId, isOpen, commentCount, onCountCha
               }
             }}
             placeholder={t('placeholder')}
-            className="rounded-full bg-gray-50 border-0 px-4 py-2 text-sm flex-1 focus:ring-1 focus:ring-primary/30"
+            className="rounded-full bg-surface border border-border px-4 py-2 text-sm text-text-primary flex-1 focus:ring-1 focus:ring-primary/30"
             disabled={!user || submitting}
           />
 
@@ -288,7 +288,7 @@ export default function CardComments({ entryId, isOpen, commentCount, onCountCha
         </div>
 
         {!user && (
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-xs text-text-muted mt-2">
             {t('authRequired')}
           </p>
         )}

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { VERIFY_MATCH_PROMPT } from '../claude/prompts';
 import { NewsEvent } from '../news/types';
+import { getModel } from '../claude/models';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
@@ -155,7 +156,7 @@ export async function scoreMatch(entry: EntryData, event: NewsEvent): Promise<Ma
     const prompt = formatVerificationMessage(entry, event);
 
     const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: getModel('analysis'),
       max_tokens: 1024,
       temperature: 0,
       system: VERIFY_MATCH_PROMPT,

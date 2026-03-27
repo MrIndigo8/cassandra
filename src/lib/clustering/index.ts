@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import Anthropic from '@anthropic-ai/sdk';
 import { CLUSTER_SIGNAL_PROMPT } from '../claude/prompts';
 import { fetchAllEvents } from '../news';
+import { getModel } from '../claude/models';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -177,7 +178,7 @@ async function analyzeClusterWithAI(
       .replace('{world_events}', eventsContext || 'Нет значимых событий');
 
     const response = await anthropic!.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: getModel('analysis'),
       max_tokens: 1024,
       temperature: 0.2, // Строгость для аналитики
       system: prompt,

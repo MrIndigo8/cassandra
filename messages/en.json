@@ -22,14 +22,19 @@
   "nav": {
     "feed": "Feed",
     "events": "Events",
+    "discoveries": "Discoveries",
     "noosphere": "Noosphere",
+    "map": "Map",
     "profile": "Profile",
     "writeSignal": "Write Signal",
     "archive": "Archive"
   },
   "feed": {
     "placeholder": "What did you dream about or what do you feel...",
+    "openComposer": "Open composer",
+    "newSignal": "New signal",
     "submit": "Send Signal",
+    "submittedAnalyzing": "Signal saved. Analysis started.",
     "allSignals": "All signals",
     "dreams": "Dreams",
     "premonitions": "Premonitions",
@@ -45,7 +50,17 @@
     "loadMore": "Load more",
     "loading": "Loading...",
     "backToFeed": "Back to feed",
-    "timeAgo": "ago"
+    "timeAgo": "ago",
+    "scope": {
+      "world": "World signal",
+      "personal": "Personal signal",
+      "unknown": "Not sure"
+    },
+    "voice": {
+      "start": "Voice",
+      "stop": "Stop",
+      "transcribing": "Transcribing..."
+    }
   },
   "entry": {
     "awaitingAnalysis": "Awaiting Analysis",
@@ -62,6 +77,13 @@
     "imageAlt": "Entry image",
     "backToFeed": "Back to feed",
     "minChars": "min.",
+    "communityConfirm": "I had something similar",
+    "collectiveSignal": "Collective signal",
+    "communityModalTitle": "What matched for you?",
+    "communityModalHint": "Select sensations that were similar for you.",
+    "communityModalNoPatterns": "No extracted patterns, you can still submit.",
+    "communityCancel": "Close",
+    "communitySubmit": "Confirm",
     "type": {
       "dream": "Dream",
       "premonition": "Premonition",
@@ -132,6 +154,16 @@
     "confirmedMatches": "Verified Matches",
     "recentEntries": "Recent Records",
     "noEntriesYet": "No records yet",
+    "accuracy": "Accuracy",
+    "avgLag": "Avg lag",
+    "predictiveProfile": "Predictive profile",
+    "strongSide": "Strong side",
+    "noDataYet": "Not enough data",
+    "highPotential": "High potential",
+    "settings": "Settings",
+    "settingsPublic": "Profile and entry visibility",
+    "settingsPush": "Push notifications",
+    "settingsTheme": "Theme",
     "logout": "Log Out",
     "roles": {
       "observer": "Observer",
@@ -260,6 +292,8 @@
     "seeAllMatches": "All matches",
     "openSource": "Open source",
     "showOnMap": "Show on map",
+    "shareMatch": "Share",
+    "shareCopied": "Card link copied",
     "yourEntry": "Your entry",
     "matchedWith": "Matched with",
     "explanation": "How it's related",
@@ -280,6 +314,15 @@
     "enable": "Enable",
     "notNow": "Not Now"
   },
+  "morning": {
+    "title": "Morning Digest",
+    "subtitle": "Quick briefing before your day starts",
+    "coherence": "Global coherence",
+    "coherenceUnavailable": "Not available yet",
+    "streak": "Streak",
+    "newMatches": "New matches",
+    "hotZone": "Hot zone"
+  },
   "landing": {
     "login": "Login",
     "register": "Register",
@@ -289,6 +332,13 @@
     "desc": "Record your dreams and premonitions. Artificial intelligence finds matches with real world events. Explore Jungian synchronicity on a collective scale.",
     "cta": "Start Observing",
     "howItWorks": "How it works",
+    "socialProof": "Verified matches and metrics",
+    "liveMapTitle": "Live signal map",
+    "liveMapPlaceholder": "Mini-map will appear here",
+    "metricUsers": "Users",
+    "metricMatches": "Matches",
+    "metricWeekly": "This week",
+    "finalCtaTitle": "Your dreams are more than dreams",
     "disclaimer": "An instrument of observation and research, not a prophecy. Based on Carl Jung's concept of synchronicity.",
     "step1": {
       "title": "Record",

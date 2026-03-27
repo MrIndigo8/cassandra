@@ -316,6 +316,13 @@ export async function GET() {
     }
     const subjectPoints = Object.values(subjectByGeo);
 
+    const { data: coherence } = await supabase
+      .from('coherence_snapshots')
+      .select('current_coherence, is_anomaly')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     const allAnxieties = anxietyEntries.map((entry) => entry.anxiety_score || 0);
     const globalAnxietyIndex = allAnxieties.length
       ? Math.round((allAnxieties.reduce((sum, score) => sum + score, 0) / allAnxieties.length) * 10) / 10
@@ -341,6 +348,8 @@ export async function GET() {
       matchPoints,
       subjectPoints,
       risingZones,
+      globalCoherence: coherence ? Math.round(Number(coherence.current_coherence || 0) * 1000) / 1000 : null,
+      coherenceAnomaly: Boolean(coherence?.is_anomaly),
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {

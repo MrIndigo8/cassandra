@@ -13,7 +13,7 @@ export default async function FeedPage() {
     .from('entries')
     .select(`
       id, type, title, content, image_url, is_verified, best_match_score,
-      view_count, created_at,
+      view_count, prediction_potential, sensory_data, created_at,
       users:user_id (id, username, avatar_url, role, rating_score)
     `)
     .eq('is_public', true)
@@ -33,6 +33,11 @@ export default async function FeedPage() {
     is_verified: boolean | null;
     best_match_score: number | null;
     view_count: number | null;
+    prediction_potential: number | null;
+    sensory_data: {
+      sensory_patterns?: Array<{ sensation?: string }>;
+      verification_keywords?: string[];
+    } | null;
     created_at: string;
     users: {
       id: string;
@@ -99,6 +104,8 @@ export default async function FeedPage() {
     is_verified: Boolean(entry.is_verified),
     best_match_score: entry.best_match_score,
     view_count: entry.view_count ?? 0,
+    prediction_potential: entry.prediction_potential ?? null,
+    sensory_data: entry.sensory_data ?? null,
     created_at: entry.created_at,
     user: {
       id: (Array.isArray(entry.users) ? entry.users[0]?.id : entry.users?.id) || '',

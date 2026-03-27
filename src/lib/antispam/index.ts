@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import Anthropic from '@anthropic-ai/sdk';
 import { SPAM_DETECTION_PROMPT } from '../claude/prompts';
+import { getModel } from '../claude/models';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -79,7 +80,7 @@ export async function checkSpam(userId: string, content: string): Promise<SpamRe
   if (anthropic) {
     try {
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-6',
+        model: getModel('utility'),
         max_tokens: 256,
         temperature: 0.1,
         system: SPAM_DETECTION_PROMPT,

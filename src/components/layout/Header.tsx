@@ -5,6 +5,8 @@ import { useUser } from '@/hooks/useUser';
 import { NotificationBell } from './NotificationBell';
 import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/navigation';
+import { Moon, Sun } from 'lucide-react';
+import { useTheme } from '@/hooks/useTheme';
 
 import { Logo } from './Logo';
 
@@ -16,6 +18,7 @@ export function Header() {
   const { profile } = useUser();
   const pathname = usePathname();
   const router = useRouter();
+  const { resolvedTheme, toggleTheme } = useTheme();
 
   const handleLocaleChange = (newLocale: string) => {
     localStorage.setItem('locale', newLocale);
@@ -40,7 +43,7 @@ export function Header() {
     ? `/profile/${profile.username}`
     : '#';
 
-  const streak = (profile as Record<string, unknown> | null)?.streak as number | undefined;
+  const streakValue = Number(profile?.streak_count ?? profile?.streak ?? 0);
   const currentRole = profile?.role || 'observer';
   const currentRating = Number(profile?.rating_score ?? 0);
   const roleColor =
@@ -54,28 +57,27 @@ export function Header() {
 
   const navLinks = [
     { href: '/feed', label: t('feed') },
-    { href: '/events', label: t('events') },
-    { href: '/archive', label: t('archive') },
-    { href: '/noosphere', label: t('noosphere') },
+    { href: '/discoveries', label: t('discoveries') },
+    { href: '/map', label: t('map') },
   ];
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-100">
+    <header className="sticky top-0 z-50 bg-surface border-b border-border backdrop-blur">
       <div className="max-w-[1024px] mx-auto px-4 h-14 flex items-center justify-between">
         {/* Логотип */}
-        <Link href="/feed" className="flex items-center gap-2.5 font-bold text-gray-900 text-lg tracking-tight hover:opacity-80 transition-opacity">
+        <Link href="/feed" className="flex items-center gap-2.5 font-display font-bold text-text-primary text-lg tracking-tight hover:opacity-80 transition-opacity">
           <Logo className="w-7 h-7" />
           {tCommon('appName')}
         </Link>
 
         {/* Центральная часть: навигация */}
-        <div className="flex-1 flex justify-center items-center gap-4">
+        <div className="hidden md:flex flex-1 justify-center items-center gap-4">
           {navLinks.map(link => (
             <Link
               key={link.href}
               href={link.href}
               className={`text-sm font-medium transition-colors ${
-                pathname === link.href ? 'text-primary' : 'text-gray-500 hover:text-gray-900'
+                pathname === link.href ? 'text-primary' : 'text-text-secondary hover:text-text-primary'
               }`}
             >
               {link.label}
@@ -85,13 +87,22 @@ export function Header() {
 
         {/* Правая часть: streak + уведомления + локаль + аватар */}
         <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="btn-ghost inline-flex items-center justify-center w-8 h-8"
+            aria-label={resolvedTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            title={resolvedTheme === 'dark' ? 'Light' : 'Dark'}
+          >
+            {resolvedTheme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
           {/* Свитчер языка */}
-          <div className="flex items-center bg-gray-50 rounded-full p-1 border border-gray-100">
+          <div className="flex items-center bg-surface-hover rounded-full p-1 border border-border">
             <button
               onClick={() => handleLocaleChange('ru')}
               aria-label={tCommon('switchLanguageRu', { fallback: 'Переключить на русский' })}
               className={`text-xs font-bold px-2 py-1 rounded-full transition-colors ${
-                locale === 'ru' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                locale === 'ru' ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-text-primary'
               }`}
             >
               RU
@@ -100,7 +111,7 @@ export function Header() {
               onClick={() => handleLocaleChange('en')}
               aria-label={tCommon('switchLanguageEn', { fallback: 'Switch to English' })}
               className={`text-xs font-bold px-2 py-1 rounded-full transition-colors ${
-                locale === 'en' ? 'bg-primary text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                locale === 'en' ? 'bg-primary text-white shadow-sm' : 'text-text-secondary hover:text-text-primary'
               }`}
             >
               EN
@@ -108,12 +119,12 @@ export function Header() {
           </div>
 
           {/* Streak badge */}
-          {streak && streak >= 3 && (
+          {streakValue > 0 && (
             <span
               className="text-sm font-bold text-orange-500 flex items-center gap-0.5"
-              title={`Серия: ${streak} дней подряд`}
+              title={`Серия: ${streakValue} дней подряд`}
             >
-              🔥 {streak}
+              🔥 {streakValue}
             </span>
           )}
           <NotificationBell />

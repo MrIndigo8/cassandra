@@ -2,119 +2,144 @@
 @tailwind components;
 @tailwind utilities;
 
+:root,
+html.dark {
+  --color-bg: #0b0f1a;
+  --color-surface: #131b2e;
+  --color-surface-hover: #1a2440;
+  --color-border: #1e293b;
+  --color-primary: #8b5cf6;
+  --color-primary-hover: #7c3aed;
+  --color-primary-light: #a78bfa;
+  --color-secondary: #6366f1;
+  --color-accent: #8b5cf6;
+  --color-accent-light: #a78bfa;
+  --color-success: #10b981;
+  --color-success-light: #34d399;
+  --color-danger: #ef4444;
+  --color-danger-light: #f87171;
+  --color-warning: #f59e0b;
+  --color-warning-light: #fbbf24;
+  --color-text-primary: #e2e8f0;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-glow: rgba(139, 92, 246, 0.15);
+}
+
+html.light {
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f8fafc;
+  --color-border: #e2e8f0;
+  --color-primary: #7c3aed;
+  --color-primary-hover: #6d28d9;
+  --color-primary-light: #a78bfa;
+  --color-secondary: #6366f1;
+  --color-accent: #7c3aed;
+  --color-accent-light: #a78bfa;
+  --color-success: #10b981;
+  --color-success-light: #34d399;
+  --color-danger: #ef4444;
+  --color-danger-light: #f87171;
+  --color-warning: #f59e0b;
+  --color-warning-light: #fbbf24;
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
+  --color-glow: rgba(124, 58, 237, 0.12);
+}
+
 @layer base {
   body {
-    background-color: #FFFFFF;
-    color: #1F2937;
-    @apply antialiased;
-    font-family: var(--font-inter), "Inter", system-ui, sans-serif;
+    @apply antialiased bg-background text-text-primary;
+    font-family: var(--font-sans), 'Inter', system-ui, sans-serif;
     min-height: 100vh;
   }
 
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-track {
-    background-color: #F9FAFB;
+    background-color: var(--color-surface);
   }
   ::-webkit-scrollbar-thumb {
-    background-color: #E5E7EB;
+    background-color: var(--color-border);
     @apply rounded-full;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background-color: #6B7280;
+    background-color: var(--color-text-muted);
   }
 
   *:focus-visible {
     @apply outline-none ring-2 ring-offset-2;
-    --tw-ring-color: #10B981;
-    --tw-ring-offset-color: #FFFFFF;
+    --tw-ring-color: rgba(139, 92, 246, 0.5);
+    --tw-ring-offset-color: var(--color-bg);
+  }
+
+  ::selection {
+    background-color: rgba(139, 92, 246, 0.2);
   }
 }
 
 @layer components {
   .card {
-    background-color: #F9FAFB;
-    border: 1px solid #E5E7EB;
-    @apply rounded-xl p-6 transition-all duration-300;
+    @apply rounded-2xl border border-border bg-surface p-6 transition-all duration-300;
   }
 
   .glass {
     @apply card;
   }
 
-  .btn-primary {
-    background-color: #10B981;
-    color: #FFFFFF;
-    @apply font-medium px-6 py-2.5 rounded-[8px] transition-all duration-200 active:scale-[0.98];
+  .card-hover {
+    @apply hover:border-primary hover:shadow-glow-sm;
   }
-  .btn-primary:hover {
-    background-color: #059669;
+
+  .btn-primary {
+    @apply rounded-xl bg-primary px-4 py-2.5 font-medium text-white transition-all duration-200 active:scale-[0.98] hover:bg-primary-hover;
   }
 
   .btn-secondary {
-    background-color: #F9FAFB;
-    color: #6B7280;
-    border: 1px solid #E5E7EB;
-    @apply font-medium px-6 py-2.5 rounded-[8px] transition-all duration-200 active:scale-[0.98];
-  }
-  .btn-secondary:hover {
-    border-color: #E5E7EB;
-    color: #1F2937;
+    @apply rounded-xl border border-border bg-surface px-6 py-2.5 font-medium text-text-primary transition-all duration-200 active:scale-[0.98] hover:border-primary;
   }
 
   .btn-gold {
     @apply btn-secondary;
   }
 
-  .input {
-    background-color: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    color: #1F2937;
-    @apply px-4 py-2.5 rounded-lg w-full transition-all duration-200 focus:outline-none focus:ring-1;
-  }
-  .input::placeholder {
-    color: #6B7280;
-  }
-  .input:focus {
-    border-color: #10B981;
-    --tw-ring-color: #10B981;
+  .btn-ghost {
+    @apply rounded-lg px-3 py-2 text-text-secondary transition-colors hover:bg-slate-700/30 hover:text-text-primary;
   }
 
+  .input {
+    @apply w-full rounded-xl border border-border bg-surface px-4 py-3 text-text-primary transition-all duration-200 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary;
+  }
+
+  .input::placeholder {
+    color: var(--color-text-muted);
+  }
   .textarea {
     @apply input resize-none min-h-[120px];
   }
 
   .label {
-    color: #6B7280;
-    @apply text-sm font-medium mb-1.5 block;
+    @apply mb-1.5 block text-sm font-medium text-text-secondary;
   }
 
   .badge-dream {
-    background-color: #EFF6FF;
-    color: #38BFF8;
-    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-2.5 py-0.5 text-xs font-medium text-indigo-300;
   }
 
   .badge-premonition {
-    background-color: #ECFDF5;
-    color: #10B981;
-    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-300;
   }
 
   .badge-match {
-    background-color: #F9FAFB;
-    color: #6B7280;
-    border: 1px solid #E5E7EB;
-    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center gap-1 rounded-full border border-emerald-500 bg-emerald-500/20 px-2.5 py-0.5 text-xs font-medium text-emerald-300;
   }
 
   .badge-role {
-    background-color: #F9FAFB;
-    color: #6B7280;
-    border: 1px solid #E5E7EB;
-    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider;
+    @apply inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs font-bold uppercase tracking-wider;
   }
 
   .badge-observer { @apply badge-role; }
@@ -123,49 +148,49 @@
   .badge-oracle { @apply badge-role; }
 
   .divider {
-    background-color: #E5E7EB;
+    background-color: var(--color-border);
     @apply h-px w-full;
   }
 
   .skeleton {
-    background-color: #F9FAFB;
+    background-color: color-mix(in srgb, var(--color-surface), white 6%);
     @apply rounded-lg animate-pulse;
   }
 
   /* Бейджи ролей */
   .badge-role-observer {
-    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600;
+    @apply inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium text-text-secondary;
   }
   .badge-role-chronicler {
-    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700;
+    @apply inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/15 px-2 py-0.5 text-xs font-medium text-blue-300;
   }
   .badge-role-sensitive {
-    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700;
+    @apply inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/15 px-2 py-0.5 text-xs font-medium text-violet-300;
   }
   .badge-role-oracle {
-    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 shadow-glow-sm;
+    @apply inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-300 shadow-glow-sm;
   }
 
   /* Бейджи типов */
-  .badge-type-dream { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700; }
-  .badge-type-premonition { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700; }
-  .badge-type-feeling { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-700; }
-  .badge-type-vision { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-violet-100 text-violet-700; }
-  .badge-type-unknown { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600; }
+  .badge-type-dream { @apply inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-2.5 py-1 text-xs font-medium text-indigo-300; }
+  .badge-type-premonition { @apply inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-300; }
+  .badge-type-feeling { @apply inline-flex items-center gap-1 rounded-full bg-pink-500/15 px-2.5 py-1 text-xs font-medium text-pink-300; }
+  .badge-type-vision { @apply inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2.5 py-1 text-xs font-medium text-violet-300; }
+  .badge-type-unknown { @apply inline-flex items-center gap-1 rounded-full bg-slate-500/15 px-2.5 py-1 text-xs font-medium text-slate-300; }
 
   /* Верификация */
   .verified-match {
-    @apply flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-200;
+    @apply flex items-center gap-2 rounded-xl border border-emerald-500 bg-emerald-500/20 px-3 py-2 text-sm font-medium text-emerald-300;
   }
 
   /* Actions */
   .action-btn {
-    @apply flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors p-1.5 rounded-lg hover:bg-gray-50;
+    @apply flex items-center gap-1.5 rounded-lg p-1.5 text-sm text-text-muted transition-colors hover:bg-slate-800/30 hover:text-text-secondary;
   }
 
   /* Match card — карточка совпадения */
   .match-card {
-    @apply bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all duration-200;
+    @apply rounded-2xl border border-border bg-surface p-5 transition-all duration-200 hover:border-primary hover:shadow-glow-sm;
   }
   .match-card-grid {
     @apply grid grid-cols-1 md:grid-cols-[minmax(0,1.15fr),auto,minmax(0,1fr)] gap-4 items-center;
@@ -180,7 +205,7 @@
 
   /* Event card */
   .event-card {
-    @apply flex items-start gap-3 p-4 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer border border-transparent hover:border-gray-100;
+    @apply flex cursor-pointer items-start gap-3 rounded-xl border border-transparent p-4 transition-colors hover:border-primary hover:bg-slate-800/30;
   }
 
   /* Category dots */
@@ -195,12 +220,12 @@
 
   /* Relevance badge */
   .relevance-badge {
-    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary;
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-800/30 text-primary;
   }
 
   /* Signal card (кластер) */
   .signal-card {
-    @apply flex items-center gap-4 p-4 rounded-xl bg-amber-50 border border-amber-100;
+    @apply flex items-center gap-4 rounded-xl border border-orange-500 bg-slate-800/30 p-4;
   }
   .signal-intensity-bar {
     @apply h-1.5 rounded-full bg-gradient-to-r from-amber-300 to-red-500;
@@ -208,7 +233,7 @@
 
   /* Matched symbol tag */
   .symbol-tag {
-    @apply inline-flex px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600;
+    @apply inline-flex rounded-md bg-slate-800/30 px-2 py-0.5 text-xs font-medium text-text-secondary;
   }
 
   /* Tab pills (если ещё нет) */
@@ -219,7 +244,7 @@
     @apply bg-primary text-white;
   }
   .tab-pill-inactive {
-    @apply bg-white border border-gray-200 text-gray-600 hover:border-primary/50;
+    @apply border border-border bg-surface text-text-secondary hover:border-primary;
   }
 
   /* Ноосфера — индекс тревожности */
@@ -233,7 +258,7 @@
 
   /* Горячая зона — строка */
   .hot-zone-row {
-    @apply flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer;
+    @apply flex cursor-pointer items-center gap-4 rounded-xl p-3 transition-colors hover:bg-slate-800/30;
   }
 
   /* Anxiety bar */
@@ -255,6 +280,20 @@
     border-radius: 4px;
     background: linear-gradient(to right, #d1fae5, #fbbf24, #f97316, #ef4444, #991b1b);
   }
+
+  .shimmer-bg {
+    background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.05), transparent);
+    background-size: 200%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  .pill-active {
+    @apply rounded-full bg-primary text-white;
+  }
+
+  .pill-inactive {
+    @apply rounded-full border border-border bg-surface text-text-secondary hover:border-primary;
+  }
 }
 
 @layer utilities {
@@ -268,11 +307,11 @@
   }
 
   .text-gradient {
-    color: #10B981;
+    color: var(--color-primary);
   }
 
   .text-glow {
-    text-shadow: none;
+    text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
   }
 
   .scrollbar-hide {

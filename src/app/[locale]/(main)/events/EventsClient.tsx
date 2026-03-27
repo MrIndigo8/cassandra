@@ -8,8 +8,9 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/navigation';
 import MatchDetail from '@/components/MatchDetail';
 import { useSearchParams } from 'next/navigation';
+import ArchiveClient, { type HistoricalCase } from '../archive/ArchiveClient';
 
-type Tab = 'matches' | 'worldEvents';
+type Tab = 'matches' | 'worldEvents' | 'archive';
 type Section = 'relevant' | 'all';
 
 type RelevanceReasonType = 'geography' | 'sensory' | 'keywords';
@@ -135,6 +136,9 @@ interface EventsApiResponse {
 interface EventsClientProps {
   initialMatches: InitialMatch[];
   initialClusters: InitialCluster[];
+  initialCases?: HistoricalCase[];
+  defaultTab?: Tab;
+  showTitle?: boolean;
 }
 
 function categoryDotClass(category: string | null): string {
@@ -146,12 +150,20 @@ function categoryDotClass(category: string | null): string {
   return 'category-dot-other';
 }
 
-export default function EventsClient({ initialMatches, initialClusters }: EventsClientProps) {
+export default function EventsClient({
+  initialMatches,
+  initialClusters,
+  initialCases = [],
+  defaultTab,
+  showTitle = true,
+}: EventsClientProps) {
   const tEvents = useTranslations('events');
+  const tNav = useTranslations('nav');
   const locale = useLocale();
   const searchParams = useSearchParams();
   const dateLocale = locale === 'en' ? enUS : ru;
-  const initialTab = searchParams.get('tab') === 'worldEvents' ? 'worldEvents' : 'matches';
+  const tabParam = searchParams.get('tab');
+  const initialTab = defaultTab || (tabParam === 'worldEvents' ? 'worldEvents' : tabParam === 'archive' ? 'archive' : 'matches');
 
   const [tab, setTab] = useState<Tab>(initialTab);
   const [section, setSection] = useState<Section>('relevant');
@@ -210,10 +222,12 @@ export default function EventsClient({ initialMatches, initialClusters }: Events
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">{tEvents('title')}</h1>
-        <p className="text-gray-500 mt-1">{tEvents('subtitle')}</p>
-      </header>
+      {showTitle && (
+        <header className="mb-6">
+          <h1 className="text-3xl font-bold text-text-primary">{tEvents('title')}</h1>
+          <p className="text-text-secondary mt-1">{tEvents('subtitle')}</p>
+        </header>
+      )}
 
       <div className="flex gap-2 mb-6">
         <button
@@ -231,6 +245,13 @@ export default function EventsClient({ initialMatches, initialClusters }: Events
           className={`tab-pill ${tab === 'worldEvents' ? 'tab-pill-active' : 'tab-pill-inactive'}`}
         >
           {tEvents('tabs.worldEvents')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('archive')}
+          className={`tab-pill ${tab === 'archive' ? 'tab-pill-active' : 'tab-pill-inactive'}`}
+        >
+          {tNav('archive')}
         </button>
       </div>
 
@@ -266,7 +287,11 @@ export default function EventsClient({ initialMatches, initialClusters }: Events
         </section>
       )}
 
-      {tab === 'matches' ? (
+      {tab === 'archive' ? (
+        <section className="card p-4">
+          <ArchiveClient initialCases={initialCases} />
+        </section>
+      ) : tab === 'matches' ? (
         <section className="space-y-4">
           {normalizedMatches.length === 0 ? (
             <div className="match-card text-center py-10">

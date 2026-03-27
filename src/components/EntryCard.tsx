@@ -9,6 +9,8 @@ import CardComments from './CardComments';
 import EntryLike from './EntryLike';
 import MatchDetail from './MatchDetail';
 import type { MatchData } from '@/lib/matches';
+import { useUser } from '@/hooks/useUser';
+import CommunityConfirm from './CommunityConfirm';
 
 export interface FeedEntry {
   id: string;
@@ -19,7 +21,12 @@ export interface FeedEntry {
   is_verified: boolean;
   best_match_score: number | null;
   view_count: number;
+  prediction_potential?: number | null;
   created_at: string;
+  sensory_data?: {
+    sensory_patterns?: Array<{ sensation?: string }>;
+    verification_keywords?: string[];
+  } | null;
   user: {
     id: string;
     username: string;
@@ -44,6 +51,11 @@ interface EntryCardProps {
     best_match_score: number | null;
     view_count: number;
     created_at: string;
+    prediction_potential?: number | null;
+    sensory_data?: {
+      sensory_patterns?: Array<{ sensation?: string }>;
+      verification_keywords?: string[];
+    } | null;
   };
   user: {
     id: string;
@@ -80,8 +92,10 @@ export function EntryCard({
   const [localCommentsCount, setLocalCommentsCount] = useState(comments_count);
   const [localViewCount, setLocalViewCount] = useState(entry.view_count || 0);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [communityCount, setCommunityCount] = useState(0);
   const cardRef = useRef<HTMLElement | null>(null);
   const viewTrackedRef = useRef(false);
+  const { user: currentUser } = useUser();
 
   const dateLocale = locale === 'en' ? enUS : ru;
   const timeAgo = formatDistanceToNow(new Date(entry.created_at), { addSuffix: true, locale: dateLocale });
@@ -90,19 +104,19 @@ export function EntryCard({
 
   const roleBadge = useMemo(() => {
     const role = userRole;
-    if (role === 'oracle') return { icon: '⭐', cls: 'bg-amber-100 text-amber-700 shadow-glow-sm', label: tRole('oracle') };
-    if (role === 'sensitive') return { icon: '🌊', cls: 'bg-violet-100 text-violet-700', label: tRole('sensitive') };
-    if (role === 'chronicler') return { icon: '📘', cls: 'bg-blue-100 text-blue-700', label: tRole('chronicler') };
-    return { icon: '👁️', cls: 'bg-gray-100 text-gray-700', label: tRole('observer') };
+    if (role === 'oracle') return { icon: '⭐', cls: 'bg-amber-500/20 text-amber-300 border border-amber-500/30', label: tRole('oracle') };
+    if (role === 'sensitive') return { icon: '🌊', cls: 'bg-violet-500/20 text-violet-300 border border-violet-500/30', label: tRole('sensitive') };
+    if (role === 'chronicler') return { icon: '📘', cls: 'bg-blue-500/20 text-blue-300 border border-blue-500/30', label: tRole('chronicler') };
+    return { icon: '👁️', cls: 'bg-surface-hover text-text-secondary border border-border', label: tRole('observer') };
   }, [tRole, userRole]);
 
   const typeBadge = useMemo(() => {
     const type = entry.type || 'unknown';
-    if (type === 'dream') return { icon: '🌙', cls: 'bg-indigo-100 text-indigo-700', label: tEntry('type.dream') };
-    if (type === 'premonition') return { icon: '⚡', cls: 'bg-amber-100 text-amber-700', label: tEntry('type.premonition') };
-    if (type === 'feeling') return { icon: '💜', cls: 'bg-pink-100 text-pink-700', label: tEntry('type.feeling') };
-    if (type === 'vision') return { icon: '👁', cls: 'bg-violet-100 text-violet-700', label: tEntry('type.vision') };
-    return { icon: '❓', cls: 'bg-gray-100 text-gray-600', label: tEntry('type.unknown') };
+    if (type === 'dream') return { icon: '🌙', cls: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30', label: tEntry('type.dream') };
+    if (type === 'premonition') return { icon: '⚡', cls: 'bg-amber-500/20 text-amber-300 border border-amber-500/30', label: tEntry('type.premonition') };
+    if (type === 'feeling') return { icon: '💜', cls: 'bg-pink-500/20 text-pink-300 border border-pink-500/30', label: tEntry('type.feeling') };
+    if (type === 'vision') return { icon: '👁', cls: 'bg-violet-500/20 text-violet-300 border border-violet-500/30', label: tEntry('type.vision') };
+    return { icon: '❓', cls: 'bg-surface-hover text-text-secondary border border-border', label: tEntry('type.unknown') };
   }, [entry.type, tEntry]);
 
   const handleShare = async (e: React.MouseEvent) => {
@@ -147,8 +161,26 @@ export function EntryCard({
     return () => observer.disconnect();
   }, [entry.id]);
 
+  useEffect(() => {
+    fetch(`/api/community-confirm?entry_id=${entry.id}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (typeof data?.count === 'number') setCommunityCount(data.count);
+      })
+      .catch(() => {});
+  }, [entry.id]);
+
+  const canConfirm = currentUser && currentUser.id !== user.id && Number(entry.prediction_potential || 0) > 0.5;
+  const communityPatterns = useMemo(() => {
+    const sensory = (entry.sensory_data?.sensory_patterns || [])
+      .map((p) => p?.sensation || '')
+      .filter(Boolean);
+    const keywords = (entry.sensory_data?.verification_keywords || []).filter(Boolean);
+    return Array.from(new Set([...sensory, ...keywords]));
+  }, [entry.sensory_data]);
+
   return (
-    <article ref={cardRef} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-md transition-all duration-200">
+    <article ref={cardRef} className="card p-5 hover:shadow-card-hover transition-all duration-200">
       <header className="flex items-start gap-3">
         <div className={`w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white font-semibold ${avatarColor(user.username)}`}>
           {user.avatar_url ? (
@@ -161,13 +193,13 @@ export function EntryCard({
 
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-gray-900 truncate">{user.username}</span>
+            <span className="font-semibold text-text-primary truncate">{user.username}</span>
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${roleBadge.cls}`}>
               <span>{roleBadge.icon}</span>
               <span>{roleBadge.label}</span>
             </span>
           </div>
-          <div className="text-xs text-gray-500 mt-0.5 inline-flex items-center gap-1.5">
+          <div className="text-xs text-text-secondary mt-0.5 inline-flex items-center gap-1.5">
             <span>⚡ {Number(userRating).toFixed(1)}</span>
             <span>·</span>
             <span>{timeAgo}</span>
@@ -184,7 +216,7 @@ export function EntryCard({
 
       <div className="mt-3">
         {entry.title && (
-          <h3 className="text-lg font-bold text-gray-900 mb-2 leading-snug">
+          <h3 className="text-lg font-bold text-text-primary mb-2 leading-snug">
             <Link href={`/entry/${entry.id}`} className="hover:text-primary transition-colors">
               {entry.title}
             </Link>
@@ -209,14 +241,14 @@ export function EntryCard({
         {match && <MatchDetail match={match} variant="inline" showEntryLink={false} showEventLink />}
       </div>
 
-      <div className="flex items-center gap-6 pt-3 mt-3 border-t border-border/20">
+      <div className="flex items-center gap-6 pt-3 mt-3 border-t border-border">
         <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
           <EntryLike entryId={entry.id} initialCount={likes_count} initialLiked={user_liked} />
         </div>
 
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+          className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -227,12 +259,12 @@ export function EntryCard({
           <span>{localCommentsCount}</span>
         </button>
 
-        <span className="inline-flex items-center gap-1.5 text-sm text-gray-500">
+        <span className="inline-flex items-center gap-1.5 text-sm text-text-secondary">
           <span>👁</span>
           <span>{localViewCount}</span>
         </span>
 
-        <button type="button" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700" onClick={handleShare}>
+        <button type="button" className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary" onClick={handleShare}>
           <span>🔗</span>
           <span>{tActions('share')}</span>
         </button>
@@ -246,6 +278,17 @@ export function EntryCard({
         commentCount={localCommentsCount}
         onCountChange={setLocalCommentsCount}
       />
+      {(canConfirm || communityCount > 0) && (
+        <div className="pt-3 mt-3 border-t border-border">
+          <CommunityConfirm
+            entryId={entry.id}
+            enabled={Boolean(canConfirm)}
+            initialCount={communityCount}
+            patterns={communityPatterns}
+            onCountChange={setCommunityCount}
+          />
+        </div>
+      )}
     </article>
   );
 }

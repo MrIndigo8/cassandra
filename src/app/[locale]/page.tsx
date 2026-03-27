@@ -8,20 +8,33 @@ import { LanguageRedirect } from '@/components/LanguageRedirect';
 
 export default async function HomePage() {
   const t = await getTranslations('landing');
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  let stats = {
+    totalUsers: 0,
+    totalMatches: 0,
+    weeklyMatches: 0,
+    globalCoherence: null as number | null,
+    topMatches: [] as Array<{ id: string; score: number; eventTitle: string; quote: string; username: string }>,
+  };
+  try {
+    const res = await fetch(`${baseUrl}/api/landing-stats`, { cache: 'no-store' });
+    if (res.ok) stats = await res.json();
+  } catch {}
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-background text-text-primary">
       <LanguageRedirect />
-      {/* Навигация */}
-      <header className="border-b border-gray-100 backdrop-blur-sm bg-white/90 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+
+      <header className="border-b border-border backdrop-blur bg-background/90 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-aurora flex items-center justify-center" aria-hidden="true">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center" aria-hidden="true">
               <span className="text-white font-bold text-sm">К</span>
             </div>
-            <span className="text-xl font-bold text-gray-900">Кассандра</span>
+            <span className="text-xl font-bold">Кассандра</span>
           </div>
           <nav className="flex items-center gap-4">
-            <Link href="/login" className="text-gray-500 hover:text-gray-900 transition-colors">
+            <Link href="/login" className="text-text-secondary hover:text-text-primary transition-colors">
               {t('login')}
             </Link>
             <Link href="/register" className="btn-primary text-sm">
@@ -31,105 +44,110 @@ export default async function HomePage() {
         </div>
       </header>
 
-      {/* Герой */}
-      <main className="flex-1 flex flex-col items-center justify-center px-4 text-center">
-        <div className="max-w-3xl mx-auto">
-          {/* Бейдж */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gray-50 border border-gray-200 mb-8">
-            <span className="w-2 h-2 rounded-full bg-accent animate-pulse-slow" aria-hidden="true" />
-            <span className="text-sm text-gray-600">
-              {t('badge')}
-            </span>
+      <main>
+        <section className="max-w-7xl mx-auto px-4 pt-14 pb-12">
+          <div className="grid lg:grid-cols-2 gap-10 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface border border-border mb-6 text-sm text-text-secondary">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse-slow" />
+                {t('badge')}
+              </div>
+              <h1 className="text-5xl md:text-6xl font-bold leading-tight mb-5">
+                {t('title1')}
+                <br />
+                <span className="text-primary">{t('title2')}</span>
+              </h1>
+              <p className="text-lg text-text-secondary max-w-xl mb-8">{t('desc')}</p>
+              <div className="flex flex-wrap gap-3">
+                <Link href="/register" className="btn-primary text-base px-7 py-3">{t('cta')}</Link>
+                <a href="#how-it-works" className="btn-secondary text-base px-7 py-3">{t('howItWorks')}</a>
+              </div>
+            </div>
+
+            <div className="card p-6 h-[360px] relative overflow-hidden">
+              <div className="absolute inset-0 shimmer-bg opacity-60" />
+              <div className="relative z-10">
+                <h3 className="text-lg font-semibold mb-4">{t('liveMapTitle')}</h3>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-surface-hover rounded-xl p-3">
+                    <p className="text-xs text-text-muted">{t('metricUsers')}</p>
+                    <p className="text-2xl font-bold">{stats.totalUsers}</p>
+                  </div>
+                  <div className="bg-surface-hover rounded-xl p-3">
+                    <p className="text-xs text-text-muted">{t('metricMatches')}</p>
+                    <p className="text-2xl font-bold text-match">{stats.totalMatches}</p>
+                  </div>
+                </div>
+                <div className="h-40 rounded-xl bg-surface-hover border border-border flex items-center justify-center text-text-muted text-sm">
+                  {t('liveMapPlaceholder')}
+                </div>
+              </div>
+            </div>
           </div>
+        </section>
 
-          {/* Заголовок */}
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
-            <span className="text-gray-700">{t('title1')}</span>
-            <br />
-            <span className="text-gradient">{t('title2')}</span>
-          </h1>
-
-          {/* Подзаголовок */}
-          <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto mb-10 leading-relaxed">
-            {t('desc')}
-          </p>
-
-          {/* CTA */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-            <Link href="/register" className="btn-primary text-lg px-8 py-3">
-              {t('cta')}
-            </Link>
-            <a href="#how-it-works" className="btn-secondary text-lg px-8 py-3">
-              {t('howItWorks')}
-            </a>
+        <section className="max-w-7xl mx-auto px-4 py-10">
+          <h2 className="text-2xl font-bold mb-5">{t('socialProof')}</h2>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="card p-4">
+              <p className="text-xs text-text-muted">{t('metricUsers')}</p>
+              <p className="text-3xl font-bold">{stats.totalUsers}</p>
+            </div>
+            <div className="card p-4">
+              <p className="text-xs text-text-muted">{t('metricMatches')}</p>
+              <p className="text-3xl font-bold text-match">{stats.totalMatches}</p>
+            </div>
+            <div className="card p-4">
+              <p className="text-xs text-text-muted">{t('metricWeekly')}</p>
+              <p className="text-3xl font-bold text-primary">{stats.weeklyMatches}</p>
+            </div>
           </div>
+          <div className="mt-4 grid md:grid-cols-3 gap-4">
+            {stats.topMatches.map((m) => (
+              <div key={m.id} className="card p-4">
+                <p className="text-sm text-text-secondary line-clamp-3">&ldquo;{m.quote}&rdquo;</p>
+                <p className="text-xs text-text-muted mt-3">@{m.username}</p>
+                <p className="text-sm font-medium mt-1 line-clamp-1">{m.eventTitle}</p>
+                <p className="text-xs text-match mt-1">{Math.round(m.score * 100)}%</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
-          {/* Дисклеймер */}
-          <p className="text-xs text-gray-400 max-w-md mx-auto">
-            {t('disclaimer')}
-          </p>
-        </div>
+        <section id="how-it-works" className="max-w-7xl mx-auto px-4 py-14">
+          <h2 className="text-3xl font-bold text-center mb-10">{t('howItWorks')}</h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="card text-center p-6">
+              <div className="w-14 h-14 rounded-xl bg-dream/10 border border-dream/20 flex items-center justify-center mx-auto mb-4">🌙</div>
+              <h3 className="text-lg font-semibold mb-2">{t('step1.title')}</h3>
+              <p className="text-text-secondary text-sm">{t('step1.desc')}</p>
+            </div>
+            <div className="card text-center p-6">
+              <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-4">🧠</div>
+              <h3 className="text-lg font-semibold mb-2">{t('step2.title')}</h3>
+              <p className="text-text-secondary text-sm">{t('step2.desc')}</p>
+            </div>
+            <div className="card text-center p-6">
+              <div className="w-14 h-14 rounded-xl bg-match/10 border border-match/20 flex items-center justify-center mx-auto mb-4">✨</div>
+              <h3 className="text-lg font-semibold mb-2">{t('step3.title')}</h3>
+              <p className="text-text-secondary text-sm">{t('step3.desc')}</p>
+            </div>
+          </div>
+        </section>
 
-        {/* Декоративные элементы */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cassandra-700/5 rounded-full blur-3xl pointer-events-none" aria-hidden="true" />
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent/5 rounded-full blur-3xl pointer-events-none" aria-hidden="true" />
+        <section className="max-w-7xl mx-auto px-4 pb-16">
+          <div className="card p-8 text-center">
+            <h2 className="text-3xl font-bold mb-3">{t('finalCtaTitle')}</h2>
+            <p className="text-text-secondary mb-6">{t('footer')}</p>
+            <Link href="/register" className="btn-primary px-8 py-3 text-base">{t('cta')}</Link>
+          </div>
+        </section>
       </main>
 
-      {/* Как это работает */}
-      <section id="how-it-works" className="py-24 px-4">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-16 text-gray-900">
-            {t('howItWorks')}
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Шаг 1 */}
-            <div className="card text-center group">
-              <div className="w-14 h-14 rounded-xl bg-dream/10 border border-dream/20 flex items-center justify-center mx-auto mb-4 group-hover:shadow-glow-sm transition-shadow" aria-hidden="true">
-                <span className="text-2xl">🌙</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('step1.title')}</h3>
-              <p className="text-gray-600 text-sm">
-                {t('step1.desc')}
-              </p>
-            </div>
-
-            {/* Шаг 2 */}
-            <div className="card text-center group">
-              <div className="w-14 h-14 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center mx-auto mb-4 group-hover:shadow-glow-sm transition-shadow" aria-hidden="true">
-                <span className="text-2xl">🧠</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('step2.title')}</h3>
-              <p className="text-gray-600 text-sm">
-                {t('step2.desc')}
-              </p>
-            </div>
-
-            {/* Шаг 3 */}
-            <div className="card text-center group">
-              <div className="w-14 h-14 rounded-xl bg-match/10 border border-match/20 flex items-center justify-center mx-auto mb-4 group-hover:shadow-glow-sm transition-shadow" aria-hidden="true">
-                <span className="text-2xl">✨</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('step3.title')}</h3>
-              <p className="text-gray-600 text-sm">
-                {t('step3.desc')}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Футер */}
-      <footer className="border-t border-gray-100 py-8 px-4">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-aurora flex items-center justify-center" aria-hidden="true">
-              <span className="text-white font-bold text-xs">К</span>
-            </div>
-            <span className="text-sm text-gray-600">Кассандра © 2026</span>
-          </div>
-          <p className="text-xs text-gray-400">
-            {t('footer')}
-          </p>
+      <footer className="border-t border-border py-7 px-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <span className="text-sm text-text-muted">Кассандра © 2026</span>
+          <span className="text-xs text-text-muted">{t('disclaimer')}</span>
         </div>
       </footer>
     </div>

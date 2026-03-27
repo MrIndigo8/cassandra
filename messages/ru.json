@@ -22,14 +22,19 @@
   "nav": {
     "feed": "Лента",
     "events": "События",
+    "discoveries": "Открытия",
     "noosphere": "Ноосфера",
+    "map": "Карта",
     "profile": "Профиль",
     "writeSignal": "Записать сигнал",
     "archive": "Архив"
   },
   "feed": {
     "placeholder": "Что вам приснилось или что вы чувствуете...",
+    "openComposer": "Открыть форму записи",
+    "newSignal": "Новый сигнал",
     "submit": "Отправить сигнал",
+    "submittedAnalyzing": "Сигнал сохранен. Анализ запущен.",
     "allSignals": "Все сигналы",
     "dreams": "Сны",
     "premonitions": "Предчувствия",
@@ -45,7 +50,17 @@
     "loadMore": "Загрузить ещё",
     "loading": "Загрузка...",
     "backToFeed": "Вернуться в ленту",
-    "timeAgo": "назад"
+    "timeAgo": "назад",
+    "scope": {
+      "world": "Мировой сигнал",
+      "personal": "Личный сигнал",
+      "unknown": "Не уверен"
+    },
+    "voice": {
+      "start": "Голос",
+      "stop": "Стоп",
+      "transcribing": "Распознаем..."
+    }
   },
   "entry": {
     "awaitingAnalysis": "Ожидает анализа",
@@ -62,6 +77,13 @@
     "imageAlt": "Изображение к записи",
     "backToFeed": "Вернуться в ленту",
     "minChars": "мин.",
+    "communityConfirm": "У меня было похожее",
+    "collectiveSignal": "Коллективный сигнал",
+    "communityModalTitle": "Что у вас совпало?",
+    "communityModalHint": "Отметьте ощущения, которые были похожи у вас.",
+    "communityModalNoPatterns": "Паттерны не найдены, можно отправить без выбора.",
+    "communityCancel": "Закрыть",
+    "communitySubmit": "Подтвердить",
     "type": {
       "dream": "Сон",
       "premonition": "Предчувствие",
@@ -132,6 +154,16 @@
     "confirmedMatches": "Подтверждённые совпадения",
     "recentEntries": "Последние записи",
     "noEntriesYet": "Записей пока нет",
+    "accuracy": "Точность",
+    "avgLag": "Средний лаг",
+    "predictiveProfile": "Предсказательный профиль",
+    "strongSide": "Сильная сторона",
+    "noDataYet": "Недостаточно данных",
+    "highPotential": "Высокий потенциал",
+    "settings": "Настройки",
+    "settingsPublic": "Публичность профиля и записей",
+    "settingsPush": "Push-уведомления",
+    "settingsTheme": "Тема оформления",
     "logout": "Выйти",
     "roles": {
       "observer": "Наблюдатель",
@@ -260,6 +292,8 @@
     "seeAllMatches": "Все совпадения",
     "openSource": "Открыть источник",
     "showOnMap": "Показать на карте",
+    "shareMatch": "Поделиться",
+    "shareCopied": "Ссылка на карточку скопирована",
     "yourEntry": "Ваша запись",
     "matchedWith": "Совпало с",
     "explanation": "Как связано",
@@ -280,6 +314,15 @@
     "enable": "Включить",
     "notNow": "Не сейчас"
   },
+  "morning": {
+    "title": "Утренний дайджест",
+    "subtitle": "Краткая сводка перед началом дня",
+    "coherence": "Глобальная когерентность",
+    "coherenceUnavailable": "Пока нет",
+    "streak": "Серия",
+    "newMatches": "Новые совпадения",
+    "hotZone": "Горячая зона"
+  },
   "landing": {
     "login": "Войти",
     "register": "Регистрация",
@@ -289,6 +332,13 @@
     "desc": "Записывайте сны и предчувствия. Искусственный интеллект находит совпадения с реальными событиями мира. Исследуйте синхронии Юнга в коллективном масштабе.",
     "cta": "Начать наблюдение",
     "howItWorks": "Как это работает",
+    "socialProof": "Подтвержденные совпадения и метрики",
+    "liveMapTitle": "Живая карта сигналов",
+    "liveMapPlaceholder": "Мини-карта появится здесь",
+    "metricUsers": "Пользователей",
+    "metricMatches": "Совпадений",
+    "metricWeekly": "За неделю",
+    "finalCtaTitle": "Ваши сны - это больше чем сны",
     "disclaimer": "Инструмент наблюдения и исследования, не пророчество. Основано на концепции синхронии К.Г. Юнга.",
     "step1": {
       "title": "Записывайте",

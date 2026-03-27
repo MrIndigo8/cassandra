@@ -7,6 +7,7 @@ export const createEntrySchema = z.object({
     .max(5000, 'Текст сигнала слишком длинный (максимум 5000 символов)'),
   is_public: z.boolean().optional().default(true),
   image_url: z.string().url('Некорректный URL изображения').optional().nullable(),
+  scope: z.enum(['world', 'personal', 'unknown']).optional().default('unknown'),
 });
 
 // --- Reactions ---
