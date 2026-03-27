@@ -17,10 +17,14 @@ export async function generateMetadata({ params }: { params: { username: string 
 }
 
 const ROLE_LABELS = {
+  architect: { labelKey: 'architect', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30', icon: '🏛' },
+  admin: { labelKey: 'admin', color: 'bg-violet-500/20 text-violet-300 border-violet-500/30', icon: '🛡' },
+  moderator: { labelKey: 'moderator', color: 'bg-sky-500/20 text-sky-300 border-sky-500/30', icon: '🧭' },
   observer: { labelKey: 'observer', color: 'bg-surface-hover text-text-secondary border-border', icon: '👁️' },
   chronicler: { labelKey: 'chronicler', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30', icon: '📝' },
   sensitive: { labelKey: 'sensitive', color: 'bg-violet-500/20 text-violet-300 border-violet-500/30', icon: '🔮' },
   oracle: { labelKey: 'oracle', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30', icon: '⚡' },
+  banned: { labelKey: 'banned', color: 'bg-red-500/20 text-red-300 border-red-500/30', icon: '⛔' },
 };
 
 function formatDate(dateString: string) {
@@ -92,6 +96,7 @@ export default async function ProfilePage({ params }: { params: { username: stri
   const avgLagDays = Number(profile.avg_lag_days || 0);
   const nextRole = getProgressToNextRole(rating, Number(profile.verified_count || 0), totalEntriesNum, String(profile.role || 'observer'));
   const strongPatterns = Array.isArray(profile.dominant_images) ? profile.dominant_images.slice(0, 3) : [];
+  const canAccessAdmin = ['architect', 'admin', 'moderator'].includes(String(profile.role || 'observer'));
 
   return (
     <div className="max-w-[860px] mx-auto px-4 py-8">
@@ -126,6 +131,14 @@ export default async function ProfilePage({ params }: { params: { username: stri
             {isOwnProfile && (
               <div>
                 <ProfileEditor userId={profile.id} currentDisplayName={profile.display_name || ''} />
+                {canAccessAdmin && (
+                  <Link
+                    href="/admin"
+                    className="mt-2 inline-flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    🏛 Админ-панель
+                  </Link>
+                )}
                 <LogoutButton />
               </div>
             )}

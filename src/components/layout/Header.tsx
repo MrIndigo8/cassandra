@@ -68,6 +68,7 @@ export function Header() {
     { href: '/discoveries', label: t('discoveries') },
     { href: '/map', label: t('map') },
   ];
+  const canAccessAdmin = ['architect', 'admin', 'moderator'].includes(currentRole);
 
   return (
     <header className="sticky top-0 z-50 bg-surface border-b border-border backdrop-blur">
@@ -91,6 +92,16 @@ export function Header() {
               {link.label}
             </Link>
           ))}
+          {canAccessAdmin && (
+            <Link
+              href="/admin"
+              className={`text-sm font-medium transition-colors ${
+                pathname.startsWith('/admin') ? 'text-primary' : 'text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              Admin
+            </Link>
+          )}
         </div>
 
         {/* Правая часть: streak + уведомления + локаль + аватар */}
