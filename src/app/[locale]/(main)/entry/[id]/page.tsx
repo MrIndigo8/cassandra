@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { cache } from 'react';
 import { Link } from '@/navigation';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { EntryClient } from './EntryClient';
@@ -18,7 +19,7 @@ interface EntryWithUser extends Omit<Entry, 'users'> {
 }
 
 // Загрузчик данных (для метаданных и страницы)
-async function getEntry(id: string): Promise<EntryWithUser | null> {
+const getEntry = cache(async (id: string): Promise<EntryWithUser | null> => {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from('entries')
@@ -31,7 +32,7 @@ async function getEntry(id: string): Promise<EntryWithUser | null> {
 
   if (error || !data) return null;
   return data as EntryWithUser;
-}
+});
 
 // Генерация Open Graph тегов
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

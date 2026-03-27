@@ -13,6 +13,7 @@ const eventsCache = new Map<string, { data: NewsEvent[]; timestamp: number }>();
 const CACHE_TTL = 15 * 60 * 1000;
 let translatedEventsCache: { data: EventWithTranslation[]; timestamp: number; locale: Locale } | null = null;
 const TRANSLATED_EVENTS_CACHE_TTL = 30 * 60 * 1000;
+const translationWarmups = new Map<string, Promise<void>>();
 
 interface UserEntryRow {
   id: string;
@@ -177,7 +178,7 @@ async function callClaudeTranslation(
   return parsed;
 }
 
-async function translateWithCache(
+async function applyCachedTranslations(
   events: EventWithTranslation[],
   locale: Locale,
   admin: ReturnType<typeof createAdminClient>
@@ -199,42 +200,10 @@ async function translateWithCache(
 
   const cached = (cachedRaw || []) as TranslationCacheRow[];
   const cachedMap = new Map<string, string>(cached.map((row) => [row.source_hash, row.translated_text]));
-  const missing = items.filter((item) => !cachedMap.has(item.hash));
-
-  let newTranslations: Array<{ id: number; title: string }> = [];
-  if (missing.length > 0) {
-    try {
-      newTranslations = await callClaudeTranslation(missing.map((item) => ({ id: item.id, title: item.title })));
-      const inserts = newTranslations.map((item) => {
-        const src = missing.find((m) => m.id === item.id);
-        return {
-          source_hash: src?.hash || hashText(src?.title || ''),
-          source_text: src?.title || '',
-          target_locale: locale,
-          translated_text: item.title,
-        };
-      });
-      if (inserts.length > 0) {
-        await admin.from('translation_cache').upsert(inserts, { onConflict: 'source_hash,target_locale' });
-      }
-    } catch (error) {
-      console.error('[Events translation] Claude translation failed:', error);
-    }
-  }
-
   return events.map((event, idx) => {
     if (idx >= 30) return event;
     const src = items.find((item) => item.id === idx);
     const fromCacheRaw = src ? cachedMap.get(src.hash) : null;
-    const fromNew = newTranslations.find((row) => row.id === idx);
-
-    if (fromNew) {
-      return {
-        ...event,
-        title: fromNew.title || event.title,
-        originalTitle: event.title,
-      };
-    }
     if (fromCacheRaw) {
       let cachedTitle = fromCacheRaw;
       if (fromCacheRaw.trim().startsWith('{')) {
@@ -251,6 +220,58 @@ async function translateWithCache(
     }
     return event;
   });
+}
+
+async function warmMissingTranslations(
+  events: EventWithTranslation[],
+  locale: Locale,
+  admin: ReturnType<typeof createAdminClient>
+): Promise<void> {
+  if (locale === 'en' || events.length === 0) return;
+  const capped = events.slice(0, 30);
+  const items = capped.map((event, id) => ({
+    id,
+    title: event.title,
+    hash: hashText(event.title),
+  }));
+
+  const warmupKey = `${locale}:${items.map((i) => i.hash).join(',')}`;
+  if (translationWarmups.has(warmupKey)) return;
+
+  const warmupPromise = (async () => {
+    const { data: cachedRaw } = await admin
+      .from('translation_cache')
+      .select('source_hash')
+      .eq('target_locale', locale)
+      .in('source_hash', items.map((item) => item.hash));
+
+    const existing = new Set((cachedRaw || []).map((row) => String((row as { source_hash: string }).source_hash)));
+    const missing = items.filter((item) => !existing.has(item.hash));
+    if (missing.length === 0) return;
+
+    const translated = await callClaudeTranslation(missing.map((item) => ({ id: item.id, title: item.title })));
+    const inserts = translated.map((item) => {
+      const src = missing.find((m) => m.id === item.id);
+      return {
+        source_hash: src?.hash || hashText(src?.title || ''),
+        source_text: src?.title || '',
+        target_locale: locale,
+        translated_text: item.title,
+      };
+    });
+
+    if (inserts.length > 0) {
+      await admin.from('translation_cache').upsert(inserts, { onConflict: 'source_hash,target_locale' });
+    }
+  })()
+    .catch((error) => {
+      console.error('[Events translation] Warmup failed:', error);
+    })
+    .finally(() => {
+      translationWarmups.delete(warmupKey);
+    });
+
+  translationWarmups.set(warmupKey, warmupPromise);
 }
 
 function buildRelevanceReasons(
@@ -365,7 +386,8 @@ export async function GET(request: Request) {
     ) {
       localizedEvents = translatedEventsCache.data;
     } else {
-      localizedEvents = await translateWithCache(localizedEvents, locale, admin);
+      localizedEvents = await applyCachedTranslations(localizedEvents, locale, admin);
+      void warmMissingTranslations(localizedEvents, locale, admin);
       translatedEventsCache = { data: localizedEvents, timestamp: now, locale };
     }
   }

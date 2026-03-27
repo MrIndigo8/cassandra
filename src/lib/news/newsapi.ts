@@ -20,6 +20,32 @@ const GEO_KEYWORDS = [
   'germany', 'france', 'italy', 'spain', 'middle east', 'warsaw', 'tehran',
   'bitcoin', 'crypto',
 ];
+const REQUEST_TIMEOUT_MS = 3500;
+const MAX_NEWSAPI_REQUESTS = 10;
+const CONCURRENCY = 4;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  mapper: (item: T) => Promise<R>
+): Promise<R[]> {
+  if (items.length === 0) return [];
+  const size = Math.max(1, Math.min(limit, items.length));
+  const results: R[] = new Array(items.length);
+  let index = 0;
+
+  const workers = Array.from({ length: size }, async () => {
+    while (true) {
+      const current = index;
+      index += 1;
+      if (current >= items.length) break;
+      results[current] = await mapper(items[current]);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
 
 function extractGeography(text: string): string | null {
   const lower = text.toLowerCase();
@@ -61,7 +87,7 @@ export async function fetchRecentNews(
     const results: NewsEvent[] = [];
     const dedupe = new Set<string>();
 
-    const requests: URL[] = [];
+    const requestSet = new Set<string>();
 
     const countries = new Set(
       (audience?.preferredCountries || []).map((c) => c.toLowerCase())
@@ -110,7 +136,7 @@ export async function fetchRecentNews(
       url.searchParams.set('sortBy', 'publishedAt');
       url.searchParams.set('pageSize', '40');
       url.searchParams.set('from', fromStr);
-      requests.push(url);
+      requestSet.add(url.toString());
     }
 
     const topHeadlineCountries = ['pl', 'de', 'fr'];
@@ -125,46 +151,54 @@ export async function fetchRecentNews(
       url.searchParams.set('apiKey', apiKey);
       url.searchParams.set('country', country);
       url.searchParams.set('pageSize', '30');
-      requests.push(url);
+      requestSet.add(url.toString());
     }
 
-    for (const url of requests) {
-      const response = await fetch(url.toString(), {
-        signal: AbortSignal.timeout(5000),
-        next: { revalidate: 3600 },
-      });
+    const requests = Array.from(requestSet).slice(0, MAX_NEWSAPI_REQUESTS);
+    const responses = await mapWithConcurrency(requests, CONCURRENCY, async (urlString) => {
+      const url = new URL(urlString);
+      try {
+        const response = await fetch(urlString, {
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+          next: { revalidate: 3600 },
+        });
 
-      if (!response.ok) {
-        console.error(`[NewsAPI] Ошибка ${response.status} для ${url.pathname}:`, await response.text());
-        continue;
+        if (!response.ok) {
+          console.error(`[NewsAPI] Ошибка ${response.status} для ${url.pathname}:`, await response.text());
+          return [] as NewsEvent[];
+        }
+
+        const data: NewsApiResponse = await response.json();
+        if (data.status !== 'ok') {
+          console.error('[NewsAPI] Неуспешный статус:', data);
+          return [] as NewsEvent[];
+        }
+
+        return data.articles
+          .filter((a) => a.title && a.title !== '[Removed]')
+          .filter((a) => {
+            const text = `${a.title} ${a.description || ''}`.toLowerCase();
+            return GEO_KEYWORDS.some((kw) => text.includes(kw));
+          })
+          .map((article) => ({
+            id: `newsapi-${Buffer.from(article.url).toString('base64').slice(0, 16)}`,
+            source: 'newsapi' as const,
+            title: article.title,
+            description: article.description || '',
+            url: article.url,
+            publishedAt: new Date(article.publishedAt),
+            category: 'news',
+            geography: extractGeography(`${article.title} ${article.description || ''}`),
+            severity: 'medium' as const,
+          }));
+      } catch (error) {
+        console.error(`[NewsAPI] Ошибка запроса ${url.pathname}:`, error);
+        return [] as NewsEvent[];
       }
+    });
 
-      const data: NewsApiResponse = await response.json();
-
-      if (data.status !== 'ok') {
-        console.error('[NewsAPI] Неуспешный статус:', data);
-        continue;
-      }
-
-      const mapped: NewsEvent[] = data.articles
-        .filter((a) => a.title && a.title !== '[Removed]')
-        .filter((a) => {
-          const text = `${a.title} ${a.description || ''}`.toLowerCase();
-          return GEO_KEYWORDS.some((kw) => text.includes(kw));
-        })
-        .map((article) => ({
-          id: `newsapi-${Buffer.from(article.url).toString('base64').slice(0, 16)}`,
-          source: 'newsapi' as const,
-          title: article.title,
-          description: article.description || '',
-          url: article.url,
-          publishedAt: new Date(article.publishedAt),
-          category: 'news',
-          geography: extractGeography(`${article.title} ${article.description || ''}`),
-          severity: 'medium' as const,
-        }));
-
-      for (const event of mapped) {
+    for (const batch of responses) {
+      for (const event of batch) {
         const key = event.url || event.title.toLowerCase();
         if (dedupe.has(key)) continue;
         dedupe.add(key);

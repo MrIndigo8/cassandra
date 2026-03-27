@@ -125,6 +125,7 @@ export default function NoosphereClient() {
   const [mapCenter, setMapCenter] = useState<[number, number]>([10, 20]);
   const [mapZoom, setMapZoom] = useState(1);
   const mapRef = useRef<HTMLDivElement | null>(null);
+  const lastTooltipMoveRef = useRef(0);
   const highlightISO = (searchParams.get('highlight') || '').toUpperCase();
   const highlightMatchId = searchParams.get('match');
 
@@ -186,13 +187,25 @@ export default function NoosphereClient() {
     }
   }, [data, highlightISO, highlightMatchId]);
 
-  const focusCountry = (iso: string) => {
+  const focusCountry = useCallback((iso: string) => {
     const coords = ISO_TO_COORDS[iso];
     if (!coords) return;
     setMapCenter(coords);
     setMapZoom(2.2);
     mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
+  }, []);
+
+  const handleTooltipMove = useCallback((x: number, y: number) => {
+    const now = Date.now();
+    if (now - lastTooltipMoveRef.current < 40) return;
+    lastTooltipMoveRef.current = now;
+    setTooltip((prev) => (prev ? { ...prev, x, y } : prev));
+  }, []);
+
+  const handleMapMoveEnd = useCallback(({ coordinates, zoom }: { coordinates: number[]; zoom: number }) => {
+    setMapCenter(coordinates as [number, number]);
+    setMapZoom(zoom);
+  }, []);
 
   if (loading) {
     return (
@@ -245,7 +258,7 @@ export default function NoosphereClient() {
 
       <div ref={mapRef} className="relative card rounded-2xl border-border p-4 overflow-hidden h-[60vh] min-h-[420px]">
         <ComposableMap projection="geoMercator" projectionConfig={{ scale: 135 }} style={{ width: '100%', height: '100%' }}>
-          <ZoomableGroup center={mapCenter} zoom={mapZoom} onMoveEnd={({ coordinates, zoom }) => { setMapCenter(coordinates as [number, number]); setMapZoom(zoom); }}>
+          <ZoomableGroup center={mapCenter} zoom={mapZoom} onMoveEnd={handleMapMoveEnd}>
             <Geographies geography={GEO_URL}>
               {({ geographies }) =>
                 geographies.map((geo) => {
@@ -272,7 +285,7 @@ export default function NoosphereClient() {
                         pressed: { outline: 'none' },
                       }}
                       onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, kind: 'anxiety', countryName, country: anxietyCountry })}
-                      onMouseMove={(e) => setTooltip((prev) => (prev ? { ...prev, x: e.clientX, y: e.clientY } : prev))}
+                      onMouseMove={(e) => handleTooltipMove(e.clientX, e.clientY)}
                       onMouseLeave={() => setTooltip(null)}
                     />
                   );
@@ -301,7 +314,7 @@ export default function NoosphereClient() {
                     strokeWidth={0.7}
                     className={point.hasImminentSignals ? 'animate-pulse' : ''}
                     onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, kind: 'subject', point })}
-                    onMouseMove={(e) => setTooltip((prev) => (prev ? { ...prev, x: e.clientX, y: e.clientY } : prev))}
+                    onMouseMove={(e) => handleTooltipMove(e.clientX, e.clientY)}
                     onMouseLeave={() => setTooltip(null)}
                   />
                 </Marker>
@@ -322,7 +335,7 @@ export default function NoosphereClient() {
                     className="animate-pulse-red"
                     style={{ filter: 'drop-shadow(0 0 8px rgba(239,68,68,0.8))' }}
                     onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, kind: 'match', point })}
-                    onMouseMove={(e) => setTooltip((prev) => (prev ? { ...prev, x: e.clientX, y: e.clientY } : prev))}
+                    onMouseMove={(e) => handleTooltipMove(e.clientX, e.clientY)}
                     onMouseLeave={() => setTooltip(null)}
                     onClick={() => setSelectedMatch(point)}
                   />

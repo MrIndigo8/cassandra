@@ -13,10 +13,41 @@ const CRON_STEPS: CronStep[] = [
   { path: '/api/external-sync' },
   { path: '/api/analyze', critical: true },
   { path: '/api/verify', critical: true },
-  { path: '/api/cluster' },
   { path: '/api/coherence', critical: true },
+];
+
+const CRON_PARALLEL_TAIL: CronStep[] = [
+  { path: '/api/cluster' },
   { path: '/api/recalculate-scores' },
 ];
+
+async function runStep(
+  appUrl: string,
+  cronSecret: string,
+  step: CronStep
+): Promise<{ path: string; ok: boolean; status: number; body: unknown }> {
+  const response = await fetch(`${appUrl}${step.path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${cronSecret}`,
+    },
+    cache: 'no-store',
+  });
+
+  let body: unknown = null;
+  try {
+    body = await response.json();
+  } catch {
+    body = null;
+  }
+
+  return {
+    path: step.path,
+    ok: response.ok,
+    status: response.status,
+    body,
+  };
+}
 
 async function runCron(request: Request) {
   if (!verifyCronAuth(request)) {
@@ -44,30 +75,10 @@ async function runCron(request: Request) {
   }> = [];
 
   for (const step of CRON_STEPS) {
-    const response = await fetch(`${appUrl}${step.path}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${cronSecret}`,
-      },
-      cache: 'no-store',
-    });
-
-    let body: unknown = null;
-    try {
-      body = await response.json();
-    } catch {
-      body = null;
-    }
-
-    const stepResult = {
-      path: step.path,
-      ok: response.ok,
-      status: response.status,
-      body,
-    };
+    const stepResult = await runStep(appUrl, cronSecret, step);
     results.push(stepResult);
 
-    if (step.critical && !response.ok) {
+    if (step.critical && !stepResult.ok) {
       return NextResponse.json(
         {
           ok: false,
@@ -79,6 +90,9 @@ async function runCron(request: Request) {
       );
     }
   }
+
+  const tailResults = await Promise.all(CRON_PARALLEL_TAIL.map((step) => runStep(appUrl, cronSecret, step)));
+  results.push(...tailResults);
 
   return NextResponse.json({
     ok: results.every((r) => r.ok),

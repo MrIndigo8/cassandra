@@ -107,31 +107,43 @@ export default async function FeedPage() {
   const entryIds = baseEntries.map((e) => e.id);
   const likesCountByEntry = new Map<string, number>();
   const commentsCountByEntry = new Map<string, number>();
+  const communityCountByEntry = new Map<string, number>();
   const likedByCurrentUser = new Set<string>();
 
   if (entryIds.length > 0) {
-    const { data: likesRows } = await supabase
-      .from('reactions')
-      .select('entry_id')
-      .eq('emoji', 'like')
-      .in('entry_id', entryIds);
+    const [
+      { data: likesRows },
+      { data: commentsRows },
+      { data: communityRows },
+      {
+        data: { user },
+      },
+    ] = await Promise.all([
+      supabase
+        .from('reactions')
+        .select('entry_id')
+        .eq('emoji', 'like')
+        .in('entry_id', entryIds),
+      supabase
+        .from('comments')
+        .select('entry_id')
+        .in('entry_id', entryIds),
+      supabase
+        .from('community_confirmations')
+        .select('entry_id')
+        .in('entry_id', entryIds),
+      supabase.auth.getUser(),
+    ]);
 
-    likesRows?.forEach((row) => {
+    likesRows?.forEach((row: { entry_id: string }) => {
       likesCountByEntry.set(row.entry_id, (likesCountByEntry.get(row.entry_id) || 0) + 1);
     });
-
-    const { data: commentsRows } = await supabase
-      .from('comments')
-      .select('entry_id')
-      .in('entry_id', entryIds);
-
-    commentsRows?.forEach((row) => {
+    commentsRows?.forEach((row: { entry_id: string }) => {
       commentsCountByEntry.set(row.entry_id, (commentsCountByEntry.get(row.entry_id) || 0) + 1);
     });
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    communityRows?.forEach((row: { entry_id: string }) => {
+      communityCountByEntry.set(row.entry_id, (communityCountByEntry.get(row.entry_id) || 0) + 1);
+    });
 
     if (user) {
       const { data: likedRows } = await supabase
@@ -166,6 +178,7 @@ export default async function FeedPage() {
     },
     likes_count: likesCountByEntry.get(entry.id) || 0,
     comments_count: commentsCountByEntry.get(entry.id) || 0,
+    community_count: communityCountByEntry.get(entry.id) || 0,
     user_liked: likedByCurrentUser.has(entry.id),
   }));
 

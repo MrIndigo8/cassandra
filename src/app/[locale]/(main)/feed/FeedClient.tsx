@@ -43,6 +43,13 @@ type BaseEntryRow = {
   }[] | null;
 };
 
+type FeedStatsResponse = {
+  likesCount: Record<string, number>;
+  commentsCount: Record<string, number>;
+  communityCount: Record<string, number>;
+  userLiked: Record<string, boolean>;
+};
+
 const ENTRY_SELECT_FULL = `
   id, type, title, content, image_url, is_verified, best_match_score,
   view_count, prediction_potential, sensory_data, created_at,
@@ -136,40 +143,66 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
   const hydrateEntries = useCallback(async (baseRows: BaseEntryRow[]): Promise<FeedEntry[]> => {
     const entryIds = baseRows.map((e) => e.id);
     if (entryIds.length === 0) return [];
+    let likesCountMap: Record<string, number> = {};
+    let commentsCountMap: Record<string, number> = {};
+    let communityCountMap: Record<string, number> = {};
+    let userLikedMap: Record<string, boolean> = {};
 
-    const [likesRes, commentsRes, likedRes] = await Promise.all([
-      supabase
-        .from('reactions')
-        .select('entry_id')
-        .eq('emoji', 'like')
-        .in('entry_id', entryIds),
-      supabase
-        .from('comments')
-        .select('entry_id')
-        .in('entry_id', entryIds),
-      user
-        ? supabase
-            .from('reactions')
-            .select('entry_id')
-            .eq('user_id', user.id)
-            .eq('emoji', 'like')
-            .in('entry_id', entryIds)
-        : Promise.resolve({ data: [] as Array<{ entry_id: string }> }),
-    ]);
+    try {
+      const statsRes = await fetch('/api/feed/stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entry_ids: entryIds }),
+      });
 
-    const likesCount = new Map<string, number>();
-    const commentsCount = new Map<string, number>();
-    const likedSet = new Set<string>();
+      if (!statsRes.ok) {
+        throw new Error('feed_stats_failed');
+      }
 
-    likesRes.data?.forEach((row: { entry_id: string }) => {
-      likesCount.set(row.entry_id, (likesCount.get(row.entry_id) || 0) + 1);
-    });
+      const stats = (await statsRes.json()) as FeedStatsResponse;
+      likesCountMap = stats.likesCount || {};
+      commentsCountMap = stats.commentsCount || {};
+      communityCountMap = stats.communityCount || {};
+      userLikedMap = stats.userLiked || {};
+    } catch {
+      // Safe fallback to previous client-side batch queries.
+      const [likesRes, commentsRes, likedRes, communityRes] = await Promise.all([
+        supabase
+          .from('reactions')
+          .select('entry_id')
+          .eq('emoji', 'like')
+          .in('entry_id', entryIds),
+        supabase
+          .from('comments')
+          .select('entry_id')
+          .in('entry_id', entryIds),
+        user
+          ? supabase
+              .from('reactions')
+              .select('entry_id')
+              .eq('user_id', user.id)
+              .eq('emoji', 'like')
+              .in('entry_id', entryIds)
+          : Promise.resolve({ data: [] as Array<{ entry_id: string }> }),
+        supabase
+          .from('community_confirmations')
+          .select('entry_id')
+          .in('entry_id', entryIds),
+      ]);
 
-    commentsRes.data?.forEach((row: { entry_id: string }) => {
-      commentsCount.set(row.entry_id, (commentsCount.get(row.entry_id) || 0) + 1);
-    });
-
-    likedRes.data?.forEach((row: { entry_id: string }) => likedSet.add(row.entry_id));
+      likesRes.data?.forEach((row: { entry_id: string }) => {
+        likesCountMap[row.entry_id] = (likesCountMap[row.entry_id] || 0) + 1;
+      });
+      commentsRes.data?.forEach((row: { entry_id: string }) => {
+        commentsCountMap[row.entry_id] = (commentsCountMap[row.entry_id] || 0) + 1;
+      });
+      likedRes.data?.forEach((row: { entry_id: string }) => {
+        userLikedMap[row.entry_id] = true;
+      });
+      communityRes.data?.forEach((row: { entry_id: string }) => {
+        communityCountMap[row.entry_id] = (communityCountMap[row.entry_id] || 0) + 1;
+      });
+    }
 
     return baseRows.map((entry) => ({
       id: entry.id,
@@ -190,9 +223,10 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
         role: (Array.isArray(entry.users) ? entry.users[0]?.role : entry.users?.role) || 'observer',
         rating_score: Number((Array.isArray(entry.users) ? entry.users[0]?.rating_score : entry.users?.rating_score) || 0),
       },
-      likes_count: likesCount.get(entry.id) || 0,
-      comments_count: commentsCount.get(entry.id) || 0,
-      user_liked: likedSet.has(entry.id),
+      likes_count: likesCountMap[entry.id] || 0,
+      comments_count: commentsCountMap[entry.id] || 0,
+      user_liked: Boolean(userLikedMap[entry.id]),
+      community_count: communityCountMap[entry.id] || 0,
     })).map((entry) => ({ ...entry, match: null }));
   }, [supabase, user]);
 
@@ -266,6 +300,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
             likes_count: 0,
             comments_count: 0,
             user_liked: false,
+            community_count: 0,
           };
 
           // Добавляем в начало списка с дедупликацией
@@ -408,6 +443,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
               likes_count={entry.likes_count ?? 0}
               comments_count={entry.comments_count ?? 0}
               user_liked={Boolean(entry.user_liked)}
+              community_count={entry.community_count ?? 0}
               match={entry.match || null}
             />
           ))}

@@ -3,6 +3,16 @@ import { fetchDreamSubreddits } from '@/lib/external/reddit';
 import { fetchPolymarketEvents } from '@/lib/external/polymarket';
 import { verifyCronAuth } from '@/lib/auth/verifyCron';
 
+const CHUNK_SIZE = 200;
+
+function chunkArray<T>(items: T[], chunkSize: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < items.length; i += chunkSize) {
+    result.push(items.slice(i, i + chunkSize));
+  }
+  return result;
+}
+
 export async function POST(request: Request) {
   if (!verifyCronAuth(request)) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -14,42 +24,48 @@ export async function POST(request: Request) {
 
   // Reddit сигналы
   const redditSignals = await fetchDreamSubreddits();
-  for (const signal of redditSignals) {
+  const redditRows = redditSignals.map((signal) => ({
+    source: 'reddit',
+    external_id: signal.id,
+    title: signal.title,
+    content: signal.content,
+    url: signal.url,
+    published_at: signal.publishedAt.toISOString(),
+    metadata: signal.metadata,
+  }));
+
+  for (const chunk of chunkArray(redditRows, CHUNK_SIZE)) {
     const { error } = await supabase
       .from('external_signals')
-      .upsert({
-        source: 'reddit',
-        external_id: signal.id,
-        title: signal.title,
-        content: signal.content,
-        url: signal.url,
-        published_at: signal.publishedAt.toISOString(),
-        metadata: signal.metadata
-      }, { onConflict: 'source,external_id', ignoreDuplicates: true });
-    
-    if (!error) savedReddit++;
+      .upsert(chunk, { onConflict: 'source,external_id', ignoreDuplicates: true });
+    if (!error) {
+      savedReddit += chunk.length;
+    }
   }
 
   // Polymarket сигналы
   const markets = await fetchPolymarketEvents();
-  for (const market of markets) {
+  const polymarketRows = markets.map((market) => ({
+    source: 'polymarket',
+    external_id: market.id,
+    title: market.question,
+    content: `Вероятность: ${Math.round(market.probability * 100)}% | Объём: $${Math.round(market.volume).toLocaleString()}`,
+    published_at: new Date().toISOString(),
+    metadata: {
+      probability: market.probability,
+      category: market.category,
+      endDate: market.endDate,
+      volume: market.volume,
+    },
+  }));
+
+  for (const chunk of chunkArray(polymarketRows, CHUNK_SIZE)) {
     const { error } = await supabase
       .from('external_signals')
-      .upsert({
-        source: 'polymarket',
-        external_id: market.id,
-        title: market.question,
-        content: `Вероятность: ${Math.round(market.probability * 100)}% | Объём: $${Math.round(market.volume).toLocaleString()}`,
-        published_at: new Date().toISOString(),
-        metadata: {
-          probability: market.probability,
-          category: market.category,
-          endDate: market.endDate,
-          volume: market.volume
-        }
-      }, { onConflict: 'source,external_id', ignoreDuplicates: true });
-    
-    if (!error) savedPolymarket++;
+      .upsert(chunk, { onConflict: 'source,external_id', ignoreDuplicates: true });
+    if (!error) {
+      savedPolymarket += chunk.length;
+    }
   }
 
   console.log(`[External Sync] Reddit: ${savedReddit}, Polymarket: ${savedPolymarket}`);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS, ru } from 'date-fns/locale';
 import { useLocale, useTranslations } from 'next-intl';
@@ -37,6 +37,7 @@ export interface FeedEntry {
   likes_count: number;
   comments_count: number;
   user_liked: boolean;
+  community_count?: number;
   match?: MatchData | null;
 }
 
@@ -67,6 +68,7 @@ interface EntryCardProps {
   likes_count: number;
   comments_count: number;
   user_liked: boolean;
+  community_count?: number;
   match?: MatchData | null;
 }
 
@@ -82,6 +84,7 @@ export function EntryCard({
   likes_count,
   comments_count,
   user_liked,
+  community_count = 0,
   match,
 }: EntryCardProps) {
   const tEntry = useTranslations('entry');
@@ -90,11 +93,9 @@ export function EntryCard({
   const locale = useLocale();
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [localCommentsCount, setLocalCommentsCount] = useState(comments_count);
-  const [localViewCount, setLocalViewCount] = useState(entry.view_count || 0);
+  const [localViewCount] = useState(entry.view_count || 0);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [communityCount, setCommunityCount] = useState(0);
-  const cardRef = useRef<HTMLElement | null>(null);
-  const viewTrackedRef = useRef(false);
+  const [communityCount, setCommunityCount] = useState(community_count);
   const { user: currentUser } = useUser();
 
   const dateLocale = locale === 'en' ? enUS : ru;
@@ -127,49 +128,6 @@ export function EntryCard({
     setTimeout(() => setLinkCopied(false), 1600);
   };
 
-  useEffect(() => {
-    const target = cardRef.current;
-    if (!target || viewTrackedRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (!first?.isIntersecting || viewTrackedRef.current) return;
-        viewTrackedRef.current = true;
-
-        // fire-and-forget tracking once per card mount
-        fetch('/api/views', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ entry_id: entry.id }),
-        })
-          .then(async (res) => {
-            if (!res.ok) return;
-            const data = await res.json();
-            if (typeof data?.view_count === 'number') {
-              setLocalViewCount(data.view_count);
-            }
-          })
-          .catch(() => {});
-
-        observer.disconnect();
-      },
-      { threshold: 0.5 }
-    );
-
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [entry.id]);
-
-  useEffect(() => {
-    fetch(`/api/community-confirm?entry_id=${entry.id}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (typeof data?.count === 'number') setCommunityCount(data.count);
-      })
-      .catch(() => {});
-  }, [entry.id]);
-
   const canConfirm = currentUser && currentUser.id !== user.id && Number(entry.prediction_potential || 0) > 0.5;
   const communityPatterns = useMemo(() => {
     const sensory = (entry.sensory_data?.sensory_patterns || [])
@@ -180,7 +138,7 @@ export function EntryCard({
   }, [entry.sensory_data]);
 
   return (
-    <article ref={cardRef} className="card p-5 hover:shadow-card-hover transition-all duration-200">
+    <article className="card p-5 hover:shadow-card-hover transition-all duration-200">
       <header className="flex items-start gap-3">
         <div className={`w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white font-semibold ${avatarColor(user.username)}`}>
           {user.avatar_url ? (

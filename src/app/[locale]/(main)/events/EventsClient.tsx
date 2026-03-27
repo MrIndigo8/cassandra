@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS, ru } from 'date-fns/locale';
 import { Activity, ChevronDown, ChevronUp, GitCompare } from 'lucide-react';
@@ -216,12 +216,6 @@ export default function EventsClient({
     }
   };
 
-  useEffect(() => {
-    if (loadedForSection.relevant) return;
-    void loadEvents('relevant', 1, false, { silent: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locale, loadedForSection.relevant]);
-
   const openWorldEventsTab = async () => {
     setTab('worldEvents');
     if (!loadedForSection[section]) {
@@ -232,8 +226,6 @@ export default function EventsClient({
   const switchSection = async (nextSection: Section) => {
     setSection(nextSection);
     if (!loadedForSection[nextSection]) {
-      await loadEvents(nextSection, 1, false);
-    } else {
       await loadEvents(nextSection, 1, false);
     }
   };

@@ -70,8 +70,15 @@ export function Header() {
     { href: '/map', label: t('map') },
   ];
   const canAccessAdmin = ['architect', 'admin', 'moderator'].includes(currentRole);
+  const shouldWarmEvents =
+    pathname === '/discoveries' ||
+    pathname.startsWith('/discoveries/') ||
+    pathname === '/events' ||
+    pathname.startsWith('/events/');
 
   useEffect(() => {
+    if (!shouldWarmEvents) return;
+
     // Warm up global events + translation cache soon after app entry.
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
@@ -93,7 +100,7 @@ export function Header() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [locale]);
+  }, [locale, shouldWarmEvents]);
 
   return (
     <header className="sticky top-0 z-50 bg-surface border-b border-border backdrop-blur">

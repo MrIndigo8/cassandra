@@ -60,31 +60,31 @@ export default async function ProfilePage({ params }: { params: { username: stri
 
   const isOwnProfile = currentUser?.id === profile.id;
 
-  const { data: entries } = await supabase
-    .from('entries')
-    .select('id, content, type, created_at, best_match_score, prediction_potential')
-    .eq('user_id', profile.id)
-    .order('created_at', { ascending: false })
-    .limit(10);
-
-  const { data: matches } = await supabase
-    .from('matches')
-    .select('id, event_title, event_url, event_source, event_date, similarity_score')
-    .eq('user_id', profile.id)
-    .gt('similarity_score', 0.6)
-    .order('similarity_score', { ascending: false })
-    .limit(10);
-
-  const { count: totalEntries } = await supabase
-    .from('entries')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', profile.id);
-
-  const { count: confirmedMatches } = await supabase
-    .from('matches')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', profile.id)
-    .gt('similarity_score', 0.6);
+  const [{ data: entries }, { data: matches }, { count: totalEntries }, { count: confirmedMatches }] =
+    await Promise.all([
+      supabase
+        .from('entries')
+        .select('id, content, type, created_at, best_match_score, prediction_potential')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(10),
+      supabase
+        .from('matches')
+        .select('id, event_title, event_url, event_source, event_date, similarity_score')
+        .eq('user_id', profile.id)
+        .gt('similarity_score', 0.6)
+        .order('similarity_score', { ascending: false })
+        .limit(10),
+      supabase
+        .from('entries')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', profile.id),
+      supabase
+        .from('matches')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', profile.id)
+        .gt('similarity_score', 0.6),
+    ]);
 
   const roleData = ROLE_LABELS[profile.role as keyof typeof ROLE_LABELS] || ROLE_LABELS.observer;
   const initial = profile.username[0].toUpperCase();
