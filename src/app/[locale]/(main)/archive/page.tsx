@@ -21,10 +21,10 @@ export default async function ArchivePage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-10 text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2 font-mono tracking-tight">
+        <h1 className="text-3xl font-bold text-text-primary mb-2 font-mono tracking-tight">
           {t('title')}
         </h1>
-        <p className="text-gray-500">
+        <p className="text-text-secondary">
           {t('subtitle')}
         </p>
       </div>

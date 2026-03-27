@@ -12,7 +12,6 @@ import type { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 import type { Entry, User } from '@/types';
 import { getMatchesForEntries } from '@/lib/matches';
 
-type FilterType = 'all' | 'dream' | 'premonition';
 type BaseEntryRow = {
   id: string;
   type: string;
@@ -49,7 +48,6 @@ interface FeedClientProps {
 
 export function FeedClient({ initialEntries }: FeedClientProps) {
   const [entries, setEntries] = useState<FeedEntry[]>(initialEntries);
-  const [filter, setFilter] = useState<FilterType>('all');
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(initialEntries.length === 20); // Зависит от PAGE_SIZE
@@ -242,20 +240,16 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      let query = supabase
+      const query = supabase
         .from('entries')
         .select(`
           id, type, title, content, image_url, is_verified, best_match_score,
           view_count, prediction_potential, sensory_data, created_at,
           users:user_id (id, username, avatar_url, role, rating_score)
         `)
-        .eq('is_public', true)
+        .or('is_public.is.null,is_public.eq.true')
         .order('created_at', { ascending: false })
         .range(from, to);
-
-      if (filter !== 'all') {
-        query = query.eq('type', filter);
-      }
 
       const { data, error } = await query;
 
@@ -290,54 +284,39 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
     }
   };
 
-  const handleFilterChange = async (newFilter: FilterType) => {
-    setFilter(newFilter);
+  const reloadFeed = async () => {
     setPage(1);
     setHasMore(true);
-    
-    // Загружаем первую страницу с новым фильтром
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('entries')
         .select(`
           id, type, title, content, image_url, is_verified, best_match_score,
           view_count, prediction_potential, sensory_data, created_at,
           users:user_id (id, username, avatar_url, role, rating_score)
         `)
-        .eq('is_public', true)
+        .or('is_public.is.null,is_public.eq.true')
         .order('created_at', { ascending: false })
         .limit(PAGE_SIZE);
-
-      if (newFilter !== 'all') {
-        query = query.eq('type', newFilter);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
-
-      if (data) {
-        const hydrated = await hydrateEntries(data as BaseEntryRow[]);
-        const verifiedIds = hydrated
-          .filter((entry) => entry.is_verified && (entry.best_match_score || 0) > 0.6)
-          .map((entry) => entry.id);
-        const matches = verifiedIds.length ? await getMatchesForEntries(verifiedIds, supabase) : [];
-        const matchByEntry = new Map(matches.map((m) => [m.entry_id, m]));
-        const hydratedWithMatches = hydrated.map((entry) => ({
-          ...entry,
-          match: matchByEntry.get(entry.id) || null,
-        }));
-        setEntries(hydratedWithMatches);
-        setHasMore(hydratedWithMatches.length === PAGE_SIZE);
-      }
+      const hydrated = await hydrateEntries((data || []) as BaseEntryRow[]);
+      const verifiedIds = hydrated
+        .filter((entry) => entry.is_verified && (entry.best_match_score || 0) > 0.6)
+        .map((entry) => entry.id);
+      const matches = verifiedIds.length ? await getMatchesForEntries(verifiedIds, supabase) : [];
+      const matchByEntry = new Map(matches.map((m) => [m.entry_id, m]));
+      const hydratedWithMatches = hydrated.map((entry) => ({
+        ...entry,
+        match: matchByEntry.get(entry.id) || null,
+      }));
+      setEntries(hydratedWithMatches);
+      setHasMore(hydratedWithMatches.length === PAGE_SIZE);
       setError(null);
     } catch (err) {
-      console.error('Ошибка фильтрации:', err);
+      console.error('Ошибка перезагрузки ленты:', err);
       setError(tCommon('errors.generic'));
     }
   };
-
-  // Локальная фильтрация для realtime вставок, которые могли уже прилететь в стейт
-  const filteredEntries = entries.filter(e => filter === 'all' || e.type === filter);
 
   return (
     <div className="max-w-2xl mx-auto py-6 px-4">
@@ -348,51 +327,17 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       {/* Форма публикации сигнала */}
       <InlineEntryForm />
 
-      {/* Фильтры */}
-      <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-none">
-        <button
-          onClick={() => handleFilterChange('all')}
-          className={`rounded-full px-4 py-2 text-sm font-medium transition-colors shrink-0 ${
-            filter === 'all' 
-              ? 'bg-primary text-white'
-              : 'bg-surface border border-border text-text-secondary hover:border-primary/50 hover:text-text-primary'
-          }`}
-        >
-          {tf('allSignals', tf('filters.all', 'All'))}
-        </button>
-        <button
-          onClick={() => handleFilterChange('dream')}
-          className={`rounded-full px-4 py-2 text-sm font-medium transition-colors shrink-0 ${
-            filter === 'dream' 
-              ? 'bg-primary text-white'
-              : 'bg-surface border border-border text-text-secondary hover:border-primary/50 hover:text-text-primary'
-          }`}
-        >
-          {tf('dreams', tf('filters.dreams', 'Dreams'))}
-        </button>
-        <button
-          onClick={() => handleFilterChange('premonition')}
-          className={`rounded-full px-4 py-2 text-sm font-medium transition-colors shrink-0 ${
-            filter === 'premonition' 
-              ? 'bg-primary text-white'
-              : 'bg-surface border border-border text-text-secondary hover:border-primary/50 hover:text-text-primary'
-          }`}
-        >
-          {tf('premonitions', tf('filters.premonitions', 'Premonitions'))}
-        </button>
-      </div>
-
-      {/* Пустое состояние или Ошибка фильтра */}
-      {error && !loadingMore && filteredEntries.length === 0 ? (
+      {/* Пустое состояние или Ошибка */}
+      {error && !loadingMore && entries.length === 0 ? (
         <div className="card glass text-center py-20 px-6 flex flex-col items-center border-border">
           <p className="text-red-500 mb-4">{error}</p>
-          <button onClick={() => handleFilterChange(filter)} className="px-6 py-2 rounded-full border border-border text-text-secondary hover:border-primary hover:text-primary transition-colors">
+          <button onClick={() => reloadFeed()} className="px-6 py-2 rounded-full border border-border text-text-secondary hover:border-primary hover:text-primary transition-colors">
             {tCommon('errors.tryAgain')}
           </button>
         </div>
-      ) : filteredEntries.length > 0 ? (
+      ) : entries.length > 0 ? (
         <div className="flex flex-col gap-4">
-          {filteredEntries.map((entry) => (
+          {entries.map((entry) => (
             <EntryCard
               key={entry.id}
               entry={{
@@ -432,17 +377,13 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-text-primary mb-3 line-clamp-2 md:line-clamp-none">
-            {filter === 'all' 
-              ? tf('empty', t('emptyAll')) 
-              : filter === 'dream' 
-                ? tf('emptyDreams', t('emptyDreams')) 
-                : tf('emptyPremonitions', t('emptyPremonitions'))}
+            {tf('empty', t('emptyAll'))}
           </h2>
         </div>
       )}
 
       {/* Кнопка "Загрузить ещё" или Ошибка пагинации */}
-      {filteredEntries.length > 0 && hasMore && (
+      {entries.length > 0 && hasMore && (
         <div className="mt-12 text-center flex flex-col items-center gap-4">
           {error && (
             <p className="text-red-500 text-sm">{error}</p>

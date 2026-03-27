@@ -196,10 +196,10 @@ export default function NoosphereClient() {
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-6 bg-gray-50 min-h-[80vh]">
-        <div className="animate-pulse h-8 w-48 bg-gray-200 rounded mb-3" />
-        <div className="animate-pulse h-4 w-72 bg-gray-200 rounded mb-6" />
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 h-[60vh] animate-pulse" />
+      <div className="max-w-6xl mx-auto px-4 py-6 min-h-[80vh]">
+        <div className="animate-pulse h-8 w-48 bg-surface rounded mb-3" />
+        <div className="animate-pulse h-4 w-72 bg-surface rounded mb-6" />
+        <div className="card rounded-2xl border-border p-4 h-[60vh] animate-pulse" />
       </div>
     );
   }
@@ -207,7 +207,7 @@ export default function NoosphereClient() {
   if (error) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-10 text-center">
-        <p className="text-gray-600 mb-4">{error}</p>
+        <p className="text-text-secondary mb-4">{error}</p>
         <button onClick={fetchData} className="btn-secondary">{t('tryAgain')}</button>
       </div>
     );
@@ -216,9 +216,9 @@ export default function NoosphereClient() {
   if (!data || (data.anxietyHeatmap.length === 0 && data.matchPoints.length === 0)) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-10 text-center">
-        <h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
-        <p className="text-gray-500 mt-2">{t('subtitle')}</p>
-        <div className="mt-8 bg-white rounded-2xl border border-gray-100 p-8 text-gray-600">
+        <h1 className="text-3xl font-bold text-text-primary">{t('title')}</h1>
+        <p className="text-text-secondary mt-2">{t('subtitle')}</p>
+        <div className="mt-8 card rounded-2xl border-border p-8 text-text-secondary">
           <p>{t('emptyMap')}</p>
           <Link href="/feed" className="btn-primary inline-flex mt-4">{t('writeFirst')}</Link>
         </div>
@@ -227,23 +227,23 @@ export default function NoosphereClient() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 bg-gray-50 min-h-[80vh]">
+    <div className="max-w-6xl mx-auto px-4 py-6 min-h-[80vh]">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{t('title')}</h1>
-          <p className="text-gray-500">{t('subtitle')}</p>
+          <h1 className="text-3xl font-bold text-text-primary">{t('title')}</h1>
+          <p className="text-text-secondary">{t('subtitle')}</p>
         </div>
         <div className="flex items-center gap-4">
           <div className={getCircleClass(data.globalAnxietyIndex)}>{data.globalAnxietyIndex.toFixed(1)}</div>
           <div>
-            <p className="text-sm text-gray-500">{t('globalIndex')}</p>
-            <p className="text-sm font-medium text-gray-800">{t('signals', { count: data.totalSignals })}</p>
-            <p className="text-xs text-gray-500 mt-1">{t('confirmedMatch')}: {data.totalMatches}</p>
+            <p className="text-sm text-text-secondary">{t('globalIndex')}</p>
+            <p className="text-sm font-medium text-text-primary">{t('signals', { count: data.totalSignals })}</p>
+            <p className="text-xs text-text-muted mt-1">{t('confirmedMatch')}: {data.totalMatches}</p>
           </div>
         </div>
       </div>
 
-      <div ref={mapRef} className="relative bg-white rounded-2xl border border-gray-100 p-4 overflow-hidden h-[60vh] min-h-[420px]">
+      <div ref={mapRef} className="relative card rounded-2xl border-border p-4 overflow-hidden h-[60vh] min-h-[420px]">
         <ComposableMap projection="geoMercator" projectionConfig={{ scale: 135 }} style={{ width: '100%', height: '100%' }}>
           <ZoomableGroup center={mapCenter} zoom={mapZoom} onMoveEnd={({ coordinates, zoom }) => { setMapCenter(coordinates as [number, number]); setMapZoom(zoom); }}>
             <Geographies geography={GEO_URL}>
@@ -283,7 +283,7 @@ export default function NoosphereClient() {
             {data.subjectPoints.map((point) => {
               const coords = ISO_TO_COORDS[point.iso];
               if (!coords) return null;
-              const colorMap: Record<string, string> = {
+                  const colorMap: Record<string, string> = {
                 conflict: '#ef4444',
                 disaster: '#f97316',
                 economic: '#fbbf24',
@@ -297,7 +297,7 @@ export default function NoosphereClient() {
                     r={4}
                     fill={colorMap[point.dominantThreat] || '#9ca3af'}
                     fillOpacity={0.45}
-                    stroke="#fff"
+                    stroke="#0b1230"
                     strokeWidth={0.7}
                     className={point.hasImminentSignals ? 'animate-pulse' : ''}
                     onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, kind: 'subject', point })}
@@ -317,7 +317,7 @@ export default function NoosphereClient() {
                   <circle
                     r={size}
                     fill="#ef4444"
-                    stroke="#fff"
+                    stroke="#0b1230"
                     strokeWidth={1.2}
                     className="animate-pulse-red"
                     style={{ filter: 'drop-shadow(0 0 8px rgba(239,68,68,0.8))' }}
@@ -332,7 +332,7 @@ export default function NoosphereClient() {
           </ZoomableGroup>
         </ComposableMap>
 
-        <div className="mt-2 text-xs text-gray-600">
+        <div className="mt-2 text-xs text-text-secondary">
           <div className="legend-gradient mb-2" />
           <div className="flex flex-wrap items-center gap-4">
             <span>🟡→🔴 {t('legend.heatmap')}</span>
@@ -374,41 +374,41 @@ export default function NoosphereClient() {
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 p-5 mt-4">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">{t('sections.whereWorried')}</h2>
+      <div className="card rounded-2xl border-border p-5 mt-4">
+        <h2 className="text-lg font-semibold text-text-primary mb-3">{t('sections.whereWorried')}</h2>
         <div className="space-y-1 mb-6">
           {worriedZones.map((zone) => {
             const percent = Math.min(100, (zone.avgAnxiety / 10) * 100);
             const isRising = data.risingZones.includes(zone.iso);
             return (
               <div key={zone.iso} className="hot-zone-row" onClick={() => focusCountry(zone.iso)}>
-                <div className="w-24 shrink-0 font-medium text-sm text-gray-800">{isoToFlag(zone.iso)} {zone.iso}</div>
+                <div className="w-24 shrink-0 font-medium text-sm text-text-primary">{isoToFlag(zone.iso)} {zone.iso}</div>
                 <div className="flex-1">
                   <div className="anxiety-bar">
                     <div className="h-2 rounded-full bg-black/20" style={{ width: `${percent}%` }} />
                   </div>
                 </div>
-                <div className="text-xs text-gray-600 w-28 text-right">{t('signalsCount', { count: zone.entryCount })}</div>
+                <div className="text-xs text-text-secondary w-28 text-right">{t('signalsCount', { count: zone.entryCount })}</div>
                 <div className="text-xs w-24 text-right">{isRising ? <span className="text-orange-600">↑ {t('rising')}</span> : null}</div>
               </div>
             );
           })}
         </div>
 
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">{t('sections.confirmedMatches')}</h2>
+        <h2 className="text-lg font-semibold text-text-primary mb-3">{t('sections.confirmedMatches')}</h2>
         <div className="mb-2">
           <Link href="/discoveries?tab=matches" className="text-sm text-primary hover:underline">All matches</Link>
         </div>
         {confirmedMatches.length === 0 ? (
-          <p className="text-sm text-gray-500">{t('noMatchesYet')}</p>
+          <p className="text-sm text-text-secondary">{t('noMatchesYet')}</p>
         ) : (
           <div className="space-y-2">
             {confirmedMatches.map((item) => (
-              <div key={item.iso + item.topMatch.id} className="border border-gray-100 rounded-xl p-3 hover:bg-gray-50 cursor-pointer" onClick={() => { focusCountry(item.iso); setSelectedMatch(item); }}>
+              <div key={item.iso + item.topMatch.id} className="border border-border rounded-xl p-3 hover:bg-surface cursor-pointer" onClick={() => { focusCountry(item.iso); setSelectedMatch(item); }}>
                 <div className="flex items-start gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900 line-clamp-2">{`"${item.topMatch.entrySummary}"`}</p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-sm text-text-primary line-clamp-2">{`"${item.topMatch.entrySummary}"`}</p>
+                    <p className="text-xs text-text-secondary mt-1">
                       {t('matchCard.author')}: {item.topMatch.authorUsername} {t('matchCard.from')} {item.topMatch.authorCountry || '--'} - {t('matchCard.daysBefore', { days: item.topMatch.daysBefore })}
                     </p>
                   </div>
@@ -417,8 +417,8 @@ export default function NoosphereClient() {
                   </div>
                 </div>
                 <div className="mt-2 flex items-center justify-between">
-                  <p className="text-sm text-gray-700 line-clamp-1">{getThreatIcon(item.topMatch.threatType)} {item.topMatch.eventTitle}</p>
-                  <p className="text-xs text-gray-500">{isoToFlag(item.topMatch.authorCountry || '--')} → {isoToFlag(item.iso)}</p>
+                  <p className="text-sm text-text-secondary line-clamp-1">{getThreatIcon(item.topMatch.threatType)} {item.topMatch.eventTitle}</p>
+                  <p className="text-xs text-text-muted">{isoToFlag(item.topMatch.authorCountry || '--')} → {isoToFlag(item.iso)}</p>
                 </div>
               </div>
             ))}
@@ -428,8 +428,8 @@ export default function NoosphereClient() {
 
       {selectedMatch ? (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setSelectedMatch(null)}>
-          <div className="bg-white rounded-2xl p-5 max-w-xl w-full relative" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="absolute top-3 right-3 text-gray-400 hover:text-gray-700" onClick={() => setSelectedMatch(null)}>×</button>
+          <div className="card rounded-2xl border border-border p-5 max-w-xl w-full relative" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="absolute top-3 right-3 text-text-muted hover:text-text-primary" onClick={() => setSelectedMatch(null)}>×</button>
             <MatchDetail
               variant="compact"
               match={{

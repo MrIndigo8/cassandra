@@ -16,7 +16,7 @@ export default async function FeedPage() {
       view_count, prediction_potential, sensory_data, created_at,
       users:user_id (id, username, avatar_url, role, rating_score)
     `)
-    .eq('is_public', true)
+    .or('is_public.is.null,is_public.eq.true')
     .order('created_at', { ascending: false })
     .range(0, 19);
 

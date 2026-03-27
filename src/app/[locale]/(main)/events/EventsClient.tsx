@@ -257,7 +257,7 @@ export default function EventsClient({
 
       {initialClusters.length > 0 && (
         <section className="mb-6">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">{tEvents('activeSignals')}</h2>
+          <h2 className="text-sm font-semibold text-text-secondary mb-3">{tEvents('activeSignals')}</h2>
           <div className="space-y-3">
             {initialClusters.map((cluster) => {
               const intensity = Math.max(0, Math.min(10, Number(cluster.intensity_score || 0)));
@@ -266,13 +266,13 @@ export default function EventsClient({
                 <div key={cluster.id} className="signal-card">
                   <Activity className="text-amber-600" size={18} />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{cluster.title}</p>
+                    <p className="font-medium text-text-primary truncate">{cluster.title}</p>
                     <div className="mt-1 flex flex-wrap gap-1">
                       {(cluster.dominant_images || []).slice(0, 4).map((img) => (
                         <span key={img} className="symbol-tag">#{img}</span>
                       ))}
                     </div>
-                    <div className="mt-2 text-xs text-gray-600 flex gap-3">
+                    <div className="mt-2 text-xs text-text-muted flex gap-3">
                       <span>{tEvents('signalUsers', { count: cluster.unique_users || 0 })}</span>
                       <span>{tEvents('signalEntries', { count: cluster.entry_count || 0 })}</span>
                     </div>
@@ -295,9 +295,9 @@ export default function EventsClient({
         <section className="space-y-4">
           {normalizedMatches.length === 0 ? (
             <div className="match-card text-center py-10">
-              <GitCompare className="mx-auto text-gray-300 mb-3" />
-              <p className="text-lg font-semibold text-gray-700">{tEvents('noMatches')}</p>
-              <p className="text-sm text-gray-500 mt-2">{tEvents('noMatchesHint')}</p>
+              <GitCompare className="mx-auto text-text-muted mb-3" />
+              <p className="text-lg font-semibold text-text-primary">{tEvents('noMatches')}</p>
+              <p className="text-sm text-text-secondary mt-2">{tEvents('noMatchesHint')}</p>
             </div>
           ) : (
             normalizedMatches.map(({ match, entry }) => {
@@ -404,14 +404,14 @@ export default function EventsClient({
               >
                 <span className={`category-dot ${categoryDotClass(event.category)}`} />
                 <div className="min-w-0 flex-1">
-                  <p className="text-base font-medium text-gray-900">{event.title}</p>
+                  <p className="text-base font-medium text-text-primary">{event.title}</p>
                   {locale === 'ru' && event.originalTitle && event.originalTitle !== event.title && (
-                    <p className="text-xs text-gray-400 italic mt-0.5 line-clamp-1">{event.originalTitle}</p>
+                    <p className="text-xs text-text-muted italic mt-0.5 line-clamp-1">{event.originalTitle}</p>
                   )}
                   {event.description && (
-                    <p className="text-sm text-gray-500 line-clamp-2 mt-1">{event.description}</p>
+                    <p className="text-sm text-text-secondary line-clamp-2 mt-1">{event.description}</p>
                   )}
-                  <div className="mt-2 text-xs text-gray-400 flex flex-wrap items-center gap-2">
+                  <div className="mt-2 text-xs text-text-muted flex flex-wrap items-center gap-2">
                     <span>{formatDistanceToNow(new Date(event.publishedAt), { addSuffix: true, locale: dateLocale })}</span>
                     {event.geography && <span>· {event.geography}</span>}
                     {section === 'relevant' && event.relevanceReasons?.[0] && (
@@ -437,8 +437,8 @@ export default function EventsClient({
                   </div>
 
                   {section === 'relevant' && expandedReasons[event.id] && event.relevanceReasons?.length > 0 && (
-                    <div className="mt-3 p-4 bg-primary/5 rounded-xl border border-primary/10" onClick={(e) => e.stopPropagation()}>
-                      <h4 className="text-sm font-semibold mb-3">{tEvents('whyRelevant')}</h4>
+                    <div className="mt-3 p-4 bg-surface rounded-xl border border-primary/20" onClick={(e) => e.stopPropagation()}>
+                      <h4 className="text-sm font-semibold text-text-primary mb-3">{tEvents('whyRelevant')}</h4>
                       {event.relevanceReasons.map((reason, i) => (
                         <div key={`${event.id}-reason-${i}`} className="flex items-start gap-3 mb-3 last:mb-0">
                           <span className="text-lg mt-0.5">
@@ -447,7 +447,7 @@ export default function EventsClient({
                             {reason.type === 'keywords' && '✨'}
                           </span>
                           <div className="flex-1">
-                            <p className="text-sm text-gray-700">{reason.detail}</p>
+                            <p className="text-sm text-text-secondary">{reason.detail}</p>
                             {reason.matchedPatterns && reason.matchedPatterns.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {reason.matchedPatterns.map((pattern) => (
@@ -460,7 +460,7 @@ export default function EventsClient({
                             {reason.matchedKeywords && reason.matchedKeywords.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {reason.matchedKeywords.map((keyword) => (
-                                  <span key={keyword} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                                  <span key={keyword} className="px-2 py-0.5 bg-surface border border-border text-text-secondary text-xs rounded-full">
                                     {keyword}
                                   </span>
                                 ))}
@@ -470,12 +470,12 @@ export default function EventsClient({
                               <Link
                                 key={entry.id}
                                 href={`/entry/${entry.id}`}
-                                className="flex items-center gap-2 mt-2 p-2 bg-white rounded-lg border border-gray-100 hover:border-primary/30 transition-colors"
+                                className="flex items-center gap-2 mt-2 p-2 bg-surface rounded-lg border border-border hover:border-primary/30 transition-colors"
                               >
                                 <div className="w-1 h-8 bg-primary/30 rounded-full" />
                                 <div>
-                                  <p className="text-sm font-medium text-gray-800 line-clamp-1">{entry.title}</p>
-                                  <p className="text-xs text-gray-400">
+                                  <p className="text-sm font-medium text-text-primary line-clamp-1">{entry.title}</p>
+                                  <p className="text-xs text-text-muted">
                                     {formatDistanceToNow(new Date(entry.date), { addSuffix: true, locale: dateLocale })}
                                   </p>
                                 </div>
