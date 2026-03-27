@@ -89,13 +89,17 @@ export async function updateUserScoring(
 
   const { data: user } = await supabase
     .from('users')
-    .select('verified_count, total_entries')
+    .select('verified_count, total_entries, role')
     .eq('id', userId)
     .single();
 
   const verifiedCount = user?.verified_count || 0;
   const totalEntries = user?.total_entries || 0;
-  const role = getRoleForUser(ratingScore, verifiedCount, totalEntries);
+  const currentRole = String(user?.role || 'observer');
+  const lockedRoles = new Set(['architect', 'admin', 'moderator', 'banned']);
+  const role = lockedRoles.has(currentRole)
+    ? currentRole
+    : getRoleForUser(ratingScore, verifiedCount, totalEntries);
 
   await supabase
     .from('users')

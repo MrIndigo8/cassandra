@@ -129,16 +129,47 @@ export default async function ProfilePage({ params }: { params: { username: stri
             </div>
 
             {isOwnProfile && (
-              <div>
+              <div className="mt-3 space-y-2">
                 <ProfileEditor userId={profile.id} currentDisplayName={profile.display_name || ''} />
-                {canAccessAdmin && (
-                  <Link
-                    href="/admin"
-                    className="mt-2 inline-flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                <div className="flex flex-wrap gap-2">
+                  {canAccessAdmin && (
+                    <Link
+                      href="/admin"
+                      className="inline-flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                    >
+                      🏛 Админ-панель
+                    </Link>
+                  )}
+                  {canAccessAdmin && (
+                    <Link
+                      href="/admin/settings"
+                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-primary/40 hover:text-text-primary transition-colors"
+                    >
+                      ⚙️ {t('settings')}
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-primary/40 hover:text-text-primary transition-colors"
+                    title={t('settingsPublic')}
                   >
-                    🏛 Админ-панель
-                  </Link>
-                )}
+                    🔐 {t('settingsPublic')}
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-primary/40 hover:text-text-primary transition-colors"
+                    title={t('settingsPush')}
+                  >
+                    🔔 {t('settingsPush')}
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-primary/40 hover:text-text-primary transition-colors"
+                    title={t('settingsTheme')}
+                  >
+                    🌗 {t('settingsTheme')}
+                  </button>
+                </div>
                 <LogoutButton />
               </div>
             )}
@@ -258,16 +289,6 @@ export default async function ProfilePage({ params }: { params: { username: stri
         )}
       </div>
 
-      {isOwnProfile && (
-        <div className="card p-4 mt-6">
-          <h2 className="text-sm font-bold text-text-primary uppercase tracking-widest mb-3">{t('settings')}</h2>
-          <div className="space-y-2 text-sm text-text-secondary">
-            <p>• {t('settingsPublic')}</p>
-            <p>• {t('settingsPush')}</p>
-            <p>• {t('settingsTheme')}</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
