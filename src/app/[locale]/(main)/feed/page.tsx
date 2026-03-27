@@ -1,24 +1,73 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 import { FeedClient } from './FeedClient';
 import type { FeedEntry } from '@/components/EntryCard';
 import { getMatchesForEntries } from '@/lib/matches';
+import { isFeatureEnabled } from '@/lib/features';
+import { FeatureDisabled } from '@/components/FeatureDisabled';
 
 // Force dynamic so that the feed is always fresh on load
 export const dynamic = 'force-dynamic';
 
-export default async function FeedPage() {
-  const supabase = createServerSupabaseClient();
+const ENTRY_SELECT_FULL = `
+  id, type, title, content, image_url, is_verified, best_match_score,
+  view_count, prediction_potential, sensory_data, created_at,
+  users:user_id (id, username, avatar_url, role, rating_score)
+`;
 
-  const { data: entries, error } = await supabase
+const ENTRY_SELECT_FALLBACK = `
+  id, type, title, content, image_url, is_verified, best_match_score,
+  view_count, created_at,
+  users:user_id (id, username, avatar_url, role, rating_score)
+`;
+
+const ENTRY_SELECT_MINIMAL = `
+  id, type, title, content, image_url, is_verified, best_match_score,
+  view_count, created_at, user_id
+`;
+
+export default async function FeedPage() {
+  if (!(await isFeatureEnabled('feed'))) {
+    return <FeatureDisabled name="Лента" />;
+  }
+
+  // Use admin client for public feed bootstrap to avoid RLS/session edge-cases.
+  const supabase = createAdminClient();
+
+  let entries:
+    | Array<Record<string, unknown>>
+    | null = null;
+  let error: { message?: string } | null = null;
+
+  const fullQuery = await supabase
     .from('entries')
-    .select(`
-      id, type, title, content, image_url, is_verified, best_match_score,
-      view_count, prediction_potential, sensory_data, created_at,
-      users:user_id (id, username, avatar_url, role, rating_score)
-    `)
+    .select(ENTRY_SELECT_FULL)
     .or('is_public.is.null,is_public.eq.true')
     .order('created_at', { ascending: false })
     .range(0, 19);
+  entries = fullQuery.data as Array<Record<string, unknown>> | null;
+  error = fullQuery.error;
+
+  if (error) {
+    const fallbackQuery = await supabase
+      .from('entries')
+      .select(ENTRY_SELECT_FALLBACK)
+      .or('is_public.is.null,is_public.eq.true')
+      .order('created_at', { ascending: false })
+      .range(0, 19);
+    entries = fallbackQuery.data as Array<Record<string, unknown>> | null;
+    error = fallbackQuery.error;
+  }
+
+  if (error) {
+    const minimalQuery = await supabase
+      .from('entries')
+      .select(ENTRY_SELECT_MINIMAL)
+      .or('is_public.is.null,is_public.eq.true')
+      .order('created_at', { ascending: false })
+      .range(0, 19);
+    entries = minimalQuery.data as Array<Record<string, unknown>> | null;
+    error = minimalQuery.error;
+  }
 
   if (error) {
     console.error('Ошибка загрузки ленты на сервере:', error);
@@ -33,12 +82,13 @@ export default async function FeedPage() {
     is_verified: boolean | null;
     best_match_score: number | null;
     view_count: number | null;
-    prediction_potential: number | null;
-    sensory_data: {
+    prediction_potential?: number | null;
+    sensory_data?: {
       sensory_patterns?: Array<{ sensation?: string }>;
       verification_keywords?: string[];
     } | null;
     created_at: string;
+    user_id?: string;
     users: {
       id: string;
       username: string;
@@ -108,7 +158,7 @@ export default async function FeedPage() {
     sensory_data: entry.sensory_data ?? null,
     created_at: entry.created_at,
     user: {
-      id: (Array.isArray(entry.users) ? entry.users[0]?.id : entry.users?.id) || '',
+      id: (Array.isArray(entry.users) ? entry.users[0]?.id : entry.users?.id) || entry.user_id || '',
       username: (Array.isArray(entry.users) ? entry.users[0]?.username : entry.users?.username) || 'anonymous',
       avatar_url: (Array.isArray(entry.users) ? entry.users[0]?.avatar_url : entry.users?.avatar_url) || null,
       role: (Array.isArray(entry.users) ? entry.users[0]?.role : entry.users?.role) || 'observer',

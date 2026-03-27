@@ -93,10 +93,14 @@
     }
   },
   "role": {
+    "architect": "Архитектор",
+    "admin": "Администратор",
+    "moderator": "Модератор",
     "observer": "Наблюдатель",
-    "chronicler": "Хроникёр",
+    "chronicler": "Летописец",
     "sensitive": "Сенситив",
-    "oracle": "Оракул"
+    "oracle": "Оракул",
+    "banned": "Заблокирован"
   },
   "comments": {
     "placeholder": "Написать комментарий...",
@@ -166,10 +170,14 @@
     "settingsTheme": "Тема оформления",
     "logout": "Выйти",
     "roles": {
+      "architect": "Архитектор",
+      "admin": "Администратор",
+      "moderator": "Модератор",
       "observer": "Наблюдатель",
       "chronicler": "Летописец",
       "sensitive": "Сенситив",
-      "oracle": "Оракул"
+      "oracle": "Оракул",
+      "banned": "Заблокирован"
     }
   },
   "noosphere": {

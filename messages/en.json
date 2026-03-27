@@ -93,10 +93,14 @@
     }
   },
   "role": {
+    "architect": "Architect",
+    "admin": "Admin",
+    "moderator": "Moderator",
     "observer": "Observer",
     "chronicler": "Chronicler",
     "sensitive": "Sensitive",
-    "oracle": "Oracle"
+    "oracle": "Oracle",
+    "banned": "Banned"
   },
   "comments": {
     "placeholder": "Write a comment...",
@@ -166,10 +170,14 @@
     "settingsTheme": "Theme",
     "logout": "Log Out",
     "roles": {
+      "architect": "Architect",
+      "admin": "Admin",
+      "moderator": "Moderator",
       "observer": "Observer",
       "chronicler": "Chronicler",
       "sensitive": "Sensitive",
-      "oracle": "Oracle"
+      "oracle": "Oracle",
+      "banned": "Banned"
     }
   },
   "noosphere": {

@@ -27,6 +27,7 @@ type BaseEntryRow = {
     verification_keywords?: string[];
   } | null;
   created_at: string;
+  user_id?: string;
   users: {
     id: string;
     username: string;
@@ -41,6 +42,23 @@ type BaseEntryRow = {
     rating_score: number | null;
   }[] | null;
 };
+
+const ENTRY_SELECT_FULL = `
+  id, type, title, content, image_url, is_verified, best_match_score,
+  view_count, prediction_potential, sensory_data, created_at,
+  users:user_id (id, username, avatar_url, role, rating_score)
+`;
+
+const ENTRY_SELECT_FALLBACK = `
+  id, type, title, content, image_url, is_verified, best_match_score,
+  view_count, created_at,
+  users:user_id (id, username, avatar_url, role, rating_score)
+`;
+
+const ENTRY_SELECT_MINIMAL = `
+  id, type, title, content, image_url, is_verified, best_match_score,
+  view_count, created_at, user_id
+`;
 
 interface FeedClientProps {
   initialEntries: FeedEntry[];
@@ -65,6 +83,55 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       return fallback;
     }
   };
+
+  const fetchEntriesWithFallback = useCallback(
+    async (options: { from?: number; to?: number; limit?: number; entryId?: string }) => {
+      let query = supabase
+        .from('entries')
+        .select(ENTRY_SELECT_FULL)
+        .or('is_public.is.null,is_public.eq.true')
+        .order('created_at', { ascending: false });
+
+      if (options.entryId) query = query.eq('id', options.entryId);
+      if (typeof options.from === 'number' && typeof options.to === 'number') query = query.range(options.from, options.to);
+      if (typeof options.limit === 'number') query = query.limit(options.limit);
+
+      const primary = await query;
+      if (!primary.error) {
+        return primary.data as BaseEntryRow[] | null;
+      }
+
+      let fallbackQuery = supabase
+        .from('entries')
+        .select(ENTRY_SELECT_FALLBACK)
+        .or('is_public.is.null,is_public.eq.true')
+        .order('created_at', { ascending: false });
+
+      if (options.entryId) fallbackQuery = fallbackQuery.eq('id', options.entryId);
+      if (typeof options.from === 'number' && typeof options.to === 'number') fallbackQuery = fallbackQuery.range(options.from, options.to);
+      if (typeof options.limit === 'number') fallbackQuery = fallbackQuery.limit(options.limit);
+
+      const fallback = await fallbackQuery;
+      if (!fallback.error) {
+        return fallback.data as BaseEntryRow[] | null;
+      }
+
+      let minimalQuery = supabase
+        .from('entries')
+        .select(ENTRY_SELECT_MINIMAL)
+        .or('is_public.is.null,is_public.eq.true')
+        .order('created_at', { ascending: false });
+
+      if (options.entryId) minimalQuery = minimalQuery.eq('id', options.entryId);
+      if (typeof options.from === 'number' && typeof options.to === 'number') minimalQuery = minimalQuery.range(options.from, options.to);
+      if (typeof options.limit === 'number') minimalQuery = minimalQuery.limit(options.limit);
+
+      const minimal = await minimalQuery;
+      if (minimal.error) throw minimal.error;
+      return minimal.data as BaseEntryRow[] | null;
+    },
+    [supabase]
+  );
 
   const hydrateEntries = useCallback(async (baseRows: BaseEntryRow[]): Promise<FeedEntry[]> => {
     const entryIds = baseRows.map((e) => e.id);
@@ -117,7 +184,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       sensory_data: entry.sensory_data ?? null,
       created_at: entry.created_at,
       user: {
-        id: (Array.isArray(entry.users) ? entry.users[0]?.id : entry.users?.id) || '',
+        id: (Array.isArray(entry.users) ? entry.users[0]?.id : entry.users?.id) || entry.user_id || '',
         username: (Array.isArray(entry.users) ? entry.users[0]?.username : entry.users?.username) || 'anonymous',
         avatar_url: (Array.isArray(entry.users) ? entry.users[0]?.avatar_url : entry.users?.avatar_url) || null,
         role: (Array.isArray(entry.users) ? entry.users[0]?.role : entry.users?.role) || 'observer',
@@ -130,23 +197,16 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
   }, [supabase, user]);
 
   const appendSingleEntry = useCallback(async (entryId: string) => {
-    const { data, error } = await supabase
-      .from('entries')
-      .select(`
-        id, type, title, content, image_url, is_verified, best_match_score,
-        view_count, prediction_potential, sensory_data, created_at,
-        users:user_id (id, username, avatar_url, role, rating_score)
-      `)
-      .eq('id', entryId)
-      .single();
-    if (error || !data) return;
-    const hydrated = await hydrateEntries([data as BaseEntryRow]);
+    const data = await fetchEntriesWithFallback({ entryId, limit: 1 });
+    const row = data?.[0];
+    if (!row) return;
+    const hydrated = await hydrateEntries([row]);
     if (!hydrated.length) return;
     setEntries((prev) => {
       if (prev.some((e) => e.id === entryId)) return prev;
       return [hydrated[0], ...prev];
     });
-  }, [supabase, hydrateEntries]);
+  }, [fetchEntriesWithFallback, hydrateEntries]);
 
   // Supabase Realtime подписка
   useEffect(() => {
@@ -240,20 +300,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      const query = supabase
-        .from('entries')
-        .select(`
-          id, type, title, content, image_url, is_verified, best_match_score,
-          view_count, prediction_potential, sensory_data, created_at,
-          users:user_id (id, username, avatar_url, role, rating_score)
-        `)
-        .or('is_public.is.null,is_public.eq.true')
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      const { data, error } = await query;
-
-      if (error) throw error;
+      const data = await fetchEntriesWithFallback({ from, to });
 
       if (data) {
         const hydrated = await hydrateEntries(data as BaseEntryRow[]);
@@ -284,22 +331,12 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
     }
   };
 
-  const reloadFeed = async () => {
+  const reloadFeed = useCallback(async () => {
     setPage(1);
     setHasMore(true);
     try {
-      const { data, error } = await supabase
-        .from('entries')
-        .select(`
-          id, type, title, content, image_url, is_verified, best_match_score,
-          view_count, prediction_potential, sensory_data, created_at,
-          users:user_id (id, username, avatar_url, role, rating_score)
-        `)
-        .or('is_public.is.null,is_public.eq.true')
-        .order('created_at', { ascending: false })
-        .limit(PAGE_SIZE);
-      if (error) throw error;
-      const hydrated = await hydrateEntries((data || []) as BaseEntryRow[]);
+      const dataSafe = await fetchEntriesWithFallback({ limit: PAGE_SIZE });
+      const hydrated = await hydrateEntries((dataSafe || []) as BaseEntryRow[]);
       const verifiedIds = hydrated
         .filter((entry) => entry.is_verified && (entry.best_match_score || 0) > 0.6)
         .map((entry) => entry.id);
@@ -316,16 +353,24 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       console.error('Ошибка перезагрузки ленты:', err);
       setError(tCommon('errors.generic'));
     }
-  };
+  }, [fetchEntriesWithFallback, hydrateEntries, supabase, tCommon]);
+
+  useEffect(() => {
+    if (initialEntries.length === 0) {
+      void reloadFeed();
+    }
+  }, [initialEntries.length, reloadFeed]);
 
   return (
     <div className="max-w-2xl mx-auto py-6 px-4">
-      {/* Баннер утренних напоминаний */}
-      <MorningDigestBanner />
-      <PushBanner />
+      <div className="space-y-6">
+        {/* Баннер утренних напоминаний */}
+        <MorningDigestBanner />
+        <PushBanner />
 
-      {/* Форма публикации сигнала */}
-      <InlineEntryForm />
+        {/* Форма публикации сигнала */}
+        <InlineEntryForm />
+      </div>
 
       {/* Пустое состояние или Ошибка */}
       {error && !loadingMore && entries.length === 0 ? (
@@ -336,7 +381,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
           </button>
         </div>
       ) : entries.length > 0 ? (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5 mt-8">
           {entries.map((entry) => (
             <EntryCard
               key={entry.id}

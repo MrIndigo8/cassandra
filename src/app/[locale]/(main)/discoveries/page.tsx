@@ -1,9 +1,15 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import EventsClient from '../events/EventsClient';
+import { isFeatureEnabled } from '@/lib/features';
+import { FeatureDisabled } from '@/components/FeatureDisabled';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DiscoveriesPage() {
+  if (!(await isFeatureEnabled('discoveries'))) {
+    return <FeatureDisabled name="Открытия" />;
+  }
+
   const supabase = createServerSupabaseClient();
 
   const { data: matches } = await supabase

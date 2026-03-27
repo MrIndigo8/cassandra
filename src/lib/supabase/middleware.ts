@@ -74,5 +74,34 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Admin routes guard
+  const pathname = request.nextUrl.pathname;
+  const isAdminPath =
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/ru/admin') ||
+    pathname.startsWith('/en/admin');
+
+  if (isAdminPath) {
+    if (!user) {
+      const url = request.nextUrl.clone();
+      const prefix = pathname.startsWith('/en') ? '/en' : '';
+      url.pathname = `${prefix}/login`;
+      return NextResponse.redirect(url);
+    }
+
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile || !['architect', 'admin', 'moderator'].includes(profile.role)) {
+      const url = request.nextUrl.clone();
+      const prefix = pathname.startsWith('/en') ? '/en' : '';
+      url.pathname = `${prefix}/feed`;
+      return NextResponse.redirect(url);
+    }
+  }
+
   return supabaseResponse;
 }

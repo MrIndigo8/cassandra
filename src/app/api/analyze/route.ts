@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { runAnalysis } from '@/lib/analysis';
 import { verifyCronAuth, unauthorizedResponse } from '@/lib/auth/verifyCron';
+import { isFeatureEnabled } from '@/lib/features';
 
 export const maxDuration = 60; // Максимальное время выполнения (Vercel Hobby plan = 10-60s)
 
@@ -8,6 +9,9 @@ export async function POST(request: Request) {
   try {
     if (!verifyCronAuth(request)) {
       return unauthorizedResponse();
+    }
+    if (!(await isFeatureEnabled('analysis_enabled'))) {
+      return NextResponse.json({ skipped: true, reason: 'Feature disabled by admin' });
     }
 
     const { processed } = await runAnalysis();

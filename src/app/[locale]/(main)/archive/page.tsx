@@ -1,10 +1,16 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { getTranslations } from 'next-intl/server';
 import ArchiveClient from './ArchiveClient';
+import { isFeatureEnabled } from '@/lib/features';
+import { FeatureDisabled } from '@/components/FeatureDisabled';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ArchivePage() {
+  if (!(await isFeatureEnabled('archive'))) {
+    return <FeatureDisabled name="Архив" />;
+  }
+
   const t = await getTranslations('archive');
   const supabase = createServerSupabaseClient();
 

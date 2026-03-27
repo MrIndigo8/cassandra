@@ -47,12 +47,20 @@ export function Header() {
   const currentRole = profile?.role || 'observer';
   const currentRating = Number(profile?.rating_score ?? 0);
   const roleColor =
-    currentRole === 'oracle'
+    currentRole === 'architect'
+      ? 'bg-amber-400'
+      : currentRole === 'admin'
+      ? 'bg-violet-400'
+      : currentRole === 'moderator'
+      ? 'bg-sky-400'
+      : currentRole === 'oracle'
       ? 'bg-amber-500'
       : currentRole === 'sensitive'
       ? 'bg-violet-500'
       : currentRole === 'chronicler'
       ? 'bg-blue-500'
+      : currentRole === 'banned'
+      ? 'bg-red-500'
       : 'bg-gray-400';
 
   const navLinks = [
