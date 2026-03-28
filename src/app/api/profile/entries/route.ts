@@ -8,8 +8,10 @@ export async function GET(req: Request) {
   const db = createAdminClient();
   const url = new URL(req.url);
   const username = url.searchParams.get('username');
-  const offset = Math.max(0, Number(url.searchParams.get('offset') || '0'));
-  const limit = Math.min(50, Math.max(1, Number(url.searchParams.get('limit') || '20')));
+  const rawOff = Number(url.searchParams.get('offset') || '0');
+  const rawLim = Number(url.searchParams.get('limit') || '20');
+  const offset = Number.isFinite(rawOff) && rawOff >= 0 ? Math.floor(rawOff) : 0;
+  const limit = Number.isFinite(rawLim) ? Math.min(50, Math.max(1, Math.floor(rawLim))) : 20;
 
   if (!username) {
     return NextResponse.json({ error: 'username required' }, { status: 400 });
@@ -41,25 +43,50 @@ export async function GET(req: Request) {
     }
   }
 
-  let q = db
-    .from('entries')
-    .select(
-      'id, type, title, content, image_url, is_verified, best_match_score, view_count, prediction_potential, sensory_data, created_at'
-    )
-    .eq('user_id', profile.id)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+  const selectVariants: string[] = [
+    'id, type, title, content, image_url, is_verified, best_match_score, view_count, anxiety_score, threat_type, created_at, scope, prediction_potential, sensory_data',
+    'id, type, title, content, image_url, is_verified, best_match_score, view_count, created_at, prediction_potential, sensory_data',
+    'id, type, title, content, image_url, is_verified, best_match_score, view_count, created_at',
+  ];
 
-  if (!isOwnProfile) {
-    q = q.or('is_public.eq.true,is_public.is.null');
+  let rows: {
+    id: string;
+    type: string | null;
+    title: string | null;
+    content: string | null;
+    image_url: string | null;
+    is_verified: boolean | null;
+    best_match_score: number | null;
+    view_count: number | null;
+    prediction_potential?: number | null;
+    sensory_data?: unknown;
+    created_at: string;
+  }[] = [];
+  let entriesError: { message: string } | null = null;
+
+  for (const sel of selectVariants) {
+    let q = db
+      .from('entries')
+      .select(sel)
+      .eq('user_id', profile.id)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (!isOwnProfile) {
+      q = q.or('is_public.eq.true,is_public.is.null');
+    }
+    const { data, error } = await q;
+    if (!error) {
+      rows = (data || []) as unknown as typeof rows;
+      entriesError = null;
+      break;
+    }
+    entriesError = error;
+    console.error('[api/profile/entries] entries select:', sel, error.message);
   }
 
-  const { data: entries, error } = await q;
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (entriesError && rows.length === 0) {
+    return NextResponse.json({ error: entriesError.message }, { status: 500 });
   }
-
-  const rows = entries || [];
   const entryIds = rows.map((e) => e.id);
   const likesMap: Record<string, number> = {};
   const commentsMap: Record<string, number> = {};

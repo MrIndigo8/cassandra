@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createAdminClient, createServerSupabaseClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -134,10 +134,13 @@ export async function GET() {
       avgAnxiety: Math.round((country.totalAnxiety / country.entryCount) * 10) / 10,
     }));
 
+    // Совпадения: service role, как на странице «Открытия». Иначе RLS на matches оставляет
+    // только совпадения текущего пользователя, а heatmap/subject — глобальные → ложное «нет совпадений».
+    const admin = createAdminClient();
     let confirmedRaw: MatchRow[] | null = null;
     let confirmedError: { message: string } | null = null;
     {
-      const res = await supabase
+      const res = await admin
         .from('matches')
         .select(`
         id, similarity_score, event_title, event_description, event_url, event_date, matched_symbols, created_at,
@@ -151,7 +154,7 @@ export async function GET() {
         .limit(20);
 
       if (res.error?.message?.includes('sensory_data does not exist')) {
-        const fallback = await supabase
+        const fallback = await admin
           .from('matches')
           .select(`
             id, similarity_score, event_title, event_description, event_url, event_date, matched_symbols, created_at,

@@ -28,7 +28,11 @@ export async function checkSpam(userId: string, content: string): Promise<SpamRe
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  // === Проверка 1: частота (> 5 записей за 24 часа) ===
+  const rawCap = Number(process.env.ANTISPAM_MAX_ENTRIES_PER_24H);
+  const maxEntriesPer24h =
+    Number.isFinite(rawCap) && rawCap > 0 ? Math.min(200, Math.floor(rawCap)) : 20;
+
+  // === Проверка 1: частота (по умолчанию до 20 записей за 24 часа, см. ANTISPAM_MAX_ENTRIES_PER_24H) ===
   const twentyFourHoursAgo = new Date();
   twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
@@ -38,13 +42,15 @@ export async function checkSpam(userId: string, content: string): Promise<SpamRe
     .eq('user_id', userId)
     .gte('created_at', twentyFourHoursAgo.toISOString());
 
-  if ((recentCount || 0) > 5) {
-    console.log(`[AntiSpam] Пользователь ${userId}: превышен лимит записей (${recentCount}/24ч)`);
+  if ((recentCount || 0) > maxEntriesPer24h) {
+    console.log(
+      `[AntiSpam] Пользователь ${userId}: превышен лимит записей (${recentCount}/${maxEntriesPer24h} за 24ч)`
+    );
     return {
       isSpam: true,
       isQuarantine: false,
       spamScore: 1.0,
-      reason: 'Слишком много записей. Попробуйте позже.',
+      reason: `Слишком много записей за сутки (лимит ${maxEntriesPer24h}). Попробуйте позже.`,
     };
   }
 

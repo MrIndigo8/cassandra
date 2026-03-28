@@ -329,11 +329,11 @@ export default function NoosphereClient() {
                 <Marker key={`${point.iso}-${idx}`} coordinates={coords}>
                   <circle
                     r={size}
-                    fill="#ef4444"
-                    stroke="#0b1230"
-                    strokeWidth={1.2}
+                    fill="#a855f7"
+                    stroke="#fae8ff"
+                    strokeWidth={1.4}
                     className="animate-pulse-red"
-                    style={{ filter: 'drop-shadow(0 0 8px rgba(239,68,68,0.8))' }}
+                    style={{ filter: 'drop-shadow(0 0 10px rgba(168,85,247,0.85))' }}
                     onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, kind: 'match', point })}
                     onMouseMove={(e) => handleTooltipMove(e.clientX, e.clientY)}
                     onMouseLeave={() => setTooltip(null)}
@@ -349,7 +349,10 @@ export default function NoosphereClient() {
           <div className="legend-gradient mb-2" />
           <div className="flex flex-wrap items-center gap-4">
             <span>🟡→🔴 {t('legend.heatmap')}</span>
-            <span>🔴 {t('legend.pulse')}</span>
+            <span className="inline-flex items-center gap-1">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-violet-500 ring-2 ring-fuchsia-100" aria-hidden />
+              {t('legend.pulse')}
+            </span>
             <span>⚪ {t('legend.subject')}</span>
           </div>
         </div>
@@ -412,8 +415,13 @@ export default function NoosphereClient() {
         <div className="mb-2">
           <Link href="/discoveries?tab=matches" className="text-sm text-primary hover:underline">All matches</Link>
         </div>
-        {confirmedMatches.length === 0 ? (
-          <p className="text-sm text-text-secondary">{t('noMatchesYet')}</p>
+        {data.matchPoints.length === 0 ? (
+          <div className="space-y-2">
+            <p className="text-sm text-text-secondary">{t('noMatchesYet')}</p>
+            {(data.anxietyHeatmap.length > 0 || data.subjectPoints.length > 0) && (
+              <p className="text-xs text-text-muted">{t('noMatchesMapHint')}</p>
+            )}
+          </div>
         ) : (
           <div className="space-y-2">
             {confirmedMatches.map((item) => (

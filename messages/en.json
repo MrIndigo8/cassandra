@@ -329,7 +329,7 @@
     "tryAgain": "Refresh",
     "legend": {
       "heatmap": "People's anxiety level in region",
-      "pulse": "Confirmed match",
+      "pulse": "Confirmed match (violet)",
       "rising": "Rising activity",
       "subject": "Entry focus (not yet confirmed)"
     },
@@ -350,6 +350,7 @@
       "from": "from"
     },
     "noMatchesYet": "No matches found yet. The system checks entries daily.",
+    "noMatchesMapHint": "Country color shows anxiety; small dots show themes of public entries. Verified event matches use the violet marker.",
     "emptyMap": "The map will come alive when users start recording signals.",
     "writeFirst": "Record first signal",
     "threats": {

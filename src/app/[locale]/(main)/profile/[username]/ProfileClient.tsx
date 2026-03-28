@@ -184,6 +184,7 @@ export default function ProfileClient({
   const [saving, setSaving] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     full_name: profile.full_name || profile.display_name || '',
     bio: profile.bio || '',
@@ -229,6 +230,7 @@ export default function ProfileClient({
 
   const saveProfile = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       const hasFile = Boolean(avatarFile);
       if (hasFile && avatarFile) {
@@ -239,7 +241,11 @@ export default function ProfileClient({
         form.set('is_public', editForm.is_public ? 'true' : 'false');
         form.set('avatar', avatarFile);
         const res = await fetch('/api/profile', { method: 'PATCH', body: form });
-        if (!res.ok) return;
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { error?: unknown };
+          setSaveError(typeof data.error === 'string' ? data.error : tCommon('errors.generic'));
+          return;
+        }
       } else {
         const res = await fetch('/api/profile', {
           method: 'PATCH',
@@ -251,7 +257,11 @@ export default function ProfileClient({
             is_public: editForm.is_public,
           }),
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { error?: unknown };
+          setSaveError(typeof data.error === 'string' ? data.error : tCommon('errors.generic'));
+          return;
+        }
       }
       setEditing(false);
       setAvatarFile(null);
@@ -348,7 +358,10 @@ export default function ProfileClient({
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-2 border-t border-border/40">
                   <button
                     type="button"
-                    onClick={() => setEditing(true)}
+                    onClick={() => {
+                      setSaveError(null);
+                      setEditing(true);
+                    }}
                     className="inline-flex items-center gap-2 rounded-lg border border-border/70 bg-surface-hover/80 px-3 py-2 text-sm font-medium text-text-primary hover:border-primary/40 hover:bg-surface-hover transition-colors"
                   >
                     <Pencil className="w-3.5 h-3.5 opacity-80" />
@@ -667,6 +680,11 @@ export default function ProfileClient({
                 </button>
               </div>
             </div>
+            {saveError ? (
+              <p className="mt-4 text-sm text-red-400" role="alert">
+                {saveError}
+              </p>
+            ) : null}
             <div className="flex gap-3 mt-6">
               <button type="button" onClick={() => setEditing(false)} className="btn-ghost flex-1">
                 {tCommon('cancel')}

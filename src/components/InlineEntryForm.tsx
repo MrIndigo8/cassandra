@@ -116,6 +116,13 @@ export function InlineEntryForm() {
         ) {
           throw new Error(tApi('entries.validation'));
         }
+        const serverText =
+          typeof errorData.error === 'string' && errorData.error.trim().length > 0
+            ? errorData.error.trim()
+            : null;
+        if (serverText) {
+          throw new Error(serverText);
+        }
         const code = typeof errorData.errorCode === 'string' ? errorData.errorCode : 'internal';
         const byCode: Record<string, string> = {
           unauthorized: tApi('entries.unauthorized'),
