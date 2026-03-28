@@ -140,18 +140,23 @@ export function EntryCard({
   return (
     <article className="card p-5 hover:shadow-card-hover transition-all duration-200">
       <header className="flex items-start gap-3">
-        <div className={`w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white font-semibold ${avatarColor(user.username)}`}>
+        <Link
+          href={`/profile/${user.username}`}
+          className={`w-10 h-10 rounded-full overflow-hidden shrink-0 flex items-center justify-center text-white font-semibold ${avatarColor(user.username)}`}
+        >
           {user.avatar_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />
           ) : (
             <span>{(user.username || '?')[0].toUpperCase()}</span>
           )}
-        </div>
+        </Link>
 
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-text-primary truncate">{user.username}</span>
+            <Link href={`/profile/${user.username}`} className="font-semibold text-text-primary truncate hover:text-primary transition-colors">
+              {user.username}
+            </Link>
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${roleBadge.cls}`}>
               <span>{roleBadge.icon}</span>
               <span>{roleBadge.label}</span>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Link } from '@/navigation';
 import StatCard from '@/components/admin/StatCard';
 import DataTable from '@/components/admin/DataTable';
 
@@ -46,7 +47,18 @@ export default function AdminDashboard() {
             loading={loading}
             data={((data?.users.topByRating || []) as Array<Record<string, unknown>>)}
             columns={[
-              { key: 'username', header: 'Username' },
+              {
+                key: 'username',
+                header: 'Username',
+                render: (row: Record<string, unknown>) => {
+                  const u = String(row.username ?? '');
+                  return (
+                    <Link href={`/profile/${u}`} className="text-primary hover:underline">
+                      @{u}
+                    </Link>
+                  );
+                },
+              },
               { key: 'role', header: 'Роль' },
               { key: 'rating_score', header: 'Рейтинг' },
               { key: 'verified_count', header: 'Матчи' },

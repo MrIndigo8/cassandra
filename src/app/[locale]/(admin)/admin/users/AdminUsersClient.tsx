@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from '@/navigation';
 import DataTable from '@/components/admin/DataTable';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
@@ -49,7 +50,15 @@ export default function AdminUsersClient() {
 
   const columns = useMemo(
     () => [
-      { key: 'username', header: 'Username' },
+      {
+        key: 'username',
+        header: 'Username',
+        render: (row: AdminUser) => (
+          <Link href={`/profile/${row.username}`} className="text-primary hover:underline">
+            @{row.username}
+          </Link>
+        ),
+      },
       { key: 'role', header: 'Роль' },
       { key: 'rating_score', header: 'Рейтинг' },
       { key: 'total_entries', header: 'Записей' },

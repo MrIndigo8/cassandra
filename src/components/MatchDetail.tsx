@@ -137,22 +137,30 @@ export default function MatchDetail({
 
   if (variant === 'compact') {
     return (
-      <div className="border border-gray-100 rounded-xl p-3 bg-white">
+      <div className="border border-border rounded-xl p-3 bg-surface">
         <div className="grid grid-cols-[1fr,auto,1fr] gap-3 items-start">
           <div className="min-w-0">
-            <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{t('yourEntry')}</p>
+            <p className="text-xs text-text-muted uppercase tracking-wide mb-1">{t('yourEntry')}</p>
+            {entry?.user?.username ? (
+              <Link
+                href={`/profile/${entry.user.username}`}
+                className="text-xs font-medium text-primary hover:underline mb-1 block"
+              >
+                @{entry.user.username}
+              </Link>
+            ) : null}
             {showEntryLink && entry?.id ? (
-              <Link href={`/entry/${entry.id}`} className="text-sm font-medium text-gray-900 hover:text-primary line-clamp-2">
+              <Link href={`/entry/${entry.id}`} className="text-sm font-medium text-text-primary hover:text-primary line-clamp-2">
                 {entry.title || entry.content.slice(0, 70)}
               </Link>
             ) : (
-              <p className="text-sm font-medium text-gray-900 line-clamp-2">{entry?.title || entry?.content?.slice(0, 70) || '-'}</p>
+              <p className="text-sm font-medium text-text-primary line-clamp-2">{entry?.title || entry?.content?.slice(0, 70) || '-'}</p>
             )}
           </div>
-          <div className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-sm font-semibold">{score}%</div>
+          <div className="px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 text-sm font-semibold">{score}%</div>
           <div className="min-w-0">
-            <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{t('event')}</p>
-            <p className="text-sm font-medium text-gray-900 line-clamp-2">{match.event_title}</p>
+            <p className="text-xs text-text-muted uppercase tracking-wide mb-1">{t('event')}</p>
+            <p className="text-sm font-medium text-text-primary line-clamp-2">{match.event_title}</p>
             {showEventLink && match.event_url ? (
               <a href={match.event_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-1">
                 <ExternalLink className="w-3 h-3" />
@@ -161,7 +169,7 @@ export default function MatchDetail({
             ) : null}
           </div>
         </div>
-        <div className="mt-2 flex flex-wrap gap-3 text-xs">
+        <div className="mt-2 flex flex-wrap gap-3 text-xs text-text-secondary">
           <Link href="/discoveries?tab=matches" className="text-primary hover:underline">{t('seeAllMatches')}</Link>
           {highlightIso ? (
             <Link href={`/map?highlight=${encodeURIComponent(highlightIso)}&match=${encodeURIComponent(match.id)}`} className="text-primary hover:underline">

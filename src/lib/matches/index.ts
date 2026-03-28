@@ -26,7 +26,7 @@ export interface MatchData {
   };
 }
 
-function parseMatch(row: Record<string, unknown>): MatchData {
+export function parseMatchRow(row: Record<string, unknown>): MatchData {
   let sensory_match: MatchData['sensory_match'];
   let geography_match: MatchData['geography_match'];
   let temporal_match: MatchData['temporal_match'];
@@ -77,7 +77,7 @@ export async function getMatchForEntry(entryId: string, supabase: SupabaseClient
     .maybeSingle();
 
   if (!data) return null;
-  return parseMatch(data as Record<string, unknown>);
+  return parseMatchRow(data as Record<string, unknown>);
 }
 
 export async function getMatchesForEntries(entryIds: string[], supabase: SupabaseClient) {
@@ -89,5 +89,17 @@ export async function getMatchesForEntries(entryIds: string[], supabase: Supabas
     .gt('similarity_score', 0.6)
     .order('similarity_score', { ascending: false });
 
-  return ((data || []) as Record<string, unknown>[]).map(parseMatch);
+  return ((data || []) as Record<string, unknown>[]).map(parseMatchRow);
+}
+
+/** Keep best-scoring match per entry when multiple rows exist. */
+export function bestMatchPerEntry(matches: MatchData[]): Map<string, MatchData> {
+  const map = new Map<string, MatchData>();
+  for (const m of matches) {
+    const prev = map.get(m.entry_id);
+    if (!prev || m.similarity_score > prev.similarity_score) {
+      map.set(m.entry_id, m);
+    }
+  }
+  return map;
 }

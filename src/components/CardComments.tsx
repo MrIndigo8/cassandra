@@ -194,21 +194,42 @@ export default function CardComments({ entryId, isOpen, commentCount, onCountCha
           {visibleComments.map((comment) => {
             const username = comment.users?.username || t('anonymous');
             const isMine = !!user && comment.user_id === user.id;
+            const profileHref = comment.users?.username ? `/profile/${comment.users.username}` : null;
             return (
               <div key={comment.id} className="group border-b border-border pb-2 last:border-b-0">
                 <div className="flex items-start gap-2">
-                  <div className={`w-6 h-6 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-[10px] text-white font-semibold ${avatarColor(username)}`}>
-                    {comment.users?.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={comment.users.avatar_url} alt={username} className="w-full h-full object-cover" />
-                    ) : (
-                      <span>{username[0]?.toUpperCase()}</span>
-                    )}
-                  </div>
+                  {profileHref ? (
+                    <Link
+                      href={profileHref}
+                      className={`w-6 h-6 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-[10px] text-white font-semibold ${avatarColor(username)}`}
+                    >
+                      {comment.users?.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={comment.users.avatar_url} alt={username} className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{username[0]?.toUpperCase()}</span>
+                      )}
+                    </Link>
+                  ) : (
+                    <div className={`w-6 h-6 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-[10px] text-white font-semibold ${avatarColor(username)}`}>
+                      {comment.users?.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={comment.users.avatar_url} alt={username} className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{username[0]?.toUpperCase()}</span>
+                      )}
+                    </div>
+                  )}
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-text-primary">{username}</span>
+                      {profileHref ? (
+                        <Link href={profileHref} className="text-sm font-medium text-text-primary hover:text-primary transition-colors">
+                          {username}
+                        </Link>
+                      ) : (
+                        <span className="text-sm font-medium text-text-primary">{username}</span>
+                      )}
                       <span className="text-xs text-text-muted">
                         {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: dateLocale })}
                       </span>

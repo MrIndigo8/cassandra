@@ -1,294 +1,274 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import Image from 'next/image';
-import { Link } from '@/navigation';
-import { ProfileEditor } from './ProfileEditor';
-import { LogoutButton } from './LogoutButton';
 import { getTranslations } from 'next-intl/server';
-import UserScoreCard from '@/components/UserScoreCard';
+import { notFound } from 'next/navigation';
+import ProfileClient from './ProfileClient';
+import { getMatchesForEntries, parseMatchRow, bestMatchPerEntry } from '@/lib/matches';
 import { getProgressToNextRole } from '@/lib/scoring';
+import type { FeedEntry } from '@/components/EntryCard';
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({ params }: { params: { username: string } }) {
+type UserRow = {
+  id: string;
+  username: string;
+  full_name: string | null;
+  display_name: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  location: string | null;
+  is_public: boolean | null;
+  role: string | null;
+  rating_score: number | null;
+  verified_count: number | null;
+  total_entries: number | null;
+  total_matches: number | null;
+  streak_count: number | null;
+  streak: number | null;
+  avg_specificity: number | null;
+  avg_lag_days: number | null;
+  dominant_images: string[] | null;
+  created_at: string;
+};
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { locale: string; username: string };
+}) {
+  const t = await getTranslations({ locale: params.locale, namespace: 'profile' });
   return {
-    title: `@${params.username} | Кассандра`,
-    description: `Профиль пользователя @${params.username}`,
+    title: `@${params.username} — ${t('metaTitle')}`,
+    description: `@${params.username}`,
   };
 }
 
-const ROLE_LABELS = {
-  architect: { labelKey: 'architect', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30', icon: '🏛' },
-  admin: { labelKey: 'admin', color: 'bg-violet-500/20 text-violet-300 border-violet-500/30', icon: '🛡' },
-  moderator: { labelKey: 'moderator', color: 'bg-sky-500/20 text-sky-300 border-sky-500/30', icon: '🧭' },
-  observer: { labelKey: 'observer', color: 'bg-surface-hover text-text-secondary border-border', icon: '👁️' },
-  chronicler: { labelKey: 'chronicler', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30', icon: '📝' },
-  sensitive: { labelKey: 'sensitive', color: 'bg-violet-500/20 text-violet-300 border-violet-500/30', icon: '🔮' },
-  oracle: { labelKey: 'oracle', color: 'bg-amber-500/20 text-amber-300 border-amber-500/30', icon: '⚡' },
-  banned: { labelKey: 'banned', color: 'bg-red-500/20 text-red-300 border-red-500/30', icon: '⛔' },
-};
-
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+async function PrivateProfileBlock({ username, locale }: { username: string; locale: string }) {
+  const t = await getTranslations({ locale, namespace: 'profile' });
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+      <div className="w-20 h-20 rounded-full bg-surface flex items-center justify-center text-3xl mb-4">🔒</div>
+      <h2 className="text-xl font-bold text-text-primary mb-2">@{username}</h2>
+      <p className="text-text-secondary">{t('privateProfile')}</p>
+    </div>
+  );
 }
 
-function formatDateShort(dateString: string) {
-  return new Date(dateString).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-}
-
-export default async function ProfilePage({ params }: { params: { username: string } }) {
-  const t = await getTranslations('profile');
+export default async function ProfilePage({
+  params,
+}: {
+  params: { locale: string; username: string };
+}) {
   const supabase = createServerSupabaseClient();
-
   const {
     data: { user: currentUser },
   } = await supabase.auth.getUser();
 
   const { data: profile, error } = await supabase.from('users').select('*').eq('username', params.username).single();
 
-  if (error || !profile) {
-    return (
-      <div className="max-w-[680px] mx-auto px-4 py-20 text-center">
-        <span className="text-5xl mb-4 block">👻</span>
-        <h1 className="text-2xl font-bold text-text-primary mb-2">{t('userNotFound')}</h1>
-        <p className="text-text-secondary">{t('doesNotExist', { username: params.username })}</p>
-        <Link href="/feed" className="mt-4 inline-block text-primary hover:underline text-sm">
-          {t('backToFeed')}
-        </Link>
-      </div>
-    );
+  if (error || !profile) notFound();
+
+  const p = profile as UserRow;
+
+  const isOwnProfile = currentUser?.id === p.id;
+
+  if (!isOwnProfile && p.is_public === false) {
+    let isAdmin = false;
+    if (currentUser) {
+      const { data: me } = await supabase.from('users').select('role').eq('id', currentUser.id).single();
+      isAdmin = ['architect', 'admin'].includes(String(me?.role || ''));
+    }
+    if (!isAdmin) {
+      return <PrivateProfileBlock username={params.username} locale={params.locale} />;
+    }
   }
 
-  const isOwnProfile = currentUser?.id === profile.id;
+  let entriesQuery = supabase
+    .from('entries')
+    .select(
+      'id, type, title, content, image_url, is_verified, best_match_score, view_count, anxiety_score, threat_type, created_at, scope, prediction_potential, sensory_data, is_public'
+    )
+    .eq('user_id', p.id)
+    .order('created_at', { ascending: false })
+    .limit(20);
 
-  const [{ data: entries }, { data: matches }, { count: totalEntries }, { count: confirmedMatches }] =
-    await Promise.all([
-      supabase
-        .from('entries')
-        .select('id, content, type, created_at, best_match_score, prediction_potential')
-        .eq('user_id', profile.id)
-        .order('created_at', { ascending: false })
-        .limit(10),
-      supabase
-        .from('matches')
-        .select('id, event_title, event_url, event_source, event_date, similarity_score')
-        .eq('user_id', profile.id)
-        .gt('similarity_score', 0.6)
-        .order('similarity_score', { ascending: false })
-        .limit(10),
-      supabase
-        .from('entries')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', profile.id),
-      supabase
-        .from('matches')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', profile.id)
-        .gt('similarity_score', 0.6),
+  if (!isOwnProfile) {
+    entriesQuery = entriesQuery.eq('is_public', true);
+  }
+
+  const { data: entries } = await entriesQuery;
+
+  const { data: matchesRaw } = await supabase
+    .from('matches')
+    .select('*')
+    .eq('user_id', p.id)
+    .gt('similarity_score', 0.6)
+    .order('similarity_score', { ascending: false })
+    .limit(5);
+
+  const matchRows = (matchesRaw || []) as Record<string, unknown>[];
+  const matchesForClient = matchRows.map(parseMatchRow);
+
+  const entryIdsForMatches = Array.from(new Set(matchesForClient.map((m) => m.entry_id)));
+
+  type MatchEntryMap = Record<
+    string,
+    {
+      id: string;
+      title: string | null;
+      content: string;
+      type: string;
+      created_at: string;
+      user?: {
+        username: string;
+        avatar_url: string | null;
+        role: string;
+        rating_score: number;
+      };
+    }
+  >;
+
+  const entryById: MatchEntryMap = {};
+
+  if (entryIdsForMatches.length > 0) {
+    const { data: entryRows } = await supabase
+      .from('entries')
+      .select('id, title, content, type, created_at, user_id, users:user_id (username, avatar_url, role, rating_score)')
+      .in('id', entryIdsForMatches);
+
+    for (const row of entryRows || []) {
+      const r = row as Record<string, unknown>;
+      const users = r.users as Record<string, unknown> | Record<string, unknown>[] | null;
+      const u = Array.isArray(users) ? users[0] : users;
+      entryById[String(r.id)] = {
+        id: String(r.id),
+        title: (r.title as string | null) ?? null,
+        content: String(r.content || ''),
+        type: String(r.type || 'unknown'),
+        created_at: String(r.created_at || ''),
+        user: u
+          ? {
+              username: String(u.username || ''),
+              avatar_url: (u.avatar_url as string | null) ?? null,
+              role: String(u.role || 'observer'),
+              rating_score: Number(u.rating_score || 0),
+            }
+          : undefined,
+      };
+    }
+  }
+
+  const verifiedIds = (entries || [])
+    .filter((e) => e.is_verified && e.best_match_score && e.best_match_score > 0.6)
+    .map((e) => e.id);
+  const rawEntryMatches = verifiedIds.length > 0 ? await getMatchesForEntries(verifiedIds, supabase) : [];
+  const bestMap = bestMatchPerEntry(rawEntryMatches);
+
+  const entryIds = (entries || []).map((e) => e.id);
+  const likesMap: Record<string, number> = {};
+  const commentsMap: Record<string, number> = {};
+  const userLikedMap: Record<string, boolean> = {};
+
+  if (entryIds.length > 0) {
+    const [{ data: likes }, { data: comments }] = await Promise.all([
+      supabase.from('reactions').select('entry_id').in('entry_id', entryIds).eq('emoji', 'like'),
+      supabase.from('comments').select('entry_id').in('entry_id', entryIds),
     ]);
+    for (const l of likes || []) {
+      likesMap[l.entry_id] = (likesMap[l.entry_id] || 0) + 1;
+    }
+    for (const c of comments || []) {
+      commentsMap[c.entry_id] = (commentsMap[c.entry_id] || 0) + 1;
+    }
+    if (currentUser) {
+      const { data: myLikes } = await supabase
+        .from('reactions')
+        .select('entry_id')
+        .in('entry_id', entryIds)
+        .eq('user_id', currentUser.id)
+        .eq('emoji', 'like');
+      for (const l of myLikes || []) {
+        userLikedMap[l.entry_id] = true;
+      }
+    }
+  }
 
-  const roleData = ROLE_LABELS[profile.role as keyof typeof ROLE_LABELS] || ROLE_LABELS.observer;
-  const initial = profile.username[0].toUpperCase();
-  const totalEntriesNum = totalEntries || 0;
-  const confirmedMatchesNum = confirmedMatches || 0;
-  const rating = Number(profile.rating_score || 0);
-  const streak = Number(profile.streak_count || 0);
-  const accuracy = totalEntriesNum > 0 ? Math.round((confirmedMatchesNum / totalEntriesNum) * 100) : 0;
-  const avgLagDays = Number(profile.avg_lag_days || 0);
-  const nextRole = getProgressToNextRole(rating, Number(profile.verified_count || 0), totalEntriesNum, String(profile.role || 'observer'));
-  const strongPatterns = Array.isArray(profile.dominant_images) ? profile.dominant_images.slice(0, 3) : [];
-  const canAccessAdmin = ['architect', 'admin', 'moderator'].includes(String(profile.role || 'observer'));
+  const nextRole = getProgressToNextRole(
+    Number(p.rating_score || 0),
+    Number(p.verified_count || 0),
+    Number(p.total_entries || 0),
+    String(p.role || 'observer')
+  );
+
+  const { data: typeStats } = await supabase.from('entries').select('type').eq('user_id', p.id);
+
+  const typeCounts: Record<string, number> = {};
+  for (const e of typeStats || []) {
+    const typ = (e as { type: string }).type;
+    typeCounts[typ] = (typeCounts[typ] || 0) + 1;
+  }
+
+  const streak = Number(p.streak_count ?? p.streak ?? 0);
+
+  const feedEntries: FeedEntry[] = (entries || []).map((e) => {
+    const row = e as Record<string, unknown>;
+    const id = String(row.id);
+    const m = bestMap.get(id) || null;
+    return {
+      id,
+      type: String(row.type || 'unknown'),
+      title: (row.title as string | null) ?? null,
+      content: String(row.content || ''),
+      image_url: (row.image_url as string | null) ?? null,
+      is_verified: Boolean(row.is_verified),
+      best_match_score: (row.best_match_score as number | null) ?? null,
+      view_count: Number(row.view_count || 0),
+      prediction_potential: (row.prediction_potential as number | null) ?? null,
+      sensory_data: (row.sensory_data as FeedEntry['sensory_data']) ?? null,
+      created_at: String(row.created_at || ''),
+      user: {
+        id: p.id,
+        username: p.username,
+        avatar_url: p.avatar_url,
+        role: p.role || 'observer',
+        rating_score: Number(p.rating_score || 0),
+      },
+      likes_count: likesMap[id] || 0,
+      comments_count: commentsMap[id] || 0,
+      user_liked: userLikedMap[id] || false,
+      match: m,
+    };
+  });
 
   return (
-    <div className="max-w-[860px] mx-auto px-4 py-8">
-      <div className="card p-5 mb-6">
-        <div className="flex items-start gap-5">
-          <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-white text-3xl font-bold shrink-0">
-            {profile.avatar_url ? (
-              <Image src={profile.avatar_url} alt={profile.username} width={80} height={80} className="w-20 h-20 rounded-full object-cover" />
-            ) : (
-              initial
-            )}
-          </div>
-
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-bold text-text-primary">{profile.display_name || profile.username}</h1>
-              <span className={`text-xs font-bold px-2 py-1 rounded-full border ${roleData.color}`}>
-                {roleData.icon} {t(`roles.${roleData.labelKey}`)}
-              </span>
-            </div>
-            <p className="text-text-secondary text-sm mb-2">@{profile.username}</p>
-            {profile.bio && <p className="text-text-secondary text-sm mb-2">{profile.bio}</p>}
-            <p className="text-xs text-text-muted">{t('registered', { date: formatDate(profile.created_at) })}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-text-secondary">
-              <span>🔥 {streak} {t('streak')}</span>
-              <span>•</span>
-              <span>{t('accuracy')}: {accuracy}%</span>
-              <span>•</span>
-              <span>{t('avgLag')}: {avgLagDays.toFixed(1)}d</span>
-            </div>
-
-            {isOwnProfile && (
-              <div className="mt-3 space-y-2">
-                <ProfileEditor userId={profile.id} currentDisplayName={profile.display_name || ''} />
-                <div className="flex flex-wrap gap-2">
-                  {canAccessAdmin && (
-                    <Link
-                      href="/admin"
-                      className="inline-flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
-                    >
-                      🏛 Админ-панель
-                    </Link>
-                  )}
-                  {canAccessAdmin && (
-                    <Link
-                      href="/admin/settings"
-                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-primary/40 hover:text-text-primary transition-colors"
-                    >
-                      ⚙️ {t('settings')}
-                    </Link>
-                  )}
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-primary/40 hover:text-text-primary transition-colors"
-                    title={t('settingsPublic')}
-                  >
-                    🔐 {t('settingsPublic')}
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-primary/40 hover:text-text-primary transition-colors"
-                    title={t('settingsPush')}
-                  >
-                    🔔 {t('settingsPush')}
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-text-secondary hover:border-primary/40 hover:text-text-primary transition-colors"
-                    title={t('settingsTheme')}
-                  >
-                    🌗 {t('settingsTheme')}
-                  </button>
-                </div>
-                <LogoutButton />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="card p-4 text-center">
-          <div className="text-2xl font-bold text-text-primary">{totalEntriesNum}</div>
-          <div className="text-[10px] text-text-muted uppercase tracking-widest">{t('entries')}</div>
-        </div>
-        <div className="card p-4 text-center">
-          <div className="text-2xl font-bold text-primary">{confirmedMatchesNum}</div>
-          <div className="text-[10px] text-text-muted uppercase tracking-widest">{t('matches')}</div>
-        </div>
-        <div className="card p-4 text-center">
-          <div className="text-2xl font-bold text-amber-400">{rating.toFixed(1)}</div>
-          <div className="text-[10px] text-text-muted uppercase tracking-widest">{t('rating')}</div>
-        </div>
-        <div className="card p-4 text-center">
-          <div className="text-2xl font-bold text-text-primary">{accuracy}%</div>
-          <div className="text-[10px] text-text-muted uppercase tracking-widest">{t('accuracy')}</div>
-        </div>
-      </div>
-
-      <UserScoreCard
-        ratingScore={rating}
-        role={String(profile.role || 'observer')}
-        verifiedCount={Number(profile.verified_count || 0)}
-        totalEntries={totalEntriesNum}
-        nextRole={nextRole}
-      />
-
-      {totalEntriesNum >= 20 && (
-        <div className="card p-4 mt-6">
-          <h2 className="text-sm font-bold text-text-primary uppercase tracking-widest mb-2">{t('predictiveProfile')}</h2>
-          <p className="text-sm text-text-secondary">{t('strongSide')}: {strongPatterns.length ? strongPatterns.join(', ') : t('noDataYet')}</p>
-          <p className="text-sm text-text-secondary mt-1">{t('avgLag')}: {avgLagDays.toFixed(1)}d</p>
-        </div>
-      )}
-
-      {matches && matches.length > 0 && (
-        <div className="mb-8 mt-6">
-          <h2 className="text-sm font-bold text-text-primary uppercase tracking-widest mb-3 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
-            {t('confirmedMatches')}
-          </h2>
-          <div className="space-y-2">
-            {matches.map((match: Record<string, unknown>) => (
-              <div key={match.id as string} className="card px-4 py-3 flex items-center gap-3">
-                <span className="text-base">🔮</span>
-                <div className="flex-1 min-w-0">
-                  {match.event_url ? (
-                    <a
-                      href={match.event_url as string}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm font-medium text-text-primary hover:text-primary line-clamp-1"
-                    >
-                      {match.event_title as string}
-                    </a>
-                  ) : (
-                    <span className="text-sm font-medium text-text-primary line-clamp-1">{match.event_title as string}</span>
-                  )}
-                  <div className="text-xs text-text-muted">
-                    {match.event_source as string} · {formatDateShort(match.event_date as string)}
-                  </div>
-                </div>
-                <span className="shrink-0 px-2 py-1 rounded-lg text-sm font-bold bg-green-100 text-green-700">
-                  {Math.round((match.similarity_score as number) * 100)}%
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div>
-        <h2 className="text-sm font-bold text-text-primary uppercase tracking-widest mb-3 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-blue-500" />
-          {t('recentEntries')}
-        </h2>
-        {entries && entries.length > 0 ? (
-          <div className="space-y-2">
-            {entries.map((entry: Record<string, unknown>) => {
-              const content = entry.content as string;
-              const preview = content.length > 120 ? `${content.slice(0, 120)}…` : content;
-              const bestScore = entry.best_match_score as number | null;
-              return (
-                <Link key={entry.id as string} href={`/entry/${entry.id}`} className="block card px-4 py-3 hover:border-primary/30 transition-colors">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs text-text-muted font-mono">{formatDateShort(entry.created_at as string)}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 bg-surface-hover text-text-secondary rounded border border-border">
-                      {entry.type as string}
-                    </span>
-                    {bestScore && bestScore > 0.6 && (
-                      <span className="text-[10px] px-1.5 py-0.5 bg-green-50 text-green-600 rounded border border-green-100">
-                        ✓ {Math.round(bestScore * 100)}%
-                      </span>
-                    )}
-                    {Number(entry.prediction_potential || 0) > 0.7 && (
-                      <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded border border-primary/20">
-                        🔮 {t('highPotential')}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-text-secondary leading-relaxed">{preview}</p>
-                </Link>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="h-24 flex items-center justify-center bg-surface border border-border border-dashed rounded-xl text-text-muted text-sm italic">
-            {t('noEntriesYet')}
-          </div>
-        )}
-      </div>
-
-    </div>
+    <ProfileClient
+      locale={params.locale}
+      profileUsername={params.username}
+      profile={{
+        id: p.id,
+        username: p.username,
+        full_name: p.full_name,
+        display_name: p.display_name,
+        bio: p.bio,
+        avatar_url: p.avatar_url,
+        location: p.location,
+        is_public: p.is_public !== false,
+        role: p.role || 'observer',
+        rating_score: Number(p.rating_score || 0),
+        verified_count: Number(p.verified_count || 0),
+        total_entries: Number(p.total_entries || 0),
+        total_matches: Number(p.total_matches || 0),
+        streak_count: streak,
+        avg_specificity: p.avg_specificity,
+        avg_lag_days: p.avg_lag_days,
+        dominant_images: p.dominant_images,
+        created_at: p.created_at,
+      }}
+      entries={feedEntries}
+      matches={matchesForClient}
+      matchEntries={entryById}
+      nextRole={nextRole}
+      typeCounts={typeCounts}
+      isOwnProfile={isOwnProfile}
+    />
   );
 }
