@@ -96,16 +96,31 @@ export async function checkSpam(userId: string, content: string): Promise<SpamRe
       const responseText = response.content.find(b => b.type === 'text')?.text;
       if (responseText) {
         const cleaned = responseText.replace(/```json\s*|```\s*/g, '').trim();
-        const parsed = JSON.parse(cleaned);
-        const claudeScore = parsed.spam_score || 0;
+        const parsed = JSON.parse(cleaned) as {
+          spam_score?: number;
+          is_suspicious?: boolean;
+          flags?: string[];
+        };
+        const claudeScore = Math.min(1, Math.max(0, Number(parsed.spam_score) || 0));
+        const suspicious = parsed.is_suspicious === true;
+        const flags = Array.isArray(parsed.flags) ? parsed.flags : [];
 
-        if (claudeScore > 0.7 || parsed.is_suspicious === true) {
-          console.log(`[AntiSpam] Claude флаг: score=${claudeScore}, flags=${parsed.flags}`);
+        // Смягчённо: раньше резали при score>0.7 или любом is_suspicious — много ложных отказов на снах.
+        // Блокируем только явный спам или сочетание «подозрительно» + высокий score.
+        const hardBlock = claudeScore > 0.9;
+        const softBlock = suspicious && claudeScore > 0.85;
+        const onlySoftFlags =
+          flags.length > 0 &&
+          flags.every((f) => f === 'too_generic' || f === 'suspicious_pattern') &&
+          claudeScore < 0.82;
+
+        if ((hardBlock || softBlock) && !onlySoftFlags) {
+          console.log(`[AntiSpam] Claude флаг: score=${claudeScore}, flags=${flags}, suspicious=${suspicious}`);
           return {
             isSpam: true,
             isQuarantine,
             spamScore: claudeScore,
-            reason: `Запись отклонена системой качества: ${(parsed.flags || []).join(', ') || 'подозрительный паттерн'}`,
+            reason: `Запись отклонена системой качества: ${flags.join(', ') || 'подозрительный паттерн'}`,
           };
         }
       }

@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
 import { scaleLinear } from 'd3-scale';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/navigation';
+import { Link, usePathname, useRouter } from '@/navigation';
 import { useSearchParams } from 'next/navigation';
 import MatchDetail from '@/components/MatchDetail';
+import { parseNoosphereMatchPeriod, type NoosphereMatchPeriod } from '@/lib/constants/noosphere';
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
@@ -25,6 +26,7 @@ type MatchPoint = {
   iso: string;
   matchCount: number;
   avgScore: number;
+  isArchived: boolean;
   topMatch: {
     id: string;
     entryId: string;
@@ -40,6 +42,7 @@ type MatchPoint = {
     authorUsername: string;
     authorCountry: string | null;
     daysBefore: number;
+    matchCreatedAt: string;
   };
   allMatches: Array<{ score: number; eventTitle: string; threatType: string }>;
 };
@@ -61,6 +64,12 @@ type NoosphereApiResponse = {
   subjectPoints: SubjectPoint[];
   risingZones: string[];
   updatedAt: string;
+  meta?: {
+    matchPeriod: string;
+    matchActiveDays: number;
+    anxietyWindowDays: number;
+    anxietyMinScore: number;
+  };
 };
 
 const ISO_TO_COORDS: Record<string, [number, number]> = {
@@ -109,9 +118,14 @@ function isoToFlag(iso: string): string {
   return String.fromCodePoint(iso.charCodeAt(0) + 127397, iso.charCodeAt(1) + 127397);
 }
 
+const PERIOD_OPTIONS: NoosphereMatchPeriod[] = ['7d', '23d', '90d', '365d', 'archive', 'all'];
+
 export default function NoosphereClient() {
   const t = useTranslations('noosphere');
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const period = parseNoosphereMatchPeriod(searchParams.get('period'));
   const [data, setData] = useState<NoosphereApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -153,10 +167,29 @@ export default function NoosphereClient() {
     [data]
   );
 
+  const topSubjectZones = useMemo(
+    () => [...(data?.subjectPoints || [])].sort((a, b) => b.entryCount - a.entryCount).slice(0, 8),
+    [data]
+  );
+
+  const periodLabels = useMemo(
+    (): Record<NoosphereMatchPeriod, string> => ({
+      '7d': t('timeFilter.7d'),
+      '23d': t('timeFilter.23d'),
+      '90d': t('timeFilter.90d'),
+      '365d': t('timeFilter.365d'),
+      archive: t('timeFilter.archive'),
+      all: t('timeFilter.all'),
+    }),
+    [t]
+  );
+
   const fetchData = useCallback(async () => {
     try {
       setError(null);
-      const response = await fetch('/api/noosphere-data', { cache: 'no-store' });
+      const response = await fetch(`/api/noosphere-data?period=${encodeURIComponent(period)}`, {
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error('Failed to fetch noosphere data');
       const json = (await response.json()) as NoosphereApiResponse;
       setData(json);
@@ -165,13 +198,23 @@ export default function NoosphereClient() {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, period]);
 
   useEffect(() => {
+    setLoading(true);
     fetchData();
     const id = setInterval(fetchData, 5 * 60 * 1000);
     return () => clearInterval(id);
   }, [fetchData]);
+
+  const setPeriod = useCallback(
+    (next: NoosphereMatchPeriod) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('period', next);
+      router.replace(`${pathname}?${params.toString()}`);
+    },
+    [pathname, router, searchParams]
+  );
 
   const focusCountry = useCallback((iso: string) => {
     const coords = ISO_TO_COORDS[iso];
@@ -256,7 +299,37 @@ export default function NoosphereClient() {
         </div>
       </div>
 
-      <div ref={mapRef} className="relative card rounded-2xl border-border p-4 overflow-hidden h-[60vh] min-h-[420px]">
+      <div className="mt-4 space-y-2">
+        <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label={t('timeFilter.label')}>
+          <span className="text-xs font-medium text-text-secondary w-full sm:w-auto">{t('timeFilter.label')}</span>
+          {PERIOD_OPTIONS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              role="tab"
+              aria-selected={period === p}
+              onClick={() => setPeriod(p)}
+              className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                period === p
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-surface text-text-secondary border-border hover:text-text-primary'
+              }`}
+            >
+              {periodLabels[p]}
+            </button>
+          ))}
+        </div>
+        {data?.meta ? (
+          <p className="text-xs text-text-muted max-w-3xl leading-relaxed">
+            {t('timeFilter.hint', {
+              matchDays: data.meta.matchActiveDays,
+              anxietyDays: data.meta.anxietyWindowDays,
+            })}
+          </p>
+        ) : null}
+      </div>
+
+      <div ref={mapRef} className="relative card rounded-2xl border-border p-4 overflow-hidden h-[60vh] min-h-[420px] mt-4">
         <ComposableMap projection="geoMercator" projectionConfig={{ scale: 135 }} style={{ width: '100%', height: '100%' }}>
           <ZoomableGroup center={mapCenter} zoom={mapZoom} onMoveEnd={handleMapMoveEnd}>
             <Geographies geography={GEO_URL}>
@@ -325,6 +398,7 @@ export default function NoosphereClient() {
               const coords = ISO_TO_COORDS[point.iso];
               if (!coords) return null;
               const size = point.matchCount >= 4 ? 10 : point.matchCount >= 2 ? 8 : 6;
+              const archived = point.isArchived;
               return (
                 <Marker key={`${point.iso}-${idx}`} coordinates={coords}>
                   <circle
@@ -332,8 +406,13 @@ export default function NoosphereClient() {
                     fill="#a855f7"
                     stroke="#fae8ff"
                     strokeWidth={1.4}
-                    className="animate-pulse-red"
-                    style={{ filter: 'drop-shadow(0 0 10px rgba(168,85,247,0.85))' }}
+                    className={archived ? '' : 'animate-pulse-red'}
+                    style={{
+                      opacity: archived ? 0.55 : 1,
+                      filter: archived
+                        ? 'drop-shadow(0 0 6px rgba(168,85,247,0.35))'
+                        : 'drop-shadow(0 0 10px rgba(168,85,247,0.85))',
+                    }}
                     onMouseEnter={(e) => setTooltip({ x: e.clientX, y: e.clientY, kind: 'match', point })}
                     onMouseMove={(e) => handleTooltipMove(e.clientX, e.clientY)}
                     onMouseLeave={() => setTooltip(null)}
@@ -362,6 +441,9 @@ export default function NoosphereClient() {
             {tooltip.kind === 'match' ? (
               <div>
                 <p className="font-semibold">{tooltip.point.iso} — {getThreatIcon(tooltip.point.topMatch.threatType)} {t(`threats.${tooltip.point.topMatch.threatType}`)}</p>
+                {tooltip.point.isArchived ? (
+                  <p className="text-amber-200 text-[11px] mb-1">{t('badge.archivedMatch')}</p>
+                ) : null}
                 <p className="text-gray-200">{t('matchCard.match', { score: Math.round(tooltip.point.topMatch.score * 100) })}</p>
                 <p className="text-gray-300 line-clamp-2">{`"${tooltip.point.topMatch.entrySummary}"`}</p>
                 <p className="text-gray-300">{t('matchCard.author')}: {tooltip.point.topMatch.authorUsername} ({tooltip.point.topMatch.authorCountry || '--'})</p>
@@ -416,11 +498,33 @@ export default function NoosphereClient() {
           <Link href="/discoveries?tab=matches" className="text-sm text-primary hover:underline">All matches</Link>
         </div>
         {data.matchPoints.length === 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <p className="text-sm text-text-secondary">{t('noMatchesYet')}</p>
             {(data.anxietyHeatmap.length > 0 || data.subjectPoints.length > 0) && (
-              <p className="text-xs text-text-muted">{t('noMatchesMapHint')}</p>
+              <p className="text-xs text-text-muted leading-relaxed">{t('noMatchesMapHint')}</p>
             )}
+            {topSubjectZones.length > 0 ? (
+              <div className="rounded-xl border border-border/60 bg-surface/40 p-3">
+                <h3 className="text-sm font-semibold text-text-primary mb-1">{t('sections.regionalThemes')}</h3>
+                <p className="text-xs text-text-muted mb-2 leading-relaxed">{t('regionalThemesHint')}</p>
+                <ul className="space-y-1.5">
+                  {topSubjectZones.map((z) => (
+                    <li key={z.iso}>
+                      <button
+                        type="button"
+                        className="w-full text-left text-xs text-text-secondary hover:text-primary flex items-center justify-between gap-2 py-1"
+                        onClick={() => focusCountry(z.iso)}
+                      >
+                        <span>
+                          {isoToFlag(z.iso)} {z.iso} — {getThreatIcon(z.dominantThreat)} {t(`threats.${z.dominantThreat}`)}
+                        </span>
+                        <span className="text-text-muted shrink-0">{t('signalsCount', { count: z.entryCount })}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="space-y-2">
@@ -437,9 +541,14 @@ export default function NoosphereClient() {
                     {Math.round(item.topMatch.score * 100)}%
                   </div>
                 </div>
-                <div className="mt-2 flex items-center justify-between">
+                <div className="mt-2 flex items-center justify-between gap-2">
                   <p className="text-sm text-text-secondary line-clamp-1">{getThreatIcon(item.topMatch.threatType)} {item.topMatch.eventTitle}</p>
-                  <p className="text-xs text-text-muted">{isoToFlag(item.topMatch.authorCountry || '--')} → {isoToFlag(item.iso)}</p>
+                  <div className="flex flex-col items-end gap-0.5 shrink-0">
+                    {item.isArchived ? (
+                      <span className="text-[10px] uppercase tracking-wide text-amber-600/90">{t('badge.archivedMatch')}</span>
+                    ) : null}
+                    <p className="text-xs text-text-muted">{isoToFlag(item.topMatch.authorCountry || '--')} → {isoToFlag(item.iso)}</p>
+                  </div>
                 </div>
               </div>
             ))}

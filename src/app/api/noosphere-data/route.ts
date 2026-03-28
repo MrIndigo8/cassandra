@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient, createServerSupabaseClient } from '@/lib/supabase/server';
+import {
+  NOOSPHERE_ANXIETY_MIN_SCORE,
+  NOOSPHERE_ANXIETY_WINDOW_DAYS,
+  NOOSPHERE_MATCH_ACTIVE_DAYS,
+  NOOSPHERE_NEGATIVE_THREAT_TYPES,
+  parseNoosphereMatchPeriod,
+} from '@/lib/constants/noosphere';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,6 +14,7 @@ type AnxietyEntry = {
   id: string;
   anxiety_score: number | null;
   emotional_intensity: string | null;
+  threat_type: string | null;
   ip_country_code: string | null;
   sensory_data: {
     verification_keywords?: string[];
@@ -58,31 +66,62 @@ type MatchRow = {
   entries: MatchJoinedEntry | MatchJoinedEntry[] | null;
 };
 
-export async function GET() {
+/** География для карты: сначала тематика записи, иначе страна по IP (иначе совпадение из matches не попадало в matchPoints). */
+function entryIsoForMap(entry: MatchJoinedEntry): string | null {
+  const g = (entry.geography_iso || '').trim().toUpperCase();
+  if (/^[A-Z]{2}$/.test(g)) return g;
+  const ip = (entry.ip_country_code || '').trim().toUpperCase();
+  if (/^[A-Z]{2}$/.test(ip)) return ip;
+  return null;
+}
+
+function isNegativeThreatSignal(threat: string | null): boolean {
+  if (!threat) return false;
+  return (NOOSPHERE_NEGATIVE_THREAT_TYPES as readonly string[]).includes(threat);
+}
+
+/** Тревожный/негативный сигнал для региона за окно anxiety (см. промпт продукта). */
+function qualifiesRegionalAnxietySignal(entry: AnxietyEntry): boolean {
+  const a = entry.anxiety_score ?? 0;
+  if (a >= NOOSPHERE_ANXIETY_MIN_SCORE) return true;
+  if (isNegativeThreatSignal(entry.threat_type) && a >= 2) return true;
+  return false;
+}
+
+function msDays(d: number): number {
+  return d * 24 * 60 * 60 * 1000;
+}
+
+export async function GET(req: Request) {
   try {
+    const url = new URL(req.url);
+    const matchPeriod = parseNoosphereMatchPeriod(url.searchParams.get('period'));
+
     const supabase = createServerSupabaseClient();
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const now = Date.now();
+    const anxietyWindowMs = msDays(NOOSPHERE_ANXIETY_WINDOW_DAYS);
+    const anxietySince = new Date(now - anxietyWindowMs).toISOString();
+    const oneDayAgo = new Date(now - msDays(1)).toISOString();
+
+    const activeCutoff = new Date(now - msDays(NOOSPHERE_MATCH_ACTIVE_DAYS)).toISOString();
 
     let anxietyRaw: AnxietyEntry[] | null = null;
     let anxietyError: { message: string } | null = null;
     {
       const res = await supabase
         .from('entries')
-        .select('id, anxiety_score, ip_country_code, emotional_intensity, sensory_data, created_at')
+        .select('id, anxiety_score, threat_type, ip_country_code, emotional_intensity, sensory_data, created_at')
         .not('ip_country_code', 'is', null)
         .not('anxiety_score', 'is', null)
-        .gte('created_at', sevenDaysAgo)
-        .gte('anxiety_score', 3)
+        .gte('created_at', anxietySince)
         .eq('is_public', true);
       if (res.error?.message?.includes('sensory_data does not exist')) {
         const fallback = await supabase
           .from('entries')
-          .select('id, anxiety_score, ip_country_code, emotional_intensity, created_at')
+          .select('id, anxiety_score, threat_type, ip_country_code, emotional_intensity, created_at')
           .not('ip_country_code', 'is', null)
           .not('anxiety_score', 'is', null)
-          .gte('created_at', sevenDaysAgo)
-          .gte('anxiety_score', 3)
+          .gte('created_at', anxietySince)
           .eq('is_public', true);
         anxietyRaw = ((fallback.data || []) as AnxietyEntry[]).map((row) => ({ ...row, sensory_data: null }));
         anxietyError = fallback.error ? { message: fallback.error.message } : null;
@@ -96,7 +135,7 @@ export async function GET() {
       return NextResponse.json({ error: anxietyError.message }, { status: 500 });
     }
 
-    const anxietyEntries = (anxietyRaw || []) as AnxietyEntry[];
+    const anxietyEntries = ((anxietyRaw || []) as AnxietyEntry[]).filter(qualifiesRegionalAnxietySignal);
     const anxietyByUserCountry: Record<
       string,
       {
@@ -139,39 +178,59 @@ export async function GET() {
     const admin = createAdminClient();
     let confirmedRaw: MatchRow[] | null = null;
     let confirmedError: { message: string } | null = null;
+
+    const matchLimit = matchPeriod === 'all' ? 500 : 220;
+    const since = (days: number) => new Date(now - msDays(days)).toISOString();
+
+    const applyMatchDate = (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      q: any
+    ) => {
+      switch (matchPeriod) {
+        case '7d':
+          return q.gte('created_at', since(7));
+        case '23d':
+          return q.gte('created_at', since(NOOSPHERE_MATCH_ACTIVE_DAYS));
+        case '90d':
+          return q.gte('created_at', since(90));
+        case '365d':
+          return q.gte('created_at', since(365));
+        case 'archive':
+          return q.lt('created_at', activeCutoff);
+        case 'all':
+        default:
+          return q;
+      }
+    };
+
     {
-      const res = await admin
-        .from('matches')
-        .select(`
+      const selFull = `
         id, similarity_score, event_title, event_description, event_url, event_date, matched_symbols, created_at,
         entries:entry_id (
           id, geography_iso, anxiety_score, threat_type, ai_summary, content, sensory_data, ip_country_code, created_at,
           users:user_id (username, avatar_url)
         )
-      `)
-        .gt('similarity_score', 0.6)
-        .order('created_at', { ascending: false })
-        .limit(20);
-
-      if (res.error?.message?.includes('sensory_data does not exist')) {
-        const fallback = await admin
-          .from('matches')
-          .select(`
+      `;
+      const selFallback = `
             id, similarity_score, event_title, event_description, event_url, event_date, matched_symbols, created_at,
             entries:entry_id (
               id, geography_iso, anxiety_score, threat_type, ai_summary, content, ip_country_code, created_at,
               users:user_id (username, avatar_url)
             )
-          `)
-          .gt('similarity_score', 0.6)
-          .order('created_at', { ascending: false })
-          .limit(20);
-        confirmedRaw = (fallback.data || []) as MatchRow[];
-        confirmedError = fallback.error ? { message: fallback.error.message } : null;
-      } else {
-        confirmedRaw = (res.data || []) as MatchRow[];
-        confirmedError = res.error ? { message: res.error.message } : null;
+          `;
+
+      let res = await applyMatchDate(
+        admin.from('matches').select(selFull).gt('similarity_score', 0.6).order('created_at', { ascending: false }).limit(matchLimit)
+      );
+
+      if (res.error?.message?.includes('sensory_data does not exist')) {
+        res = await applyMatchDate(
+          admin.from('matches').select(selFallback).gt('similarity_score', 0.6).order('created_at', { ascending: false }).limit(matchLimit)
+        );
       }
+
+      confirmedRaw = (res.data || []) as MatchRow[];
+      confirmedError = res.error ? { message: res.error.message } : null;
     }
 
     if (confirmedError) {
@@ -198,15 +257,18 @@ export async function GET() {
         authorUsername: string;
         authorCountry: string | null;
         daysBefore: number;
+        matchCreatedAt: string;
       };
       allMatches: Array<{ score: number; eventTitle: string; threatType: string }>;
+      isArchived: boolean;
     };
     const matchByGeo: Record<string, MatchPoint> = {};
 
     for (const match of confirmedMatches) {
       const entry = Array.isArray(match.entries) ? match.entries[0] : match.entries;
-      if (!entry?.geography_iso) continue;
-      const iso = entry.geography_iso.toUpperCase();
+      if (!entry) continue;
+      const iso = entryIsoForMap(entry);
+      if (!iso) continue;
       const score = match.similarity_score || 0;
       const threatType = entry.threat_type || 'unknown';
       const eventDateRaw = match.event_date || match.created_at;
@@ -236,8 +298,10 @@ export async function GET() {
             authorUsername: user?.username || 'anonymous',
             authorCountry: entry.ip_country_code || null,
             daysBefore: Math.max(0, daysBefore),
+            matchCreatedAt: match.created_at,
           },
           allMatches: [],
+          isArchived: false,
         };
       }
       const g = matchByGeo[iso];
@@ -259,21 +323,27 @@ export async function GET() {
           authorUsername: user?.username || 'anonymous',
           authorCountry: entry.ip_country_code || null,
           daysBefore: Math.max(0, daysBefore),
+          matchCreatedAt: match.created_at,
         };
       }
     }
 
-    const matchPoints = Object.values(matchByGeo).map((g) => ({
-      ...g,
-      avgScore: Math.round((g.allMatches.reduce((sum, item) => sum + item.score, 0) / g.matchCount) * 100) / 100,
-    }));
+    const activeCutMs = new Date(activeCutoff).getTime();
+    const matchPoints = Object.values(matchByGeo).map((g) => {
+      const archived = new Date(g.topMatch.matchCreatedAt).getTime() < activeCutMs;
+      return {
+        ...g,
+        isArchived: archived,
+        avgScore: Math.round((g.allMatches.reduce((sum, item) => sum + item.score, 0) / g.matchCount) * 100) / 100,
+      };
+    });
 
     const { data: subjectRaw, error: subjectError } = await supabase
       .from('entries')
       .select('geography_iso, threat_type, anxiety_score, temporal_urgency, created_at')
       .not('geography_iso', 'is', null)
       .not('anxiety_score', 'is', null)
-      .gte('created_at', sevenDaysAgo)
+      .gte('created_at', anxietySince)
       .eq('is_public', true);
 
     if (subjectError) {
@@ -354,6 +424,12 @@ export async function GET() {
       globalCoherence: coherence ? Math.round(Number(coherence.current_coherence || 0) * 1000) / 1000 : null,
       coherenceAnomaly: Boolean(coherence?.is_anomaly),
       updatedAt: new Date().toISOString(),
+      meta: {
+        matchPeriod,
+        matchActiveDays: NOOSPHERE_MATCH_ACTIVE_DAYS,
+        anxietyWindowDays: NOOSPHERE_ANXIETY_WINDOW_DAYS,
+        anxietyMinScore: NOOSPHERE_ANXIETY_MIN_SCORE,
+      },
     });
   } catch (error) {
     console.error('[API noosphere-data] Unhandled error:', error);

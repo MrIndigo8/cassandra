@@ -184,14 +184,6 @@ export function EntryCard({
       </header>
 
       <div className="mt-3">
-        {entry.title && (
-          <h3 className="text-lg font-bold text-text-primary mb-2 leading-snug">
-            <Link href={`/entry/${entry.id}`} className="hover:text-primary transition-colors">
-              {entry.title}
-            </Link>
-          </h3>
-        )}
-
         <p className="text-base text-text-secondary line-clamp-3">{entry.content}</p>
 
         {entry.user_insight && (
@@ -210,7 +202,7 @@ export function EntryCard({
         {entry.image_url && (
           <div className="mt-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={entry.image_url} alt={entry.title || 'entry-image'} className="rounded-xl max-h-64 w-full object-cover" />
+            <img src={entry.image_url} alt="" className="rounded-xl max-h-64 w-full object-cover" />
           </div>
         )}
 

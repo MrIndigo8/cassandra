@@ -327,6 +327,19 @@
     "loading": "Loading map...",
     "error": "Failed to load data",
     "tryAgain": "Refresh",
+    "timeFilter": {
+      "label": "Match period on map",
+      "7d": "7 days",
+      "23d": "23 days (active)",
+      "90d": "90 days",
+      "365d": "1 year",
+      "archive": "Archive",
+      "all": "All time",
+      "hint": "Matches are “active” for {matchDays} days (older: use Archive). Country heat uses only signals from the last {anxietyDays} days (anxiety threshold or negative themes); if none arrive from a region for that long, the fill fades to neutral."
+    },
+    "badge": {
+      "archivedMatch": "Archive"
+    },
     "legend": {
       "heatmap": "People's anxiety level in region",
       "pulse": "Confirmed match (violet)",
@@ -340,7 +353,8 @@
     },
     "sections": {
       "whereWorried": "Where people are worried",
-      "confirmedMatches": "Confirmed matches"
+      "confirmedMatches": "Confirmed matches",
+      "regionalThemes": "Regional themes (no news link yet)"
     },
     "matchCard": {
       "daysBefore": "{days}d before event",
@@ -350,7 +364,8 @@
       "from": "from"
     },
     "noMatchesYet": "No matches found yet. The system checks entries daily.",
-    "noMatchesMapHint": "Country color shows anxiety; small dots show themes of public entries. Verified event matches use the violet marker.",
+    "noMatchesMapHint": "The list below and violet markers appear only after the system links an entry to a real-world event (matches table). Country fill, small colored dots, and the regional-themes block show entry themes/anxiety—not a verified news match yet.",
+    "regionalThemesHint": "Public entries with geography in the last 7 days. Until verification creates a match row, “Confirmed matches” can be empty while the region still appears on the map.",
     "emptyMap": "The map will come alive when users start recording signals.",
     "writeFirst": "Record first signal",
     "threats": {
