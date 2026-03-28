@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { CURRENT_CONSENT_VERSION } from '@/lib/constants/consent';
 
 const patchBodySchema = z.object({
   full_name: z.string().max(100).optional().nullable(),
   bio: z.string().max(200).optional().nullable(),
   location: z.string().max(100).optional().nullable(),
   is_public: z.boolean().optional(),
+  accept_consent: z.boolean().optional(),
 });
 
 export async function GET() {
@@ -43,6 +45,7 @@ export async function PATCH(req: Request) {
   let location: string | undefined;
   let is_public: boolean | undefined;
   let avatarFile: File | null = null;
+  let acceptConsent = false;
 
   if (contentType.includes('multipart/form-data')) {
     const form = await req.formData();
@@ -86,6 +89,7 @@ export async function PATCH(req: Request) {
     bio = parsed.data.bio ?? undefined;
     location = parsed.data.location ?? undefined;
     is_public = parsed.data.is_public;
+    acceptConsent = parsed.data.accept_consent === true;
   }
 
   const payload: Record<string, unknown> = {};
@@ -96,6 +100,10 @@ export async function PATCH(req: Request) {
   if (bio !== undefined) payload.bio = bio || null;
   if (location !== undefined) payload.location = location || null;
   if (is_public !== undefined) payload.is_public = is_public;
+  if (acceptConsent) {
+    payload.consent_accepted_at = new Date().toISOString();
+    payload.consent_version = CURRENT_CONSENT_VERSION;
+  }
 
   if (avatarFile) {
     const ext = avatarFile.name.split('.').pop()?.toLowerCase() || 'jpg';

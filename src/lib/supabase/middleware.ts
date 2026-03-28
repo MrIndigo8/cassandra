@@ -51,7 +51,7 @@ export async function updateSession(request: NextRequest) {
 
   // Защита маршрутов: если нет сессии — редирект на логин
   // Исключения: публичные страницы
-  const publicPaths = ['/', '/login', '/register'];
+  const publicPaths = ['/', '/login', '/register', '/terms', '/privacy'];
   const isPublicPath = publicPaths.some(
     (path) => pathWithoutLocale === path
   );

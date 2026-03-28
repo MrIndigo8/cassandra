@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import ProfileClient from './ProfileClient';
 import { getMatchesForEntries, parseMatchRow, bestMatchPerEntry } from '@/lib/matches';
 import { getProgressToNextRole } from '@/lib/scoring';
+import { getProfileAchievements } from '@/lib/gamification/achievements';
 import type { FeedEntry } from '@/components/EntryCard';
 
 export const dynamic = 'force-dynamic';
@@ -234,6 +235,14 @@ export default async function ProfilePage({
 
   const streak = Number(p.streak_count ?? p.streak ?? 0);
 
+  const achievements = getProfileAchievements({
+    streak_count: streak,
+    verified_count: Number(p.verified_count || 0),
+    total_entries: Number(p.total_entries || 0),
+    rating_score: Number(p.rating_score || 0),
+    role: String(p.role || 'observer'),
+  });
+
   const feedEntries: FeedEntry[] = (entries || []).map((e) => {
     const row = e as Record<string, unknown>;
     const id = String(row.id);
@@ -294,6 +303,7 @@ export default async function ProfilePage({
       nextRole={nextRole}
       typeCounts={typeCounts}
       isOwnProfile={isOwnProfile}
+      achievements={achievements}
     />
   );
 }

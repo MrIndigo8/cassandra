@@ -68,7 +68,7 @@ export default async function HomePage() {
               <div className="absolute inset-0 shimmer-bg opacity-60" />
               <div className="relative z-10">
                 <h3 className="text-lg font-semibold mb-4">{t('liveMapTitle')}</h3>
-                <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="grid grid-cols-2 gap-3 mb-3">
                   <div className="bg-surface-hover rounded-xl p-3">
                     <p className="text-xs text-text-muted">{t('metricUsers')}</p>
                     <p className="text-2xl font-bold">{stats.totalUsers}</p>
@@ -77,9 +77,20 @@ export default async function HomePage() {
                     <p className="text-xs text-text-muted">{t('metricMatches')}</p>
                     <p className="text-2xl font-bold text-match">{stats.totalMatches}</p>
                   </div>
+                  {stats.globalCoherence != null && !Number.isNaN(stats.globalCoherence) ? (
+                    <div className="bg-surface-hover rounded-xl p-3 col-span-2">
+                      <p className="text-xs text-text-muted">{t('metricCoherence')}</p>
+                      <p className="text-2xl font-bold text-primary">
+                        {Math.round(Number(stats.globalCoherence) * 100)}%
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
-                <div className="h-40 rounded-xl bg-surface-hover border border-border flex items-center justify-center text-text-muted text-sm">
-                  {t('liveMapPlaceholder')}
+                <div className="h-36 rounded-xl bg-surface-hover border border-border flex flex-col items-center justify-center gap-3 px-4 text-center">
+                  <p className="text-text-muted text-sm">{t('liveMapPlaceholder')}</p>
+                  <Link href="/login" className="btn-secondary text-sm px-5 py-2">
+                    {t('liveMapCta')}
+                  </Link>
                 </div>
               </div>
             </div>
@@ -145,9 +156,17 @@ export default async function HomePage() {
       </main>
 
       <footer className="border-t border-border py-7 px-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <span className="text-sm text-text-muted">Кассандра © 2026</span>
-          <span className="text-xs text-text-muted">{t('disclaimer')}</span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+            <Link href="/terms" className="text-text-secondary hover:text-primary transition-colors">
+              {t('footerTerms')}
+            </Link>
+            <Link href="/privacy" className="text-text-secondary hover:text-primary transition-colors">
+              {t('footerPrivacy')}
+            </Link>
+            <span className="text-text-muted">{t('disclaimer')}</span>
+          </div>
         </div>
       </footer>
     </div>

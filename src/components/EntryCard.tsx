@@ -11,6 +11,7 @@ import MatchDetail from './MatchDetail';
 import type { MatchData } from '@/lib/matches';
 import { useUser } from '@/hooks/useUser';
 import CommunityConfirm from './CommunityConfirm';
+import { getEntryTypePresentation } from '@/lib/entryTypePresentation';
 
 export interface FeedEntry {
   id: string;
@@ -22,6 +23,7 @@ export interface FeedEntry {
   best_match_score: number | null;
   view_count: number;
   prediction_potential?: number | null;
+  user_insight?: string | null;
   created_at: string;
   sensory_data?: {
     sensory_patterns?: Array<{ sensation?: string }>;
@@ -53,6 +55,7 @@ interface EntryCardProps {
     view_count: number;
     created_at: string;
     prediction_potential?: number | null;
+    user_insight?: string | null;
     sensory_data?: {
       sensory_patterns?: Array<{ sensation?: string }>;
       verification_keywords?: string[];
@@ -111,14 +114,12 @@ export function EntryCard({
     return { icon: '👁️', cls: 'bg-surface-hover text-text-secondary border border-border', label: tRole('observer') };
   }, [tRole, userRole]);
 
-  const typeBadge = useMemo(() => {
-    const type = entry.type || 'unknown';
-    if (type === 'dream') return { icon: '🌙', cls: 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30', label: tEntry('type.dream') };
-    if (type === 'premonition') return { icon: '⚡', cls: 'bg-amber-500/20 text-amber-300 border border-amber-500/30', label: tEntry('type.premonition') };
-    if (type === 'feeling') return { icon: '💜', cls: 'bg-pink-500/20 text-pink-300 border border-pink-500/30', label: tEntry('type.feeling') };
-    if (type === 'vision') return { icon: '👁', cls: 'bg-violet-500/20 text-violet-300 border border-violet-500/30', label: tEntry('type.vision') };
-    return { icon: '❓', cls: 'bg-surface-hover text-text-secondary border border-border', label: tEntry('type.unknown') };
-  }, [entry.type, tEntry]);
+  const typeBadge = useMemo(
+    () => getEntryTypePresentation(entry.type, tEntry),
+    [entry.type, tEntry]
+  );
+
+  const highPrediction = Number(entry.prediction_potential ?? 0) > 0.7;
 
   const handleShare = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -169,11 +170,16 @@ export function EntryCard({
           </div>
         </div>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex flex-col items-end gap-1.5">
           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${typeBadge.cls}`}>
             <span>{typeBadge.icon}</span>
             <span>{typeBadge.label}</span>
           </span>
+          {highPrediction && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/15 text-primary border border-primary/30">
+              {tEntry('highPredictionPotential')}
+            </span>
+          )}
         </div>
       </header>
 
@@ -187,6 +193,13 @@ export function EntryCard({
         )}
 
         <p className="text-base text-text-secondary line-clamp-3">{entry.content}</p>
+
+        {entry.user_insight && (
+          <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-text-secondary">
+            <span className="text-xs font-semibold text-primary/90 uppercase tracking-wide">{tEntry('userInsight')}</span>
+            <p className="mt-1 text-text-primary/90 leading-relaxed">{entry.user_insight}</p>
+          </div>
+        )}
 
         <div className="mt-2">
           <Link href={`/entry/${entry.id}`} className="text-sm text-primary hover:underline">

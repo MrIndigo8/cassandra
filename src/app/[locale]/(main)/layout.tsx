@@ -1,5 +1,6 @@
 import { Header } from '@/components/layout/Header';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
+import { ConsentBanner } from '@/components/ConsentBanner';
 
 export default function MainLayout({
   children,
@@ -13,6 +14,7 @@ export default function MainLayout({
         {children}
       </main>
       <MobileBottomNav />
+      <ConsentBanner />
     </div>
   );
 }

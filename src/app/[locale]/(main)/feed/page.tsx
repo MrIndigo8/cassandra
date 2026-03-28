@@ -4,13 +4,14 @@ import type { FeedEntry } from '@/components/EntryCard';
 import { getMatchesForEntries } from '@/lib/matches';
 import { isFeatureEnabled } from '@/lib/features';
 import { FeatureDisabled } from '@/components/FeatureDisabled';
+import { parseFeedFilterParam, typesForFeedFilter } from '@/lib/feed/feedFilters';
 
 // Force dynamic so that the feed is always fresh on load
 export const dynamic = 'force-dynamic';
 
 const ENTRY_SELECT_FULL = `
   id, type, title, content, image_url, is_verified, best_match_score,
-  view_count, prediction_potential, sensory_data, created_at,
+  view_count, prediction_potential, user_insight, sensory_data, created_at,
   users:user_id (id, username, avatar_url, role, rating_score)
 `;
 
@@ -25,10 +26,17 @@ const ENTRY_SELECT_MINIMAL = `
   view_count, created_at, user_id
 `;
 
-export default async function FeedPage() {
+type FeedPageProps = {
+  searchParams: Record<string, string | string[] | undefined>;
+};
+
+export default async function FeedPage({ searchParams }: FeedPageProps) {
   if (!(await isFeatureEnabled('feed'))) {
-    return <FeatureDisabled name="Лента" />;
+    return <FeatureDisabled navKey="feed" />;
   }
+
+  const initialFilter = parseFeedFilterParam(searchParams.filter);
+  const typeList = typesForFeedFilter(initialFilter);
 
   // Use admin client for public feed bootstrap to avoid RLS/session edge-cases.
   const supabase = createAdminClient();
@@ -38,33 +46,36 @@ export default async function FeedPage() {
     | null = null;
   let error: { message?: string } | null = null;
 
-  const fullQuery = await supabase
+  let fullQ = supabase
     .from('entries')
     .select(ENTRY_SELECT_FULL)
     .or('is_public.is.null,is_public.eq.true')
-    .order('created_at', { ascending: false })
-    .range(0, 19);
+    .order('created_at', { ascending: false });
+  if (typeList) fullQ = fullQ.in('type', typeList);
+  const fullQuery = await fullQ.range(0, 19);
   entries = fullQuery.data as Array<Record<string, unknown>> | null;
   error = fullQuery.error;
 
   if (error) {
-    const fallbackQuery = await supabase
+    let fbQ = supabase
       .from('entries')
       .select(ENTRY_SELECT_FALLBACK)
       .or('is_public.is.null,is_public.eq.true')
-      .order('created_at', { ascending: false })
-      .range(0, 19);
+      .order('created_at', { ascending: false });
+    if (typeList) fbQ = fbQ.in('type', typeList);
+    const fallbackQuery = await fbQ.range(0, 19);
     entries = fallbackQuery.data as Array<Record<string, unknown>> | null;
     error = fallbackQuery.error;
   }
 
   if (error) {
-    const minimalQuery = await supabase
+    let minQ = supabase
       .from('entries')
       .select(ENTRY_SELECT_MINIMAL)
       .or('is_public.is.null,is_public.eq.true')
-      .order('created_at', { ascending: false })
-      .range(0, 19);
+      .order('created_at', { ascending: false });
+    if (typeList) minQ = minQ.in('type', typeList);
+    const minimalQuery = await minQ.range(0, 19);
     entries = minimalQuery.data as Array<Record<string, unknown>> | null;
     error = minimalQuery.error;
   }
@@ -83,6 +94,7 @@ export default async function FeedPage() {
     best_match_score: number | null;
     view_count: number | null;
     prediction_potential?: number | null;
+    user_insight?: string | null;
     sensory_data?: {
       sensory_patterns?: Array<{ sensation?: string }>;
       verification_keywords?: string[];
@@ -167,6 +179,7 @@ export default async function FeedPage() {
     best_match_score: entry.best_match_score,
     view_count: entry.view_count ?? 0,
     prediction_potential: entry.prediction_potential ?? null,
+    user_insight: entry.user_insight ?? null,
     sensory_data: entry.sensory_data ?? null,
     created_at: entry.created_at,
     user: {
@@ -192,6 +205,6 @@ export default async function FeedPage() {
     match: matchByEntry.get(entry.id) || null,
   }));
 
-  return <FeedClient initialEntries={enrichedEntries} />;
+  return <FeedClient initialEntries={enrichedEntries} initialFilter={initialFilter} />;
 }
 

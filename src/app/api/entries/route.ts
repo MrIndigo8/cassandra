@@ -1,9 +1,19 @@
+import { createHash } from 'crypto';
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { checkSpam } from '@/lib/antispam';
 import { createEntrySchema } from '@/lib/validations';
 import { updateUserScoring } from '@/lib/scoring';
+import { createAdminClient } from '@/lib/supabase/server';
+import { analyzeEntry } from '@/lib/claude/client';
+import { applyClaudeAnalysisToEntry } from '@/lib/analysis';
+import { isFeatureEnabled } from '@/lib/features';
+import { DEFAULT_ENTRY_TITLE_RU } from '@/lib/entryDefaults';
+
+export const maxDuration = 60;
+
+const SYNC_ANALYSIS_MS = 20_000;
 
 export async function POST(req: Request) {
   try {
@@ -33,7 +43,7 @@ export async function POST(req: Request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Не авторизован' }, { status: 401 });
+      return NextResponse.json({ errorCode: 'unauthorized' }, { status: 401 });
     }
 
     // Определяем страну пользователя по IP через Vercel заголовки
@@ -71,7 +81,7 @@ export async function POST(req: Request) {
     const spamResult = await checkSpam(user.id, content);
     if (spamResult.isSpam) {
       return NextResponse.json(
-        { error: spamResult.reason || 'Слишком много записей. Попробуйте позже.' },
+        { errorCode: 'rateLimited', error: spamResult.reason || undefined },
         { status: 429 }
       );
     }
@@ -81,7 +91,7 @@ export async function POST(req: Request) {
       .from('entries')
       .insert({
         user_id: user.id,
-        title: 'Без заголовка',
+        title: DEFAULT_ENTRY_TITLE_RU,
         content,
         type: 'unknown',
         is_public,
@@ -97,7 +107,18 @@ export async function POST(req: Request) {
 
     if (insertError) {
       console.error('Insert error:', insertError);
-      return NextResponse.json({ error: 'Ошибка сохранения записи' }, { status: 500 });
+      return NextResponse.json({ errorCode: 'saveFailed' }, { status: 500 });
+    }
+
+    const contentHash = createHash('sha256')
+      .update(`${content}|${entry.created_at}|${user.id}`)
+      .digest('hex');
+    const { error: hashUpdateErr } = await supabase
+      .from('entries')
+      .update({ content_hash: contentHash, timestamp_verified: true })
+      .eq('id', entry.id);
+    if (hashUpdateErr) {
+      console.warn('[entries] content_hash update:', hashUpdateErr.message);
     }
 
     // 3.5 Для personal-сигналов создаем серию self-report напоминаний 3/7/14/30 дней.
@@ -158,10 +179,89 @@ export async function POST(req: Request) {
     // Fire-and-forget scoring refresh (activity component).
     updateUserScoring(user.id, supabase).catch(() => {});
 
-    return NextResponse.json({ data: entry }, { status: 201 });
+    const cronSecret = process.env.CRON_SECRET;
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
+
+    let syncAnalysisOk = false;
+    let analysisPayload: {
+      title: string;
+      type: string;
+      summary: string;
+      user_insight: string | null;
+      prediction_potential: number | null;
+    } | null = null;
+
+    if (await isFeatureEnabled('analysis_enabled')) {
+      try {
+        const analysis = await Promise.race([
+          analyzeEntry(content, 'unknown', null, null, null),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), SYNC_ANALYSIS_MS)),
+        ]);
+        if (analysis) {
+          const admin = createAdminClient();
+          const entryRow = {
+            id: entry.id,
+            user_id: user.id,
+            content,
+            type: 'unknown' as string | null,
+            direction: null as string | null,
+            timeframe: null as string | null,
+            quality: null as string | null,
+          };
+          const applied = await applyClaudeAnalysisToEntry(admin, entryRow, analysis);
+          if (applied) {
+            syncAnalysisOk = true;
+            analysisPayload = {
+              title: analysis.title,
+              type: analysis.type,
+              summary: analysis.summary,
+              user_insight: analysis.user_insight,
+              prediction_potential: analysis.prediction_potential,
+            };
+          }
+        }
+      } catch (e) {
+        console.warn('[entries] sync analysis:', e);
+      }
+    }
+
+    if (!syncAnalysisOk && cronSecret && appUrl) {
+      try {
+        const admin = createAdminClient();
+        const { data: beforeCron } = await admin
+          .from('entries')
+          .select('ai_analyzed_at')
+          .eq('id', entry.id)
+          .maybeSingle();
+        if (!beforeCron?.ai_analyzed_at) {
+          fetch(`${appUrl}/api/analyze?entryIds=${encodeURIComponent(entry.id)}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${cronSecret}` },
+            cache: 'no-store',
+          }).catch((err) => console.warn('[entries] analyze trigger:', err));
+        }
+      } catch (e) {
+        console.warn('[entries] pre-cron check:', e);
+        fetch(`${appUrl}/api/analyze?entryIds=${encodeURIComponent(entry.id)}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${cronSecret}` },
+          cache: 'no-store',
+        }).catch((err) => console.warn('[entries] analyze trigger:', err));
+      }
+    }
+
+    return NextResponse.json(
+      {
+        data: entry,
+        ...(analysisPayload ? { analysis: analysisPayload } : {}),
+      },
+      { status: 201 }
+    );
 
   } catch (error) {
     console.error('API /entries error:', error);
-    return NextResponse.json({ error: 'Внутренняя ошибка сервера' }, { status: 500 });
+    return NextResponse.json({ errorCode: 'internal' }, { status: 500 });
   }
 }

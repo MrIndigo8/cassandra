@@ -1,5 +1,17 @@
-// Допустимые значения type в БД (entries.type CHECK constraint — миграция 010)
-const ALLOWED_ENTRY_TYPES = ['dream', 'premonition', 'unknown', 'feeling', 'vision'] as const;
+// Допустимые значения type в БД (миграции 010 + 025)
+const ALLOWED_ENTRY_TYPES = [
+  'dream',
+  'premonition',
+  'unknown',
+  'feeling',
+  'vision',
+  'anxiety',
+  'thought',
+  'deja_vu',
+  'sensation',
+  'mood',
+  'synchronicity',
+] as const;
 
 function sanitizeEntryType(type: string): string {
   return ALLOWED_ENTRY_TYPES.includes(type as typeof ALLOWED_ENTRY_TYPES[number])
@@ -29,6 +41,10 @@ export interface ClaudeAnalysisResult {
     geography_clues: { explicit: string | null; implicit_clues: string[] };
     verification_keywords: string[];
   } | null;
+  /** Короткий тёплый инсайт для пользователя (не медицинский совет). */
+  user_insight: string | null;
+  /** Вероятность «предсказательности» записи 0–1. */
+  prediction_potential: number | null;
 }
 
 const ALLOWED_THREAT_TYPES = new Set([
@@ -54,6 +70,18 @@ function clampAnxietyScore(value: unknown): number | null {
   return Math.max(0, Math.min(10, Math.round(value)));
 }
 
+function clampPredictionPotential(value: unknown): number | null {
+  if (typeof value !== 'number' || Number.isNaN(value)) return null;
+  return Math.max(0, Math.min(1, Math.round(value * 1000) / 1000));
+}
+
+function sanitizeUserInsight(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const t = value.trim();
+  if (!t) return null;
+  return t.length > 500 ? `${t.slice(0, 497)}…` : t;
+}
+
 function sanitizeGeographyIso(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toUpperCase();
@@ -77,6 +105,8 @@ export function parseClaudeResponse(text: string): ClaudeAnalysisResult {
     temporal_urgency: null,
     emotional_intensity: null,
     sensory_data: null,
+    user_insight: null,
+    prediction_potential: null,
   };
 
   if (!text) return fallback;
@@ -207,6 +237,8 @@ export function parseClaudeResponse(text: string): ClaudeAnalysisResult {
           ? (parsed.emotional_intensity as NonNullable<ClaudeAnalysisResult['emotional_intensity']>)
           : null,
       sensory_data,
+      user_insight: sanitizeUserInsight(parsed.user_insight),
+      prediction_potential: clampPredictionPotential(parsed.prediction_potential),
     };
   } catch (error) {
     console.error("Ошибка при парсинге ответа от Claude:", error, text);

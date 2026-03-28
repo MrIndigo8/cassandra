@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/useUser';
 import { EntryCard, type FeedEntry } from '@/components/EntryCard';
@@ -11,6 +11,12 @@ import { useTranslations } from 'next-intl';
 import type { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 import type { Entry, User } from '@/types';
 import { getMatchesForEntries } from '@/lib/matches';
+import {
+  matchesFeedFilter,
+  typesForFeedFilter,
+  type FeedFilterKey,
+} from '@/lib/feed/feedFilters';
+import { usePathname, useRouter } from '@/navigation';
 
 type BaseEntryRow = {
   id: string;
@@ -22,6 +28,7 @@ type BaseEntryRow = {
   best_match_score: number | null;
   view_count: number | null;
   prediction_potential: number | null;
+  user_insight: string | null;
   sensory_data: {
     sensory_patterns?: Array<{ sensation?: string }>;
     verification_keywords?: string[];
@@ -52,7 +59,7 @@ type FeedStatsResponse = {
 
 const ENTRY_SELECT_FULL = `
   id, type, title, content, image_url, is_verified, best_match_score,
-  view_count, prediction_potential, sensory_data, created_at,
+  view_count, prediction_potential, user_insight, sensory_data, created_at,
   users:user_id (id, username, avatar_url, role, rating_score)
 `;
 
@@ -69,20 +76,29 @@ const ENTRY_SELECT_MINIMAL = `
 
 interface FeedClientProps {
   initialEntries: FeedEntry[];
+  initialFilter?: FeedFilterKey;
 }
 
-export function FeedClient({ initialEntries }: FeedClientProps) {
+const PAGE_SIZE = 20;
+
+export function FeedClient({ initialEntries, initialFilter = 'all' }: FeedClientProps) {
   const [entries, setEntries] = useState<FeedEntry[]>(initialEntries);
+  const [feedFilter, setFeedFilter] = useState<FeedFilterKey>(initialFilter);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(initialEntries.length === 20); // Зависит от PAGE_SIZE
+  const [hasMore, setHasMore] = useState(initialEntries.length === PAGE_SIZE);
   const [error, setError] = useState<string | null>(null);
-
-  const PAGE_SIZE = 20;
   const [supabase] = useState(() => createClient());
   const { user, profile } = useUser();
   const t = useTranslations('feed');
   const tCommon = useTranslations('common');
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const displayedEntries = useMemo(
+    () => entries.filter((e) => matchesFeedFilter(e.type, feedFilter)),
+    [entries, feedFilter]
+  );
   const tf = (key: string, fallback: string) => {
     try {
       return t(key);
@@ -92,12 +108,22 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
   };
 
   const fetchEntriesWithFallback = useCallback(
-    async (options: { from?: number; to?: number; limit?: number; entryId?: string }) => {
+    async (options: {
+      from?: number;
+      to?: number;
+      limit?: number;
+      entryId?: string;
+      filter?: FeedFilterKey;
+    }) => {
+      const filterKey = options.filter ?? 'all';
+      const typeList = typesForFeedFilter(filterKey);
+
       let query = supabase
         .from('entries')
         .select(ENTRY_SELECT_FULL)
         .or('is_public.is.null,is_public.eq.true')
         .order('created_at', { ascending: false });
+      if (typeList && !options.entryId) query = query.in('type', typeList);
 
       if (options.entryId) query = query.eq('id', options.entryId);
       if (typeof options.from === 'number' && typeof options.to === 'number') query = query.range(options.from, options.to);
@@ -113,6 +139,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
         .select(ENTRY_SELECT_FALLBACK)
         .or('is_public.is.null,is_public.eq.true')
         .order('created_at', { ascending: false });
+      if (typeList && !options.entryId) fallbackQuery = fallbackQuery.in('type', typeList);
 
       if (options.entryId) fallbackQuery = fallbackQuery.eq('id', options.entryId);
       if (typeof options.from === 'number' && typeof options.to === 'number') fallbackQuery = fallbackQuery.range(options.from, options.to);
@@ -128,6 +155,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
         .select(ENTRY_SELECT_MINIMAL)
         .or('is_public.is.null,is_public.eq.true')
         .order('created_at', { ascending: false });
+      if (typeList && !options.entryId) minimalQuery = minimalQuery.in('type', typeList);
 
       if (options.entryId) minimalQuery = minimalQuery.eq('id', options.entryId);
       if (typeof options.from === 'number' && typeof options.to === 'number') minimalQuery = minimalQuery.range(options.from, options.to);
@@ -214,6 +242,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       best_match_score: entry.best_match_score,
       view_count: entry.view_count ?? 0,
       prediction_potential: entry.prediction_potential ?? null,
+      user_insight: entry.user_insight ?? null,
       sensory_data: entry.sensory_data ?? null,
       created_at: entry.created_at,
       user: {
@@ -288,6 +317,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
             best_match_score: (newEntry as Entry & { best_match_score?: number | null }).best_match_score ?? null,
             view_count: (newEntry as Entry & { view_count?: number | null }).view_count ?? 0,
             prediction_potential: (newEntry as Entry & { prediction_potential?: number | null }).prediction_potential ?? null,
+            user_insight: (newEntry as Entry & { user_insight?: string | null }).user_insight ?? null,
             sensory_data: (newEntry as Entry & { sensory_data?: BaseEntryRow['sensory_data'] }).sensory_data ?? null,
             created_at: newEntry.created_at,
             user: {
@@ -335,7 +365,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      const data = await fetchEntriesWithFallback({ from, to });
+      const data = await fetchEntriesWithFallback({ from, to, filter: feedFilter });
 
       if (data) {
         const hydrated = await hydrateEntries(data as BaseEntryRow[]);
@@ -366,35 +396,47 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
     }
   };
 
-  const reloadFeed = useCallback(async () => {
-    setPage(1);
-    setHasMore(true);
-    try {
-      const dataSafe = await fetchEntriesWithFallback({ limit: PAGE_SIZE });
-      const hydrated = await hydrateEntries((dataSafe || []) as BaseEntryRow[]);
-      const verifiedIds = hydrated
-        .filter((entry) => entry.is_verified && (entry.best_match_score || 0) > 0.6)
-        .map((entry) => entry.id);
-      const matches = verifiedIds.length ? await getMatchesForEntries(verifiedIds, supabase) : [];
-      const matchByEntry = new Map(matches.map((m) => [m.entry_id, m]));
-      const hydratedWithMatches = hydrated.map((entry) => ({
-        ...entry,
-        match: matchByEntry.get(entry.id) || null,
-      }));
-      setEntries(hydratedWithMatches);
-      setHasMore(hydratedWithMatches.length === PAGE_SIZE);
-      setError(null);
-    } catch (err) {
-      console.error('Ошибка перезагрузки ленты:', err);
-      setError(tCommon('errors.generic'));
-    }
-  }, [fetchEntriesWithFallback, hydrateEntries, supabase, tCommon]);
+  const reloadFeed = useCallback(
+    async (filterOverride?: FeedFilterKey) => {
+      const key = filterOverride !== undefined ? filterOverride : feedFilter;
+      setPage(1);
+      setHasMore(true);
+      try {
+        const dataSafe = await fetchEntriesWithFallback({ limit: PAGE_SIZE, filter: key });
+        const hydrated = await hydrateEntries((dataSafe || []) as BaseEntryRow[]);
+        const verifiedIds = hydrated
+          .filter((entry) => entry.is_verified && (entry.best_match_score || 0) > 0.6)
+          .map((entry) => entry.id);
+        const matches = verifiedIds.length ? await getMatchesForEntries(verifiedIds, supabase) : [];
+        const matchByEntry = new Map(matches.map((m) => [m.entry_id, m]));
+        const hydratedWithMatches = hydrated.map((entry) => ({
+          ...entry,
+          match: matchByEntry.get(entry.id) || null,
+        }));
+        setEntries(hydratedWithMatches);
+        setHasMore(hydratedWithMatches.length === PAGE_SIZE);
+        setError(null);
+      } catch (err) {
+        console.error('Ошибка перезагрузки ленты:', err);
+        setError(tCommon('errors.generic'));
+      }
+    },
+    [fetchEntriesWithFallback, feedFilter, hydrateEntries, supabase, tCommon]
+  );
 
   useEffect(() => {
     if (initialEntries.length === 0) {
-      void reloadFeed();
+      void reloadFeed(initialFilter);
     }
-  }, [initialEntries.length, reloadFeed]);
+  }, [initialEntries.length, initialFilter, reloadFeed]);
+
+  const onFeedFilterChange = (key: FeedFilterKey) => {
+    if (key === feedFilter) return;
+    setFeedFilter(key);
+    const href = key === 'all' ? pathname : `${pathname}?filter=${key}`;
+    router.replace(href);
+    void reloadFeed(key);
+  };
 
   return (
     <div className="max-w-2xl mx-auto py-6 px-4">
@@ -404,7 +446,28 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
         <PushBanner />
 
         {/* Форма публикации сигнала */}
-        <InlineEntryForm />
+        <div id="entry-composer-anchor">
+          <InlineEntryForm />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mt-6" role="tablist" aria-label={t('allSignals')}>
+        {(['all', 'dreams', 'premonitions', 'anxieties', 'thoughts'] as const).map((key) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={feedFilter === key}
+            onClick={() => onFeedFilterChange(key)}
+            className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
+              feedFilter === key
+                ? 'bg-primary text-white border-primary'
+                : 'bg-surface text-text-secondary border-border hover:text-text-primary'
+            }`}
+          >
+            {t(`filters.${key}`)}
+          </button>
+        ))}
       </div>
 
       {/* Пустое состояние или Ошибка */}
@@ -415,9 +478,13 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
             {tCommon('errors.tryAgain')}
           </button>
         </div>
+      ) : entries.length > 0 && displayedEntries.length === 0 ? (
+        <div className="card glass text-center py-12 px-6 mt-8 border-border">
+          <p className="text-text-secondary">{t('emptyFilter')}</p>
+        </div>
       ) : entries.length > 0 ? (
         <div className="flex flex-col gap-5 mt-8">
-          {entries.map((entry) => (
+          {displayedEntries.map((entry) => (
             <EntryCard
               key={entry.id}
               entry={{
@@ -430,6 +497,7 @@ export function FeedClient({ initialEntries }: FeedClientProps) {
                 best_match_score: entry.best_match_score,
                 view_count: entry.view_count ?? 0,
                 prediction_potential: entry.prediction_potential ?? null,
+                user_insight: entry.user_insight ?? null,
                 sensory_data: entry.sensory_data ?? null,
                 created_at: entry.created_at,
               }}

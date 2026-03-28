@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useRouter, Link } from '@/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useTranslations } from 'next-intl';
+import { CURRENT_CONSENT_VERSION } from '@/lib/constants/consent';
 
 function RegisterForm() {
   const [email, setEmail] = useState('');
@@ -12,11 +13,13 @@ function RegisterForm() {
   const [username, setUsername] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get('next') || '/feed';
   const t = useTranslations('auth');
-  
+  const tCommon = useTranslations('common');
+
   const supabase = createClient();
 
   const isValidUsername = (username: string) => {
@@ -29,13 +32,19 @@ function RegisterForm() {
     setError(null);
 
     if (!isValidUsername(username)) {
-      setError('Имя пользователя может содержать только латиницу, цифры и подчеркивание (от 3 до 20 символов)');
+      setError(t('errors.invalidUsername'));
       setLoading(false);
       return;
     }
 
     if (password.length < 6) {
       setError(t('errors.weakPassword'));
+      setLoading(false);
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError(t('errors.consentRequired'));
       setLoading(false);
       return;
     }
@@ -55,7 +64,7 @@ function RegisterForm() {
         return;
       }
 
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -76,12 +85,22 @@ function RegisterForm() {
         return;
       }
 
+      if (signUpData.session?.user?.id) {
+        await supabase
+          .from('users')
+          .update({
+            consent_accepted_at: new Date().toISOString(),
+            consent_version: CURRENT_CONSENT_VERSION,
+          })
+          .eq('id', signUpData.session.user.id);
+      }
+
       router.push(next);
       router.refresh();
       
     } catch (err: unknown) {
       console.error('Ошибка регистрации:', err);
-      setError('Произошла непредвиденная ошибка. Попробуйте позже.');
+      setError(tCommon('errors.generic'));
     } finally {
       setLoading(false);
     }
@@ -97,7 +116,7 @@ function RegisterForm() {
     });
 
     if (error) {
-      setError('Ошибка входа через Google: ' + error.message);
+      setError(`${t('errors.googleOAuth')}: ${error.message}`);
     }
   };
 
@@ -182,6 +201,29 @@ function RegisterForm() {
             minLength={6}
           />
         </div>
+
+        <label className="flex items-start gap-3 cursor-pointer text-sm text-mist-dim">
+          <input
+            type="checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            className="mt-1 rounded border-void-border shrink-0"
+          />
+          <span className="leading-snug">
+            {t.rich('consentRich', {
+              terms: (chunks) => (
+                <Link href="/terms" className="text-accent hover:underline font-medium">
+                  {chunks}
+                </Link>
+              ),
+              privacy: (chunks) => (
+                <Link href="/privacy" className="text-accent hover:underline font-medium">
+                  {chunks}
+                </Link>
+              ),
+            })}
+          </span>
+        </label>
 
         <button
           type="submit"

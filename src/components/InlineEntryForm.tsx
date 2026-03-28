@@ -3,13 +3,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useUser } from '@/hooks/useUser';
 import { useTranslations } from 'next-intl';
-import { Mic, Square, Plus, X } from 'lucide-react';
+import { Mic, Square, X } from 'lucide-react';
 import ImageUpload from './ImageUpload';
 
 export function InlineEntryForm() {
   const tFeed = useTranslations('feed');
   const tCommon = useTranslations('common');
   const tEntry = useTranslations('entry');
+  const tApi = useTranslations('api');
   const { profile } = useUser();
   const [content, setContent] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -21,6 +22,7 @@ export function InlineEntryForm() {
   const [isMobileComposerOpen, setIsMobileComposerOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [lastInsight, setLastInsight] = useState<string | null>(null);
 
   const formRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -92,6 +94,7 @@ export function InlineEntryForm() {
     setIsSubmitting(true);
     setError(null);
     setSuccess(null);
+    setLastInsight(null);
 
     try {
       const res = await fetch('/api/entries', {
@@ -101,10 +104,31 @@ export function InlineEntryForm() {
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || tCommon('error'));
+        const errorData = (await res.json()) as {
+          errorCode?: string;
+          error?: unknown;
+        };
+        if (
+          res.status === 400 &&
+          errorData.error &&
+          typeof errorData.error === 'object' &&
+          !Array.isArray(errorData.error)
+        ) {
+          throw new Error(tApi('entries.validation'));
+        }
+        const code = typeof errorData.errorCode === 'string' ? errorData.errorCode : 'internal';
+        const byCode: Record<string, string> = {
+          unauthorized: tApi('entries.unauthorized'),
+          saveFailed: tApi('entries.saveFailed'),
+          rateLimited: tApi('entries.rateLimited'),
+          internal: tApi('entries.internal'),
+        };
+        throw new Error(byCode[code] ?? tApi('entries.internal'));
       }
-      const payload = await res.json();
+      const payload = (await res.json()) as {
+        data?: { id?: string };
+        analysis?: { user_insight?: string | null };
+      };
 
       setContent('');
       setImageUrl(null);
@@ -112,7 +136,12 @@ export function InlineEntryForm() {
       setIsExpanded(false);
       setIsMobileComposerOpen(false);
       setSuccess(tFeed('submittedAnalyzing'));
-      const createdEntryId = payload?.data?.id;
+      setLastInsight(
+        typeof payload?.analysis?.user_insight === 'string' && payload.analysis.user_insight.trim()
+          ? payload.analysis.user_insight.trim()
+          : null
+      );
+      const createdEntryId = payload.data?.id;
       if (createdEntryId) {
         window.dispatchEvent(new CustomEvent('entry:created', { detail: { entryId: createdEntryId } }));
       }
@@ -129,18 +158,6 @@ export function InlineEntryForm() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          setIsExpanded(true);
-          setIsMobileComposerOpen(true);
-        }}
-        className="md:hidden fixed bottom-20 right-4 z-40 w-12 h-12 rounded-full bg-primary text-white shadow-lg flex items-center justify-center"
-        aria-label={tFeed('openComposer')}
-      >
-        <Plus size={20} />
-      </button>
-
       <div
         ref={formRef}
         className={`card glass p-4 mb-6 relative ${
@@ -196,6 +213,12 @@ export function InlineEntryForm() {
 
           {success && (
             <div className="text-green-400 text-sm mt-2">{success}</div>
+          )}
+          {lastInsight && (
+            <div className="mt-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-sm text-text-secondary">
+              <span className="text-xs font-semibold text-primary">{tEntry('userInsight')}</span>
+              <p className="mt-1 text-text-primary">{lastInsight}</p>
+            </div>
           )}
           {error && (
             <div className="text-red-400 text-sm mt-2">{error}</div>

@@ -19,6 +19,7 @@ const CRON_STEPS: CronStep[] = [
 const CRON_PARALLEL_TAIL: CronStep[] = [
   { path: '/api/cluster' },
   { path: '/api/recalculate-scores' },
+  { path: '/api/reality-snapshot' },
 ];
 
 async function runStep(

@@ -1,7 +1,7 @@
-import NoosphereClient from './NoosphereClient';
+import { redirect } from '@/navigation';
+import { getLocale } from 'next-intl/server';
 
-export const dynamic = 'force-dynamic';
-
-export default function NoospherePage() {
-  return <NoosphereClient />;
+export default async function NoospherePage() {
+  const locale = await getLocale();
+  redirect({ href: '/map', locale });
 }

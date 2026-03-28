@@ -20,6 +20,56 @@
     "reaction": "Reaction",
     "addReaction": "Add reaction"
   },
+  "features": {
+    "disabled": {
+      "title": "This section is temporarily disabled",
+      "description": "The “{section}” section has been disabled by an administrator. Please try again later."
+    }
+  },
+  "api": {
+    "entries": {
+      "unauthorized": "Sign in required",
+      "saveFailed": "Could not save your entry",
+      "internal": "Internal server error",
+      "rateLimited": "Too many requests. Please try again later.",
+      "validation": "Please check your input"
+    }
+  },
+  "admin": {
+    "sidebar": {
+      "brand": "Cassandra",
+      "dashboard": "Dashboard",
+      "users": "Users",
+      "entries": "Entries",
+      "matches": "Matches",
+      "settings": "Settings",
+      "audit": "Audit log",
+      "ai": "AI monitoring",
+      "map": "Map (view)",
+      "backToSite": "Back to site"
+    },
+    "dashboard": {
+      "title": "Admin",
+      "statUsers": "Users",
+      "statEntries": "Entries",
+      "statMatches": "Matches",
+      "statAnxiety": "Avg. anxiety",
+      "newToday": "+{count} today",
+      "newWeek": "+{count} this week",
+      "topUsers": "Top 10 users",
+      "colUsername": "Username",
+      "colRole": "Role",
+      "colRating": "Rating",
+      "colMatches": "Matches",
+      "colEntries": "Entries",
+      "system": "System",
+      "aiQueue": "AI queue: {count}",
+      "activeClusters": "Active clusters: {count}",
+      "translationsCached": "Cached translations: {count}",
+      "quarantine": "Quarantined entries: {count}",
+      "featureToggles": "Feature toggles"
+    }
+  },
   "nav": {
     "feed": "Feed",
     "events": "Events",
@@ -42,8 +92,11 @@
     "filters": {
       "all": "All Signals",
       "dreams": "Dreams",
-      "premonitions": "Premonitions"
+      "premonitions": "Premonitions",
+      "anxieties": "Anxieties",
+      "thoughts": "Thoughts"
     },
+    "emptyFilter": "No entries in this category yet.",
     "empty": "No entries yet. Share your signal!",
     "emptyAll": "No entries yet. Be the first to share your signal!",
     "emptyDreams": "No dreams recorded yet",
@@ -90,8 +143,20 @@
       "premonition": "Premonition",
       "feeling": "Feeling",
       "vision": "Vision",
+      "anxiety": "Anxiety",
+      "thought": "Thought",
+      "deja_vu": "Déjà vu",
+      "sensation": "Sensation",
+      "mood": "Mood",
+      "synchronicity": "Synchronicity",
       "unknown": "Signal"
-    }
+    },
+    "userInsight": "Insight",
+    "highPredictionPotential": "Strong signal",
+    "metaNotFound": "Signal not found",
+    "notFoundTitle": "Signal unavailable",
+    "notFoundDescription": "This entry was not found, removed, or is private.",
+    "placeholderTitle": "Untitled"
   },
   "role": {
     "architect": "Architect",
@@ -139,12 +204,35 @@
     "googleLogin": "Continue with Google",
     "noAccount": "No account?",
     "hasAccount": "Already have an account?",
+    "consentRich": "I accept the <terms>terms of use</terms> and <privacy>privacy policy</privacy> of the platform.",
     "errors": {
       "invalidCredentials": "Invalid email or password",
       "emailTaken": "Email already taken",
       "usernameTaken": "Username already taken",
-      "weakPassword": "Password is too short"
+      "weakPassword": "Password is too short",
+      "consentRequired": "Please accept the terms to create an account.",
+      "invalidUsername": "Username: Latin letters, digits and underscore, 3–20 characters.",
+      "googleOAuth": "Google sign-in error"
     }
+  },
+  "legal": {
+    "termsTitle": "Terms of use",
+    "termsP1": "Cassandra is a research platform for recording dreams and premonitions and comparing them with open event data. It is not medical, legal, or financial advice.",
+    "termsP2": "You retain rights to your content and grant the platform a license to process, store, and analyze text as part of the service (including automated AI analysis).",
+    "termsP3": "Abuse, spam, malicious content, or illegal activity is prohibited.",
+    "termsFooter": "These terms may be updated; continued use after a new version is published means you accept the current terms.",
+    "privacyTitle": "Privacy policy",
+    "privacyP1": "We process account data (email, identifier), profile data (username, visibility settings), and entry content to provide platform features.",
+    "privacyP2": "Technical data (e.g. region from IP) may be used for analytics and abuse prevention.",
+    "privacyP3": "You may request account and data deletion where supported by settings and applicable law. Contact project support for details.",
+    "privacyFooter": "By using the service, you acknowledge this policy.",
+    "backToLogin": "← Back to sign in"
+  },
+  "consent": {
+    "title": "Terms update",
+    "body": "To keep using Cassandra, confirm your agreement with data processing and platform rules.",
+    "accept": "Accept and continue",
+    "saving": "Saving…"
   },
   "profile": {
     "metaTitle": "Cassandra",
@@ -153,6 +241,15 @@
     "entries": "Signals",
     "matches": "Matches",
     "rating": "Rating",
+    "achievementsTitle": "Achievements",
+    "achievements": {
+      "firstSignal": "First signal",
+      "streak7": "7-day streak",
+      "firstMatch": "First match",
+      "matches5": "Five verified",
+      "rating4": "Rating 4+",
+      "roleMilestone": "Role milestone"
+    },
     "avgLagShort": "Avg lag",
     "streak": "day streak",
     "editName": "Edit Name",
@@ -278,6 +375,28 @@
       "recentSignals": "Recent signals"
     }
   },
+  "discoveries": {
+    "title": "Discoveries",
+    "subtitle": "Where signals meet real-world events",
+    "scopeAll": "All",
+    "scopeMine": "Mine",
+    "snapshotTitle": "Reality snapshot",
+    "snapshotDate": "Date: {date}",
+    "coherence": "Coherence",
+    "entriesAnalyzed": "Entries in sample: {count}",
+    "threatFilter": {
+      "all": "All threats",
+      "conflict": "Conflict",
+      "disaster": "Disaster",
+      "economic": "Economic",
+      "health": "Health",
+      "social": "Social",
+      "personal": "Personal",
+      "unknown": "Unclear"
+    },
+    "noMatchesMine": "No matches for your signals yet",
+    "noMatchesMineHint": "When the system links your signal to an event, the match will appear here."
+  },
   "events": {
     "title": "Events",
     "subtitle": "Signal matches with real-world events",
@@ -374,7 +493,9 @@
     "howItWorks": "How it works",
     "socialProof": "Verified matches and metrics",
     "liveMapTitle": "Live signal map",
-    "liveMapPlaceholder": "Mini-map will appear here",
+    "liveMapPlaceholder": "The interactive map is available after you sign in.",
+    "liveMapCta": "Sign in to open the map",
+    "metricCoherence": "Collective coherence",
     "metricUsers": "Users",
     "metricMatches": "Matches",
     "metricWeekly": "This week",
@@ -392,7 +513,9 @@
       "title": "Matches",
       "desc": "When your image coincides with a real event, you receive a notification. Your accuracy rating grows."
     },
-    "footer": "An instrument of observation and research. Not a tool for predicting the future."
+    "footer": "An instrument of observation and research. Not a tool for predicting the future.",
+    "footerTerms": "Terms",
+    "footerPrivacy": "Privacy"
   },
   "archive": {
     "title": "Match Archive — Documented Cases",

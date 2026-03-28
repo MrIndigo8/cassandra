@@ -15,7 +15,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get('next') || '/feed';
   const t = useTranslations('auth');
-  
+
   const supabase = createClient();
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -52,7 +52,7 @@ function LoginForm() {
     });
 
     if (error) {
-      setError('Ошибка входа через Google: ' + error.message);
+      setError(`${t('errors.googleOAuth')}: ${error.message}`);
     }
   };
 

@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ANALYZE_ENTRY_PROMPT, buildUserMessage } from './prompts';
+import { UNIFIED_ANALYSIS_PROMPT, buildUserMessage } from './prompts';
 import { parseClaudeResponse, ClaudeAnalysisResult } from './parser';
 import { getModel } from './models';
 
@@ -37,7 +37,7 @@ export async function analyzeEntry(
       model: getModel('analysis'),
       max_tokens: 1024,
       temperature: 0.3, // Низкая температура для более структурированного JSON ответа
-      system: ANALYZE_ENTRY_PROMPT,
+      system: UNIFIED_ANALYSIS_PROMPT,
       messages: [
         {
           role: 'user',

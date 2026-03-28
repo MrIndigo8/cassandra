@@ -5,9 +5,10 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { EntryClient } from './EntryClient';
 import type { Entry } from '@/types';
 import { getMatchForEntry } from '@/lib/matches';
+import { getTranslations } from 'next-intl/server';
 
 interface Props {
-  params: { id: string };
+  params: { locale: string; id: string };
 }
 
 // Расширенный тип, включающий автора
@@ -36,19 +37,21 @@ const getEntry = cache(async (id: string): Promise<EntryWithUser | null> => {
 
 // Генерация Open Graph тегов
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const t = await getTranslations({ locale: params.locale, namespace: 'entry' });
   const entry = await getEntry(params.id);
 
   if (!entry) {
     return {
-      title: 'Сигнал не найден',
+      title: t('metaNotFound'),
     };
   }
 
   // Очистка текста от переносов и обрезка до 100 символов
   const description = entry.content.replace(/\n/g, ' ').slice(0, 100) + '...';
-  const username = entry.users?.username || 'Аноним';
-  const dateStr = new Date(entry.created_at).toLocaleDateString('ru-RU', {
-    day: 'numeric', month: 'long', year: 'numeric'
+  const username = entry.users?.username || t('anonymous');
+  const dateLocale = params.locale === 'en' ? 'en-US' : 'ru-RU';
+  const dateStr = new Date(entry.created_at).toLocaleDateString(dateLocale, {
+    day: 'numeric', month: 'long', year: 'numeric',
   });
 
   // Формируем URL для генерации картинки
@@ -87,6 +90,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function EntryPage({ params }: Props) {
+  const t = await getTranslations({ locale: params.locale, namespace: 'entry' });
   const entry = await getEntry(params.id);
   const supabase = createServerSupabaseClient();
   const match = entry ? await getMatchForEntry(entry.id, supabase) : null;
@@ -98,14 +102,14 @@ export default async function EntryPage({ params }: Props) {
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Вернуться в ленту
+          {t('backToFeed')}
         </Link>
         <div className="card border border-red-500/30 rounded-lg text-center py-12 px-6 bg-red-500/10">
           <svg className="w-12 h-12 mx-auto text-red-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
-          <h2 className="text-xl font-bold text-text-primary mb-2">Сигнал потерян</h2>
-          <p className="text-text-secondary">Запись не найдена, удалена или приватна.</p>
+          <h2 className="text-xl font-bold text-text-primary mb-2">{t('notFoundTitle')}</h2>
+          <p className="text-text-secondary">{t('notFoundDescription')}</p>
         </div>
       </div>
     );

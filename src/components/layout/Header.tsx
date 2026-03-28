@@ -7,7 +7,6 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Link, usePathname, useRouter } from '@/navigation';
 import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
-import { useEffect } from 'react';
 
 import { Logo } from './Logo';
 
@@ -70,37 +69,6 @@ export function Header() {
     { href: '/map', label: t('map') },
   ];
   const canAccessAdmin = ['architect', 'admin', 'moderator'].includes(currentRole);
-  const shouldWarmEvents =
-    pathname === '/discoveries' ||
-    pathname.startsWith('/discoveries/') ||
-    pathname === '/events' ||
-    pathname.startsWith('/events/');
-
-  useEffect(() => {
-    if (!shouldWarmEvents) return;
-
-    // Warm up global events + translation cache soon after app entry.
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      void Promise.all([
-        fetch(`/api/events?section=all&page=1&limit=20&locale=${locale}`, {
-          method: 'GET',
-          signal: controller.signal,
-          keepalive: true,
-        }),
-        fetch(`/api/events?section=relevant&page=1&limit=20&locale=${locale}`, {
-          method: 'GET',
-          signal: controller.signal,
-          keepalive: true,
-        }),
-      ]).catch(() => undefined);
-    }, 700);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [locale, shouldWarmEvents]);
 
   return (
     <header className="sticky top-0 z-50 bg-surface border-b border-border backdrop-blur">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from '@/navigation';
 import type { Entry } from '@/types';
 import EntryComments from '@/components/EntryComments';
@@ -9,6 +9,8 @@ import MatchDetail from '@/components/MatchDetail';
 import type { MatchData } from '@/lib/matches';
 import { useUser } from '@/hooks/useUser';
 import { useTranslations } from 'next-intl';
+import { getEntryTypePresentation } from '@/lib/entryTypePresentation';
+import { isPlaceholderEntryTitle } from '@/lib/entryDefaults';
 
 // Расширенный тип, включающий автора
 interface EntryWithUser extends Omit<Entry, 'users'> {
@@ -34,7 +36,7 @@ export function EntryClient({ entry, match }: EntryClientProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const isDream = entry.type === 'dream';
+  const typeBadge = useMemo(() => getEntryTypePresentation(entry.type, t), [entry.type, t]);
 
   // Точки интенсивности
   const renderIntensityDots = (intensity: number) => {
@@ -59,15 +61,13 @@ export function EntryClient({ entry, match }: EntryClientProps) {
       {/* Хедер записи */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <div className={`px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${
-            isDream ? 'bg-violet-500/15 text-violet-300 border-violet-500/30' : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-          }`}>
-            {isDream ? (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-            ) : (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-            )}
-            {isDream ? t('type.dream') : t('type.premonition')}
+          <div
+            className={`px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider inline-flex items-center gap-2 ${typeBadge.cls}`}
+          >
+            <span className="text-base leading-none normal-case" aria-hidden>
+              {typeBadge.icon}
+            </span>
+            {typeBadge.label}
           </div>
         </div>
 
@@ -83,8 +83,8 @@ export function EntryClient({ entry, match }: EntryClientProps) {
       <div className="border-b border-border pb-8 mb-8">
         <div className="flex justify-between items-start mb-4">
           <h1 className="text-2xl font-bold text-text-primary">
-            {entry.title.startsWith('Без заголовка') ? (
-              <span className="text-text-muted italic">{entry.title}</span>
+            {isPlaceholderEntryTitle(entry.title) ? (
+              <span className="text-text-muted italic">{t('placeholderTitle')}</span>
             ) : (
               entry.title
             )}
@@ -103,6 +103,13 @@ export function EntryClient({ entry, match }: EntryClientProps) {
         <p className="text-text-secondary text-base leading-relaxed whitespace-pre-wrap">
           {entry.content}
         </p>
+
+        {entry.user_insight && (
+          <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-text-secondary">
+            <span className="text-xs font-semibold text-primary uppercase tracking-wide">{t('userInsight')}</span>
+            <p className="mt-2 text-text-primary leading-relaxed whitespace-pre-wrap">{entry.user_insight}</p>
+          </div>
+        )}
 
         {entry.image_url && (
           // eslint-disable-next-line @next/next/no-img-element

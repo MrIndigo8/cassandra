@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function ArchivePage() {
   if (!(await isFeatureEnabled('archive'))) {
-    return <FeatureDisabled name="Архив" />;
+    return <FeatureDisabled navKey="archive" />;
   }
 
   const t = await getTranslations('archive');

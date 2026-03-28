@@ -21,6 +21,8 @@ export interface UserProfile {
   streak?: number | null;
   streak_count?: number | null;
   last_entry_date?: string | null;
+  consent_accepted_at?: string | null;
+  consent_version?: string | null;
 }
 
 /** Alias for backward-compatibility with useUser hook */
@@ -29,7 +31,18 @@ export type User = UserProfile;
 export interface Entry {
   id: string;
   user_id: string;
-  type: 'dream' | 'premonition' | 'unknown' | 'feeling' | 'vision';
+  type:
+    | 'dream'
+    | 'premonition'
+    | 'unknown'
+    | 'feeling'
+    | 'vision'
+    | 'anxiety'
+    | 'thought'
+    | 'deja_vu'
+    | 'sensation'
+    | 'mood'
+    | 'synchronicity';
   title: string;
   content: string;
   is_public: boolean;
@@ -62,7 +75,8 @@ export interface Entry {
   created_at: string;
   intensity?: number | null;
   prediction_potential?: number | null;
-  
+  user_insight?: string | null;
+
   // joined fields
   users?: UserProfile | null;
 }

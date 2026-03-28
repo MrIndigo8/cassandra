@@ -55,6 +55,7 @@ interface ProfileClientProps {
   nextRole: { nextRole: string; progress: number; hint: string } | null;
   typeCounts: Record<string, number>;
   isOwnProfile: boolean;
+  achievements: Array<{ id: string; icon: string; key: string }>;
 }
 
 function StatBox({ label, value }: { label: string; value: string | number }) {
@@ -138,6 +139,7 @@ export default function ProfileClient({
   nextRole,
   typeCounts,
   isOwnProfile,
+  achievements,
 }: ProfileClientProps) {
   const t = useTranslations('profile');
   const tRole = useTranslations('role');
@@ -385,6 +387,23 @@ export default function ProfileClient({
           value={profile.avg_lag_days != null ? `${profile.avg_lag_days.toFixed(0)}d` : '—'}
         />
       </div>
+
+      {achievements.length > 0 ? (
+        <div className="mt-6">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-2">{t('achievementsTitle')}</h3>
+          <div className="flex flex-wrap gap-2">
+            {achievements.map((a) => (
+              <span
+                key={a.id}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-surface/60 px-3 py-1.5 text-xs text-text-primary"
+              >
+                <span aria-hidden>{a.icon}</span>
+                {t(`achievements.${a.key}`)}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {nextRole && !['oracle', 'architect'].includes(profile.role) ? (
         <div className="mt-8 rounded-xl border border-border/50 bg-surface/60 p-5 sm:p-6 shadow-sm ring-1 ring-white/[0.03]">

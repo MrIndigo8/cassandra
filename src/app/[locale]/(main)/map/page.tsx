@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function MapPage() {
   if (!(await isFeatureEnabled('map'))) {
-    return <FeatureDisabled name="Карта" />;
+    return <FeatureDisabled navKey="map" />;
   }
   return <NoosphereClient />;
 }
