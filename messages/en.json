@@ -166,6 +166,8 @@
     "noMatchesYet": "No matches found yet. The system checks entries daily.",
     "noEntries": "You haven't recorded any signals yet. Time to start!",
     "noEntriesOther": "@{username} hasn't recorded any signals yet",
+    "entriesLoadHint": "Your stats show entries, but the list did not load. Try refreshing the page.",
+    "refreshPage": "Refresh page",
     "dominantSymbols": "Frequent symbols",
     "avgLagText": "Your predictions usually come true within {days} days",
     "specificityText": "Average specificity: {value}%",

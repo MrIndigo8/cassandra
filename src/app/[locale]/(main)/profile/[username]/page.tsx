@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createAdminClient, createServerSupabaseClient } from '@/lib/supabase/server';
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import ProfileClient from './ProfileClient';
@@ -58,12 +58,12 @@ export default async function ProfilePage({
 }: {
   params: { locale: string; username: string };
 }) {
-  const supabase = createServerSupabaseClient();
+  const authSb = createServerSupabaseClient();
   const {
     data: { user: currentUser },
-  } = await supabase.auth.getUser();
+  } = await authSb.auth.getUser();
 
-  const { data: profile, error } = await supabase.from('users').select('*').eq('username', params.username).single();
+  const { data: profile, error } = await authSb.from('users').select('*').eq('username', params.username).single();
 
   if (error || !profile) notFound();
 
@@ -74,7 +74,7 @@ export default async function ProfilePage({
   if (!isOwnProfile && p.is_public === false) {
     let isAdmin = false;
     if (currentUser) {
-      const { data: me } = await supabase.from('users').select('role').eq('id', currentUser.id).single();
+      const { data: me } = await authSb.from('users').select('role').eq('id', currentUser.id).single();
       isAdmin = ['architect', 'admin'].includes(String(me?.role || ''));
     }
     if (!isAdmin) {
@@ -82,7 +82,10 @@ export default async function ProfilePage({
     }
   }
 
-  let entriesQuery = supabase
+  // Service-role client: надёжная выборка в RSC (как лента); приватность задаём в коде.
+  const db = createAdminClient();
+
+  let entriesQuery = db
     .from('entries')
     .select(
       'id, type, title, content, image_url, is_verified, best_match_score, view_count, anxiety_score, threat_type, created_at, scope, prediction_potential, sensory_data, is_public'
@@ -92,12 +95,31 @@ export default async function ProfilePage({
     .limit(20);
 
   if (!isOwnProfile) {
-    entriesQuery = entriesQuery.eq('is_public', true);
+    entriesQuery = entriesQuery.or('is_public.eq.true,is_public.is.null');
   }
 
-  const { data: entries } = await entriesQuery;
+  const entriesResult = await entriesQuery;
+  let entries = entriesResult.data as Record<string, unknown>[] | null;
+  const entriesError = entriesResult.error;
 
-  const { data: matchesRaw } = await supabase
+  if (entriesError) {
+    console.error('[profile] entries select:', entriesError.message);
+    let fq = db
+      .from('entries')
+      .select(
+        'id, type, title, content, image_url, is_verified, best_match_score, view_count, created_at, prediction_potential, sensory_data, is_public'
+      )
+      .eq('user_id', p.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (!isOwnProfile) {
+      fq = fq.or('is_public.eq.true,is_public.is.null');
+    }
+    const fr = await fq;
+    entries = fr.data as Record<string, unknown>[] | null;
+  }
+
+  const { data: matchesRaw } = await db
     .from('matches')
     .select('*')
     .eq('user_id', p.id)
@@ -130,7 +152,7 @@ export default async function ProfilePage({
   const entryById: MatchEntryMap = {};
 
   if (entryIdsForMatches.length > 0) {
-    const { data: entryRows } = await supabase
+    const { data: entryRows } = await db
       .from('entries')
       .select('id, title, content, type, created_at, user_id, users:user_id (username, avatar_url, role, rating_score)')
       .in('id', entryIdsForMatches);
@@ -158,20 +180,23 @@ export default async function ProfilePage({
   }
 
   const verifiedIds = (entries || [])
-    .filter((e) => e.is_verified && e.best_match_score && e.best_match_score > 0.6)
-    .map((e) => e.id);
-  const rawEntryMatches = verifiedIds.length > 0 ? await getMatchesForEntries(verifiedIds, supabase) : [];
+    .filter((e) => {
+      const row = e as { is_verified?: boolean; best_match_score?: number | null };
+      return row.is_verified && row.best_match_score && row.best_match_score > 0.6;
+    })
+    .map((e) => String((e as { id: string }).id));
+  const rawEntryMatches = verifiedIds.length > 0 ? await getMatchesForEntries(verifiedIds, db) : [];
   const bestMap = bestMatchPerEntry(rawEntryMatches);
 
-  const entryIds = (entries || []).map((e) => e.id);
+  const entryIds = (entries || []).map((e) => String((e as { id: string }).id));
   const likesMap: Record<string, number> = {};
   const commentsMap: Record<string, number> = {};
   const userLikedMap: Record<string, boolean> = {};
 
   if (entryIds.length > 0) {
     const [{ data: likes }, { data: comments }] = await Promise.all([
-      supabase.from('reactions').select('entry_id').in('entry_id', entryIds).eq('emoji', 'like'),
-      supabase.from('comments').select('entry_id').in('entry_id', entryIds),
+      db.from('reactions').select('entry_id').in('entry_id', entryIds).eq('emoji', 'like'),
+      db.from('comments').select('entry_id').in('entry_id', entryIds),
     ]);
     for (const l of likes || []) {
       likesMap[l.entry_id] = (likesMap[l.entry_id] || 0) + 1;
@@ -180,7 +205,7 @@ export default async function ProfilePage({
       commentsMap[c.entry_id] = (commentsMap[c.entry_id] || 0) + 1;
     }
     if (currentUser) {
-      const { data: myLikes } = await supabase
+      const { data: myLikes } = await db
         .from('reactions')
         .select('entry_id')
         .in('entry_id', entryIds)
@@ -199,7 +224,7 @@ export default async function ProfilePage({
     String(p.role || 'observer')
   );
 
-  const { data: typeStats } = await supabase.from('entries').select('type').eq('user_id', p.id);
+  const { data: typeStats } = await db.from('entries').select('type').eq('user_id', p.id);
 
   const typeCounts: Record<string, number> = {};
   for (const e of typeStats || []) {

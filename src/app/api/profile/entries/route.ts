@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { createAdminClient, createServerSupabaseClient } from '@/lib/supabase/server';
 import { getMatchesForEntries, bestMatchPerEntry } from '@/lib/matches';
 import type { FeedEntry } from '@/components/EntryCard';
 
 export async function GET(req: Request) {
-  const supabase = createServerSupabaseClient();
+  const authSb = createServerSupabaseClient();
+  const db = createAdminClient();
   const url = new URL(req.url);
   const username = url.searchParams.get('username');
   const offset = Math.max(0, Number(url.searchParams.get('offset') || '0'));
@@ -16,9 +17,9 @@ export async function GET(req: Request) {
 
   const {
     data: { user: currentUser },
-  } = await supabase.auth.getUser();
+  } = await authSb.auth.getUser();
 
-  const { data: profile, error: profileError } = await supabase
+  const { data: profile, error: profileError } = await authSb
     .from('users')
     .select('id, username, avatar_url, role, rating_score, is_public')
     .eq('username', username)
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
   if (!isOwnProfile && profile.is_public === false) {
     let isAdmin = false;
     if (currentUser) {
-      const { data: me } = await supabase.from('users').select('role').eq('id', currentUser.id).single();
+      const { data: me } = await authSb.from('users').select('role').eq('id', currentUser.id).single();
       isAdmin = ['architect', 'admin'].includes(String(me?.role || ''));
     }
     if (!isAdmin) {
@@ -40,7 +41,7 @@ export async function GET(req: Request) {
     }
   }
 
-  let q = supabase
+  let q = db
     .from('entries')
     .select(
       'id, type, title, content, image_url, is_verified, best_match_score, view_count, prediction_potential, sensory_data, created_at'
@@ -50,7 +51,7 @@ export async function GET(req: Request) {
     .range(offset, offset + limit - 1);
 
   if (!isOwnProfile) {
-    q = q.eq('is_public', true);
+    q = q.or('is_public.eq.true,is_public.is.null');
   }
 
   const { data: entries, error } = await q;
@@ -66,8 +67,8 @@ export async function GET(req: Request) {
 
   if (entryIds.length > 0) {
     const [{ data: likes }, { data: comments }] = await Promise.all([
-      supabase.from('reactions').select('entry_id').in('entry_id', entryIds).eq('emoji', 'like'),
-      supabase.from('comments').select('entry_id').in('entry_id', entryIds),
+      db.from('reactions').select('entry_id').in('entry_id', entryIds).eq('emoji', 'like'),
+      db.from('comments').select('entry_id').in('entry_id', entryIds),
     ]);
     for (const l of likes || []) {
       likesMap[l.entry_id] = (likesMap[l.entry_id] || 0) + 1;
@@ -76,7 +77,7 @@ export async function GET(req: Request) {
       commentsMap[c.entry_id] = (commentsMap[c.entry_id] || 0) + 1;
     }
     if (currentUser) {
-      const { data: myLikes } = await supabase
+      const { data: myLikes } = await db
         .from('reactions')
         .select('entry_id')
         .in('entry_id', entryIds)
@@ -91,7 +92,7 @@ export async function GET(req: Request) {
   const verifiedIds = rows
     .filter((e) => e.is_verified && e.best_match_score && e.best_match_score > 0.6)
     .map((e) => e.id);
-  const rawEntryMatches = verifiedIds.length > 0 ? await getMatchesForEntries(verifiedIds, supabase) : [];
+  const rawEntryMatches = verifiedIds.length > 0 ? await getMatchesForEntries(verifiedIds, db) : [];
   const bestMap = bestMatchPerEntry(rawEntryMatches);
 
   const feedEntries: FeedEntry[] = rows.map((e) => {
