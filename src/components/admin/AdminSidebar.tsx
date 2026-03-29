@@ -1,6 +1,17 @@
 'use client';
 
-import { Shield, Users, FileText, Sparkles, Settings, ClipboardList, Brain, Map, LayoutDashboard } from 'lucide-react';
+import {
+  Shield,
+  Users,
+  FileText,
+  Sparkles,
+  Settings,
+  ClipboardList,
+  Brain,
+  Map,
+  LayoutDashboard,
+  Fingerprint,
+} from 'lucide-react';
 import { Link, usePathname } from '@/navigation';
 import { useTranslations } from 'next-intl';
 
@@ -24,6 +35,7 @@ export default function AdminSidebar({ role, username }: { role: string; usernam
       { href: '/admin/settings', navKey: 'settings' as const, icon: Settings, roles: ['architect', 'admin'] },
       { href: '/admin/audit', navKey: 'audit' as const, icon: ClipboardList, roles: ['architect', 'admin', 'moderator'] },
       { href: '/admin/ai', navKey: 'ai' as const, icon: Brain, roles: ['architect', 'admin'] },
+      { href: '/admin/psyche', navKey: 'psyche' as const, icon: Fingerprint, roles: ['architect', 'admin'] },
       { href: '/admin/map', navKey: 'map' as const, icon: Map, roles: ['architect', 'admin', 'moderator'] },
     ] as const
   ).filter((i) => i.roles.some((r) => r === role));

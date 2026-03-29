@@ -46,7 +46,62 @@
       "audit": "Audit log",
       "ai": "AI monitoring",
       "map": "Map (view)",
+      "psyche": "Psyche snapshots",
       "backToSite": "Back to site"
+    },
+    "psyche": {
+      "title": "Psyche snapshots",
+      "loading": "Loading…",
+      "globalTitle": "Global snapshot",
+      "cardAnxiety": "Anxiety (index)",
+      "cardArchetype": "Dominant archetype",
+      "cardBelief": "Dominant belief pattern",
+      "cardCountries": "Active countries",
+      "emotionSpectrum": "Emotional spectrum",
+      "regionalBeliefs": "Regional beliefs (sample)",
+      "coherenceTrend": "Coherence & anxiety (7d)",
+      "geoTitle": "Geo snapshots (6h)",
+      "modeTable": "Table",
+      "modeMap": "Map",
+      "mapColor": "Color by",
+      "mapMode": {
+        "archetype": "Archetypes",
+        "belief": "Beliefs",
+        "anxiety": "Anxiety"
+      },
+      "colCountry": "Country",
+      "colAnxiety": "Anxiety",
+      "colArchetype": "Archetype",
+      "colBelief": "Belief",
+      "colCoherence": "Coherence",
+      "colEntries": "Entries",
+      "colTrend": "Trend Δ",
+      "detailTitle": "Psyche snapshot",
+      "detailMeta": "Last 6h · {entries} entries · {users} people",
+      "emotionProfile": "Emotional profile",
+      "archetypeProfile": "Archetype distribution",
+      "beliefDominant": "Dominant belief",
+      "symbols": "Dominant symbols",
+      "entryTypes": "Entry types",
+      "trend7d": "7d trend (windows)",
+      "belief": {
+        "quest": "Quest",
+        "chase": "Escape",
+        "transformation": "Transformation",
+        "loss": "Loss",
+        "conflict": "Conflict",
+        "destruction": "Destruction",
+        "discovery": "Discovery",
+        "creation": "Creation",
+        "observation": "Observation",
+        "reflection": "Reflection",
+        "reunion": "Reunion",
+        "fragmented": "Fragmented"
+      }
+    },
+    "settings": {
+      "researchPortal": "Research Portal (public API — future)",
+      "researchPortalHint": "When enabled, a public research API can be exposed later."
     },
     "dashboard": {
       "title": "Admin",
@@ -548,5 +603,42 @@
     "lag": "Came true after {days} days",
     "source": "Source:",
     "empty": "No cases found."
+  },
+  "socialForecast": {
+    "title": "Socio-political likelihoods",
+    "drivers": "Drivers",
+    "confidence": "Confidence",
+    "trend": "Trend",
+    "rising": "Rising",
+    "falling": "Falling",
+    "stable": "Stable",
+    "states": {
+      "STABILITY": "Stability",
+      "REFORM_MOMENTUM": "Reform momentum",
+      "SOCIAL_TENSION": "Social tension",
+      "PROTEST_RISK": "Protest risk",
+      "CIVIL_UNREST": "Civil unrest",
+      "AUTHORITARIAN_GRIP": "Authoritarian grip",
+      "COLLECTIVE_GRIEF": "Collective grief",
+      "APATHY": "Apathy",
+      "POLARIZATION": "Polarization",
+      "HOPE_RENEWAL": "Hope and renewal",
+      "ECONOMIC_ANXIETY": "Economic anxiety",
+      "WAR_FOREBODING": "War foreboding"
+    },
+    "descriptions": {
+      "STABILITY": "Society is relatively satisfied; low conflict tone.",
+      "REFORM_MOMENTUM": "Society seeks peaceful change.",
+      "SOCIAL_TENSION": "Discontent is rising; conflict is brewing.",
+      "PROTEST_RISK": "Higher likelihood of mass action.",
+      "CIVIL_UNREST": "Risk of widespread unrest or violence.",
+      "AUTHORITARIAN_GRIP": "Fear and submission dominate; anger is suppressed.",
+      "COLLECTIVE_GRIEF": "Mass sense of loss.",
+      "APATHY": "Widespread disengagement.",
+      "POLARIZATION": "Society is split; opposition intensifies.",
+      "HOPE_RENEWAL": "Rising optimism and creative energy.",
+      "ECONOMIC_ANXIETY": "Fear of loss and material instability.",
+      "WAR_FOREBODING": "Collective sense of impending conflict."
+    }
   }
 }

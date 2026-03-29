@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import FeatureToggle from '@/components/admin/FeatureToggle';
 
 type SettingRow = { key: string; value: { enabled?: boolean; [k: string]: unknown } };
 
 export default function AdminSettingsClient() {
+  const t = useTranslations('admin.settings');
   const [settings, setSettings] = useState<SettingRow[]>([]);
 
   const load = async () => {
@@ -30,6 +32,7 @@ export default function AdminSettingsClient() {
   };
 
   const featureRows = settings.filter((s) => s.key.startsWith('features.'));
+  const researchEnabled = settings.find((s) => s.key === 'research_portal.enabled');
 
   return (
     <div className="space-y-4">
@@ -47,6 +50,17 @@ export default function AdminSettingsClient() {
           ))}
         </div>
       </div>
+      {researchEnabled ? (
+        <div className="card border-border p-4">
+          <h2 className="mb-3 text-lg font-semibold text-text-primary">Research</h2>
+          <FeatureToggle
+            label={t('researchPortal')}
+            description={t('researchPortalHint')}
+            enabled={Boolean(researchEnabled.value?.enabled)}
+            onToggle={(enabled) => void setFlag('research_portal.enabled', enabled)}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

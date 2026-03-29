@@ -46,7 +46,62 @@
       "audit": "Аудит-лог",
       "ai": "AI мониторинг",
       "map": "Карта (просмотр)",
+      "psyche": "Снимки подсознания",
       "backToSite": "Вернуться на сайт"
+    },
+    "psyche": {
+      "title": "Психологические снимки",
+      "loading": "Загрузка…",
+      "globalTitle": "Глобальный снимок",
+      "cardAnxiety": "Тревожность (индекс)",
+      "cardArchetype": "Доминантный архетип",
+      "cardBelief": "Доминантный нарратив",
+      "cardCountries": "Активных стран",
+      "emotionSpectrum": "Эмоциональный спектр",
+      "regionalBeliefs": "Царящие убеждения по регионам (выборка)",
+      "coherenceTrend": "Когерентность и тревожность (7 дн.)",
+      "geoTitle": "Геоснимки (6 ч)",
+      "modeTable": "Таблица",
+      "modeMap": "Карта",
+      "mapColor": "Раскраска",
+      "mapMode": {
+        "archetype": "Архетипы",
+        "belief": "Убеждения",
+        "anxiety": "Тревожность"
+      },
+      "colCountry": "Страна",
+      "colAnxiety": "Тревога",
+      "colArchetype": "Архетип",
+      "colBelief": "Убеждение",
+      "colCoherence": "Когерентн.",
+      "colEntries": "Записей",
+      "colTrend": "Тренд Δ",
+      "detailTitle": "Психоснимок",
+      "detailMeta": "Последние 6 ч · {entries} записей · {users} человек",
+      "emotionProfile": "Эмоциональный профиль",
+      "archetypeProfile": "Распределение архетипов",
+      "beliefDominant": "Царящее убеждение",
+      "symbols": "Доминантные символы",
+      "entryTypes": "Типы записей",
+      "trend7d": "Тренд 7 дней (окна)",
+      "belief": {
+        "quest": "Поиск",
+        "chase": "Бегство",
+        "transformation": "Трансформация",
+        "loss": "Потеря",
+        "conflict": "Конфликт",
+        "destruction": "Разрушение",
+        "discovery": "Открытие",
+        "creation": "Созидание",
+        "observation": "Наблюдение",
+        "reflection": "Рефлексия",
+        "reunion": "Воссоединение",
+        "fragmented": "Фрагментировано"
+      }
+    },
+    "settings": {
+      "researchPortal": "Research Portal (публичный API — позже)",
+      "researchPortalHint": "После включения можно будет открыть публичный API исследований."
     },
     "dashboard": {
       "title": "Админ-панель",
@@ -548,5 +603,42 @@
     "lag": "Сбылось через {days} дней",
     "source": "Источник:",
     "empty": "Случаи не найдены."
+  },
+  "socialForecast": {
+    "title": "Социально-политические вероятности",
+    "drivers": "Драйверы",
+    "confidence": "Достоверность",
+    "trend": "Тренд",
+    "rising": "Растёт",
+    "falling": "Падает",
+    "stable": "Стабильно",
+    "states": {
+      "STABILITY": "Стабильность",
+      "REFORM_MOMENTUM": "Импульс реформ",
+      "SOCIAL_TENSION": "Социальное напряжение",
+      "PROTEST_RISK": "Риск протестов",
+      "CIVIL_UNREST": "Гражданские беспорядки",
+      "AUTHORITARIAN_GRIP": "Авторитарный контроль",
+      "COLLECTIVE_GRIEF": "Коллективная скорбь",
+      "APATHY": "Апатия",
+      "POLARIZATION": "Поляризация",
+      "HOPE_RENEWAL": "Надежда и обновление",
+      "ECONOMIC_ANXIETY": "Экономическая тревога",
+      "WAR_FOREBODING": "Предчувствие войны"
+    },
+    "descriptions": {
+      "STABILITY": "Общество удовлетворено, низкий уровень конфликтности",
+      "REFORM_MOMENTUM": "Общество хочет перемен мирным путём",
+      "SOCIAL_TENSION": "Растёт недовольство, назревает конфликт",
+      "PROTEST_RISK": "Высокая вероятность массовых выступлений",
+      "CIVIL_UNREST": "Риск массовых беспорядков и насилия",
+      "AUTHORITARIAN_GRIP": "Страх и подчинение доминируют, гнев подавлен",
+      "COLLECTIVE_GRIEF": "Общество переживает массовую потерю",
+      "APATHY": "Массовое безразличие и отстранённость",
+      "POLARIZATION": "Общество расколото, нарастает противостояние",
+      "HOPE_RENEWAL": "Подъём оптимизма и созидательной энергии",
+      "ECONOMIC_ANXIETY": "Массовый страх потери и материальная нестабильность",
+      "WAR_FOREBODING": "Массовое предчувствие военного конфликта"
+    }
   }
 }
