@@ -22,8 +22,7 @@ import {
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
 import { useTranslations } from 'next-intl';
 import { format, parseISO } from 'date-fns';
-
-const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
+import { COUNTRY_NAME_TO_ISO, WORLD_ATLAS_GEO_URL, isoToFlag } from '@/lib/geo/worldMap';
 
 type GeoSnap = {
   id: string;
@@ -67,11 +66,6 @@ type GlobalSnap = {
   total_entries: number;
   total_users: number;
 };
-
-function isoToFlag(iso: string): string {
-  if (!/^[A-Z]{2}$/.test(iso)) return '🏳️';
-  return String.fromCodePoint(iso.charCodeAt(0) + 127397, iso.charCodeAt(1) + 127397);
-}
 
 function anxietyColor(v: number | null): string {
   if (v == null) return 'text-text-muted';
@@ -476,7 +470,7 @@ export default function PsycheDashboard() {
             <div className="h-[420px] w-full overflow-hidden rounded-xl border border-border/40">
               <ComposableMap projectionConfig={{ scale: 140 }} width={800} height={420}>
                 <ZoomableGroup center={[20, 30]} zoom={0.8}>
-                  <Geographies geography={GEO_URL}>
+                  <Geographies geography={WORLD_ATLAS_GEO_URL}>
                     {({ geographies }) =>
                       geographies.map((geoG) => {
                         const iso = COUNTRY_NAME_TO_ISO[geoG.properties.name as string];
@@ -512,11 +506,11 @@ export default function PsycheDashboard() {
       {/* Detail panel */}
       {selectedIso && countryDetail ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal
         >
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border/40 bg-surface p-6 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border/40 bg-surface/95 p-6 shadow-2xl ring-1 ring-white/10">
             <div className="mb-4 flex justify-between gap-2">
               <h3 className="text-lg font-semibold text-text-primary">
                 {isoToFlag(selectedIso)} {selectedIso} — {t('detailTitle')}
@@ -669,39 +663,3 @@ export default function PsycheDashboard() {
     </div>
   );
 }
-
-const COUNTRY_NAME_TO_ISO: Record<string, string> = {
-  Russia: 'RU',
-  'United States of America': 'US',
-  China: 'CN',
-  India: 'IN',
-  Brazil: 'BR',
-  Germany: 'DE',
-  France: 'FR',
-  'United Kingdom': 'GB',
-  Italy: 'IT',
-  Spain: 'ES',
-  Ukraine: 'UA',
-  Turkey: 'TR',
-  Iran: 'IR',
-  Israel: 'IL',
-  Japan: 'JP',
-  Canada: 'CA',
-  Australia: 'AU',
-  Mexico: 'MX',
-  Argentina: 'AR',
-  'South Africa': 'ZA',
-  Egypt: 'EG',
-  'Saudi Arabia': 'SA',
-  Iraq: 'IQ',
-  Syria: 'SY',
-  Afghanistan: 'AF',
-  Pakistan: 'PK',
-  Indonesia: 'ID',
-  'South Korea': 'KR',
-  Poland: 'PL',
-  Netherlands: 'NL',
-  Belgium: 'BE',
-  Sweden: 'SE',
-  Norway: 'NO',
-};
