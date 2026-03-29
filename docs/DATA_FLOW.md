@@ -24,7 +24,7 @@
 - **`/api/reality-snapshot`** — снимок «реальности» в **`reality_snapshots`**.
 - Параллельно: **`/api/cluster`**, и т.д.
 
-Отдельно по расписанию Vercel: **`POST /api/admin/generate-snapshots`** — агрегация по **`deep_analysis`** + **`entries`** → **`geo_snapshots`**, при условиях → **`global_snapshots`**.
+**`POST /api/admin/generate-snapshots`** (тот же `CRON_SECRET`) вызывается из оркестратора **`/api/cron`** раз в сутки — на **Vercel Hobby** разрешён только один cron job в день, отдельное расписание каждые 6 часов недоступно. На **Pro** при желании можно вынести снимки в отдельный cron с более частым графиком. Агрегация: **`deep_analysis`** + **`entries`** → **`geo_snapshots`**, при условиях → **`global_snapshots`** (не чаще одной строки на календарный день).
 
 ## 4. Где что хранится (кратко)
 

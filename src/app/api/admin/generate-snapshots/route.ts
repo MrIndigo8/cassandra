@@ -164,17 +164,14 @@ export async function POST(request: Request) {
   }
 
   let globalGenerated = false;
-  const hour = now.getUTCHours();
+  const today = now.toISOString().split('T')[0]!;
+  const { data: existingGlobal } = await supabase
+    .from('global_snapshots')
+    .select('id')
+    .eq('snapshot_date', today)
+    .maybeSingle();
 
-  if (hour >= 3 && hour < 9) {
-    const today = now.toISOString().split('T')[0]!;
-    const { data: existing } = await supabase
-      .from('global_snapshots')
-      .select('id')
-      .eq('snapshot_date', today)
-      .maybeSingle();
-
-    if (!existing) {
+  if (!existingGlobal) {
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const { data: geoSnaps } = await supabase
         .from('geo_snapshots')
@@ -305,7 +302,6 @@ export async function POST(request: Request) {
 
         globalGenerated = true;
       }
-    }
   }
 
   return NextResponse.json({

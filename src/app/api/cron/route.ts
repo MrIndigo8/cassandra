@@ -95,6 +95,11 @@ async function runCron(request: Request) {
   const tailResults = await Promise.all(CRON_PARALLEL_TAIL.map((step) => runStep(appUrl, cronSecret, step)));
   results.push(...tailResults);
 
+  const snapshotResult = await runStep(appUrl, cronSecret, {
+    path: '/api/admin/generate-snapshots',
+  });
+  results.push(snapshotResult);
+
   return NextResponse.json({
     ok: results.every((r) => r.ok),
     durationMs: Date.now() - startedAt,
