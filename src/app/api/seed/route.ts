@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// We use service role key to bypass RLS for seeding
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+export const dynamic = 'force-dynamic';
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Lazy init — avoid crash at build time when env vars are absent
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 const historicalCases = [
   {
@@ -181,6 +185,7 @@ const historicalCases = [
 ];
 
 export async function GET() {
+  const supabase = getSupabase();
   const results = [];
   try {
     // Delete old cases to prevent duplicate seeds

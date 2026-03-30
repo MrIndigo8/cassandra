@@ -64,7 +64,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang={locale} className="dark">
+    <html lang={locale} className="dark" suppressHydrationWarning>
       <body className={`${inter.variable} ${spaceGrotesk.variable} ${jetBrainsMono.variable} font-sans`}>
         <NextIntlClientProvider messages={messages} locale={locale}>
           <AuthProvider>{children}</AuthProvider>

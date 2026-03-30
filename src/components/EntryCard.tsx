@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { enUS, ru } from 'date-fns/locale';
 import { useLocale, useTranslations } from 'next-intl';
@@ -81,7 +81,7 @@ function avatarColor(username: string): string {
   return colors[hash % colors.length];
 }
 
-export function EntryCard({
+export const EntryCard = memo(function EntryCard({
   entry,
   user,
   likes_count,
@@ -202,7 +202,7 @@ export function EntryCard({
         {entry.image_url && (
           <div className="mt-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={entry.image_url} alt="" className="rounded-xl max-h-64 w-full object-cover" />
+            <img src={entry.image_url} alt="" loading="lazy" className="rounded-xl max-h-64 w-full object-cover" />
           </div>
         )}
 
@@ -259,4 +259,4 @@ export function EntryCard({
       )}
     </article>
   );
-}
+});

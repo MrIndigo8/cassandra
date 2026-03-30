@@ -17,13 +17,37 @@ export interface SpamResult {
   reason: string;
 }
 
+// In-memory burst rate limiter (per-process, resets on deploy)
+const burstMap = new Map<string, number[]>();
+const BURST_WINDOW_MS = 60_000; // 1 minute
+const BURST_MAX = 5; // max 5 entries per minute
+
+function checkBurstRate(userId: string): boolean {
+  const now = Date.now();
+  const timestamps = (burstMap.get(userId) || []).filter((t) => now - t < BURST_WINDOW_MS);
+  if (timestamps.length >= BURST_MAX) return true; // rate limited
+  timestamps.push(now);
+  burstMap.set(userId, timestamps);
+  return false;
+}
+
 /**
  * Антиспам-проверка записи перед сохранением.
- * Проверки: частота → длина → карантин → Claude спам-детектор.
+ * Проверки: burst → частота → длина → карантин → Claude спам-детектор (async/quarantine).
  */
 export async function checkSpam(userId: string, content: string): Promise<SpamResult> {
   if (!supabaseUrl || !supabaseServiceKey) {
     return { isSpam: false, isQuarantine: false, spamScore: 0, reason: '' };
+  }
+
+  // === Проверка 0: burst rate (in-memory, мгновенная) ===
+  if (checkBurstRate(userId)) {
+    return {
+      isSpam: true,
+      isQuarantine: false,
+      spamScore: 1.0,
+      reason: 'Слишком быстро. Подождите минуту перед следующей записью.',
+    };
   }
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -82,52 +106,13 @@ export async function checkSpam(userId: string, content: string): Promise<SpamRe
     }
   }
 
-  // === Проверка 4: Claude спам-детектор ===
+  // === Проверка 4: Claude спам-детектор (deferred — quarantine вместо блокировки) ===
+  // Запускаем асинхронно, не блокируя создание записи.
+  // Если Claude определит спам — запись будет помечена в карантин после сохранения.
   if (anthropic) {
-    try {
-      const response = await anthropic.messages.create({
-        model: getModel('utility'),
-        max_tokens: 256,
-        temperature: 0.1,
-        system: SPAM_DETECTION_PROMPT,
-        messages: [{ role: 'user', content: `Текст: ${content}` }],
-      });
-
-      const responseText = response.content.find(b => b.type === 'text')?.text;
-      if (responseText) {
-        const cleaned = responseText.replace(/```json\s*|```\s*/g, '').trim();
-        const parsed = JSON.parse(cleaned) as {
-          spam_score?: number;
-          is_suspicious?: boolean;
-          flags?: string[];
-        };
-        const claudeScore = Math.min(1, Math.max(0, Number(parsed.spam_score) || 0));
-        const suspicious = parsed.is_suspicious === true;
-        const flags = Array.isArray(parsed.flags) ? parsed.flags : [];
-
-        // Смягчённо: раньше резали при score>0.7 или любом is_suspicious — много ложных отказов на снах.
-        // Блокируем только явный спам или сочетание «подозрительно» + высокий score.
-        const hardBlock = claudeScore > 0.9;
-        const softBlock = suspicious && claudeScore > 0.85;
-        const onlySoftFlags =
-          flags.length > 0 &&
-          flags.every((f) => f === 'too_generic' || f === 'suspicious_pattern') &&
-          claudeScore < 0.82;
-
-        if ((hardBlock || softBlock) && !onlySoftFlags) {
-          console.log(`[AntiSpam] Claude флаг: score=${claudeScore}, flags=${flags}, suspicious=${suspicious}`);
-          return {
-            isSpam: true,
-            isQuarantine,
-            spamScore: claudeScore,
-            reason: `Запись отклонена системой качества: ${flags.join(', ') || 'подозрительный паттерн'}`,
-          };
-        }
-      }
-    } catch (err) {
-      console.error('[AntiSpam] Ошибка Claude спам-детектора:', err);
-      // Не блокируем запись при ошибке Claude
-    }
+    deferredClaudeCheck(userId, content).catch((err) =>
+      console.error('[AntiSpam] Deferred Claude check error:', err)
+    );
   }
 
   return {
@@ -136,4 +121,52 @@ export async function checkSpam(userId: string, content: string): Promise<SpamRe
     spamScore: 0,
     reason: '',
   };
+}
+
+/**
+ * Асинхронная проверка через Claude — не блокирует POST.
+ * При обнаружении спама помечает последнюю запись пользователя в карантин.
+ */
+async function deferredClaudeCheck(userId: string, content: string): Promise<void> {
+  if (!anthropic) return;
+
+  const response = await anthropic.messages.create({
+    model: getModel('utility'),
+    max_tokens: 256,
+    temperature: 0.1,
+    system: SPAM_DETECTION_PROMPT,
+    messages: [{ role: 'user', content: `Текст: ${content}` }],
+  });
+
+  const responseText = response.content.find((b) => b.type === 'text')?.text;
+  if (!responseText) return;
+
+  const cleaned = responseText.replace(/```json\s*|```\s*/g, '').trim();
+  const parsed = JSON.parse(cleaned) as {
+    spam_score?: number;
+    is_suspicious?: boolean;
+    flags?: string[];
+  };
+  const claudeScore = Math.min(1, Math.max(0, Number(parsed.spam_score) || 0));
+  const suspicious = parsed.is_suspicious === true;
+  const flags = Array.isArray(parsed.flags) ? parsed.flags : [];
+
+  const hardBlock = claudeScore > 0.9;
+  const softBlock = suspicious && claudeScore > 0.85;
+  const onlySoftFlags =
+    flags.length > 0 &&
+    flags.every((f) => f === 'too_generic' || f === 'suspicious_pattern') &&
+    claudeScore < 0.82;
+
+  if ((hardBlock || softBlock) && !onlySoftFlags) {
+    console.log(`[AntiSpam] Claude deferred flag: score=${claudeScore}, flags=${flags}`);
+    // Quarantine the user's most recent entry with this content
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    await supabase
+      .from('entries')
+      .update({ is_quarantine: true })
+      .eq('user_id', userId)
+      .eq('content', content)
+      .is('ai_analyzed_at', null);
+  }
 }

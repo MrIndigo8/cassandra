@@ -1,8 +1,17 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import PsycheDashboard from './PsycheDashboard';
+import dynamic from 'next/dynamic';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const PsycheDashboard = dynamic(() => import('./PsycheDashboard'), {
+  loading: () => (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="animate-pulse text-text-secondary">Загрузка дашборда...</div>
+    </div>
+  ),
+  ssr: false,
+});
 
 export default async function AdminPsychePage() {
   const supabase = createServerSupabaseClient();

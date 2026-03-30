@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto';
 import { NextResponse } from 'next/server';
 
 /**
@@ -19,7 +20,13 @@ export function verifyCronAuth(request: Request): boolean {
     return false;
   }
 
-  return auth === `Bearer ${cronSecret}`;
+  if (!auth) return false;
+
+  const expected = `Bearer ${cronSecret}`;
+
+  if (auth.length !== expected.length) return false;
+
+  return timingSafeEqual(Buffer.from(auth), Buffer.from(expected));
 }
 
 /**

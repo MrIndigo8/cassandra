@@ -85,18 +85,18 @@ async function processOneEntry(
   return applyClaudeAnalysisToEntry(supabaseAdmin, entry, analysis);
 }
 
-/** Снижает гонку: другой воркер мог уже выставить ai_analyzed_at (например POST sync). */
-async function entryStillUnanalyzed(
+/** Batch check: returns Set of entry IDs that are still unanalyzed. */
+async function getStillUnanalyzedIds(
   supabaseAdmin: SupabaseClient,
-  entryId: string
-): Promise<boolean> {
+  entryIds: string[]
+): Promise<Set<string>> {
+  if (entryIds.length === 0) return new Set();
   const { data } = await supabaseAdmin
     .from('entries')
     .select('id')
-    .eq('id', entryId)
-    .is('ai_analyzed_at', null)
-    .maybeSingle();
-  return Boolean(data);
+    .in('id', entryIds)
+    .is('ai_analyzed_at', null);
+  return new Set((data || []).map((r) => r.id));
 }
 
 /**
@@ -133,9 +133,12 @@ export async function runAnalysisForEntryIds(entryIds: string[]): Promise<{ proc
 
   let processedCount = 0;
 
+  // Pre-check: single query instead of per-entry check
+  let unanalyzedIds = await getStillUnanalyzedIds(supabaseAdmin, entries.map((e) => e.id));
+
   for (const entry of entries) {
     try {
-      if (!(await entryStillUnanalyzed(supabaseAdmin, entry.id))) continue;
+      if (!unanalyzedIds.has(entry.id)) continue;
 
       const analysis = await analyzeEntry(
         entry.content,
@@ -145,7 +148,9 @@ export async function runAnalysisForEntryIds(entryIds: string[]): Promise<{ proc
         entry.quality
       );
       if (analysis) {
-        if (!(await entryStillUnanalyzed(supabaseAdmin, entry.id))) continue;
+        // Re-check before write (single query for remaining entries)
+        unanalyzedIds = await getStillUnanalyzedIds(supabaseAdmin, [entry.id]);
+        if (!unanalyzedIds.has(entry.id)) continue;
         const ok = await processOneEntry(supabaseAdmin, entry, analysis);
         if (ok) processedCount++;
       }
@@ -192,9 +197,12 @@ export async function runAnalysis(): Promise<{ processed: number }> {
 
     let processedCount = 0;
 
+    // Pre-check: single query instead of per-entry check
+    let unanalyzedIds = await getStillUnanalyzedIds(supabaseAdmin, entries.map((e) => e.id));
+
     for (const entry of entries) {
       try {
-        if (!(await entryStillUnanalyzed(supabaseAdmin, entry.id))) continue;
+        if (!unanalyzedIds.has(entry.id)) continue;
 
         const analysis = await analyzeEntry(
           entry.content,
@@ -205,7 +213,9 @@ export async function runAnalysis(): Promise<{ processed: number }> {
         );
 
         if (analysis) {
-          if (!(await entryStillUnanalyzed(supabaseAdmin, entry.id))) continue;
+          // Re-check before write
+          unanalyzedIds = await getStillUnanalyzedIds(supabaseAdmin, [entry.id]);
+          if (!unanalyzedIds.has(entry.id)) continue;
           const ok = await processOneEntry(supabaseAdmin, entry, analysis);
           if (ok) processedCount++;
         }

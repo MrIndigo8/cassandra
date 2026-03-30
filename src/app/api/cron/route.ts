@@ -4,6 +4,8 @@ import { verifyCronAuth, unauthorizedResponse } from '@/lib/auth/verifyCron';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
+const STEP_TIMEOUT_MS = 55_000; // 55s per step (leave margin within 300s total)
+
 type CronStep = {
   path: string;
   critical?: boolean;
@@ -27,27 +29,42 @@ async function runStep(
   cronSecret: string,
   step: CronStep
 ): Promise<{ path: string; ok: boolean; status: number; body: unknown }> {
-  const response = await fetch(`${appUrl}${step.path}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${cronSecret}`,
-    },
-    cache: 'no-store',
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), STEP_TIMEOUT_MS);
 
-  let body: unknown = null;
   try {
-    body = await response.json();
-  } catch {
-    body = null;
-  }
+    const response = await fetch(`${appUrl}${step.path}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${cronSecret}`,
+      },
+      cache: 'no-store',
+      signal: controller.signal,
+    });
 
-  return {
-    path: step.path,
-    ok: response.ok,
-    status: response.status,
-    body,
-  };
+    let body: unknown = null;
+    try {
+      body = await response.json();
+    } catch {
+      body = null;
+    }
+
+    return {
+      path: step.path,
+      ok: response.ok,
+      status: response.status,
+      body,
+    };
+  } catch (err) {
+    return {
+      path: step.path,
+      ok: false,
+      status: 0,
+      body: { error: err instanceof Error ? err.message : 'timeout' },
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function runCron(request: Request) {

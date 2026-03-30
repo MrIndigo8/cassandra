@@ -4,10 +4,12 @@ import { CLUSTER_SIGNAL_PROMPT } from '../claude/prompts';
 import { fetchAllEvents } from '../news';
 import { getModel } from '../claude/models';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 const anthropic = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({
@@ -40,7 +42,9 @@ export async function runClustering(): Promise<{ clusters_found: number; anomali
   const fortyEightHoursAgo = new Date();
   fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48);
 
-  const { data: recentEntries, error: recentError } = await supabase
+  const supabaseAdmin = getSupabaseAdmin();
+
+  const { data: recentEntries, error: recentError } = await supabaseAdmin
     .from('entries')
     .select('id, user_id, ai_images, ai_emotions, ai_geography, ip_geography, ip_country_code, timeframe')
     .gte('created_at', fortyEightHoursAgo.toISOString())
@@ -80,7 +84,7 @@ export async function runClustering(): Promise<{ clusters_found: number; anomali
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const { data: baselineEntries, error: baselineError } = await supabase
+  const { data: baselineEntries, error: baselineError } = await supabaseAdmin
     .from('entries')
     .select('ai_images')
     .gte('created_at', thirtyDaysAgo.toISOString())
@@ -102,38 +106,55 @@ export async function runClustering(): Promise<{ clusters_found: number; anomali
   }
 
   // 4. Ищем аномалии
-  for (const [image, currentData] of significantImages) {
-    // Рассчитываем норму (baseline) для 48 часов на основе 30-дневной статистики
-    // 30 дней = 15 периодов по 48 часов
-    const baseline48h = Math.max(1, (baselineCounts[image] || 0) / 15);
+  // Pre-fetch events once (not per-cluster)
+  let cachedEvents: Awaited<ReturnType<typeof fetchAllEvents>> | null = null;
 
-    // Аномалия: рост в X раз
+  // Collect anomalies first, then batch AI calls (max 5 concurrent)
+  const anomalies: Array<{
+    image: string;
+    currentData: typeof imageCounts[string];
+    baseline48h: number;
+    anomalyFactor: number;
+    intensityScore: number;
+    clusterId: string;
+  }> = [];
+
+  for (const [image, currentData] of significantImages) {
+    const baseline48h = Math.max(1, (baselineCounts[image] || 0) / 15);
     const anomalyFactor = currentData.count / baseline48h;
 
-
-
-    // Если текущих упоминаний больше 2 и рост более 2x от нормы
     if (currentData.count > 2 && anomalyFactor > 2.0) {
-      // Это аномальный кластер!
       anomaliesFound++;
-
-      // Расчет intensity_score = (current / baseline) * log(unique_users + 1)
       const intensityScore = anomalyFactor * Math.log(currentData.users.size + 1);
+      const clusterId = `cluster_${image.toLowerCase().replace(/[^a-z0-9а-яё]/g, '_')}`;
 
       if (process.env.NODE_ENV !== 'production') console.info(`[Clustering] АНОМАЛИЯ обнаружена! Интенсивность: ${intensityScore.toFixed(2)}`);
 
-      // Генерация ID кластера на основе базового образа (slugify)
-      const clusterId = `cluster_${image.toLowerCase().replace(/[^a-z0-9а-яё]/g, '_')}`;
+      anomalies.push({ image, currentData, baseline48h, anomalyFactor, intensityScore, clusterId });
+    }
+  }
 
-      // Если интенсивность > 2.0, подключаем ИИ для прогноза
-      let aiAnalysis: ClusterAIResult | null = null;
-      if (intensityScore > 2.0 && anthropic) {
+  // Process anomalies in batches of 5 to avoid Claude API timeout
+  const AI_BATCH_SIZE = 5;
+  for (let i = 0; i < anomalies.length; i += AI_BATCH_SIZE) {
+    const batch = anomalies.slice(i, i + AI_BATCH_SIZE);
 
-        aiAnalysis = await analyzeClusterWithAI(image, currentData, baseline48h, anomalyFactor, recentEntries);
-      }
+    const results = await Promise.all(
+      batch.map(async (a) => {
+        let aiAnalysis: ClusterAIResult | null = null;
+        if (a.intensityScore > 2.0 && anthropic) {
+          // Lazy-load events once
+          if (!cachedEvents) {
+            cachedEvents = await fetchAllEvents(3);
+          }
+          aiAnalysis = await analyzeClusterWithAI(a.image, a.currentData, a.baseline48h, a.anomalyFactor, recentEntries, cachedEvents);
+        }
+        return { ...a, aiAnalysis };
+      })
+    );
 
-      // Сохраняем в БД
-      await saveCluster(clusterId, image, currentData, baseline48h, anomalyFactor, intensityScore, aiAnalysis, recentEntries);
+    for (const r of results) {
+      await saveCluster(r.clusterId, r.image, r.currentData, r.baseline48h, r.anomalyFactor, r.intensityScore, r.aiAnalysis, recentEntries);
     }
   }
 
@@ -147,7 +168,8 @@ async function analyzeClusterWithAI(
   data: { count: number; users: Set<string>; entryIds: string[] },
   baseline: number,
   anomalyFactor: number,
-  allEntries: { id: string; ai_geography: string | null; ip_geography: string | null; ip_country_code: string | null; timeframe: string | null }[]
+  allEntries: { id: string; ai_geography: string | null; ip_geography: string | null; ip_country_code: string | null; timeframe: string | null }[],
+  prefetchedEvents?: Awaited<ReturnType<typeof fetchAllEvents>>
 ): Promise<ClusterAIResult | null> {
   try {
     // Собираем контекст из записей этого кластера
@@ -164,8 +186,8 @@ async function analyzeClusterWithAI(
       return acc;
     }, {} as Record<string, number>);
 
-    // Получаем текущие мировые события
-    const events = await fetchAllEvents(3); // события за последние 3 дня
+    // Используем предзагруженные события или загружаем новые
+    const events = prefetchedEvents ?? await fetchAllEvents(3);
     const eventsContext = events.map(e => `- ${e.title} (${e.geography || 'мир'})`).slice(0, 10).join('\n');
 
     const prompt = CLUSTER_SIGNAL_PROMPT
@@ -291,7 +313,7 @@ async function saveCluster(
     geography_data: Object.keys(geographyData).length > 0 ? geographyData : null,
   };
 
-  const { error } = await supabase
+  const { error } = await getSupabaseAdmin()
     .from('clusters')
     .upsert(clusterData, { onConflict: 'id' });
 

@@ -137,44 +137,9 @@ export async function POST(req: Request) {
       await supabase.from('notifications').insert(reminderRows);
     }
 
-    // 4. Инкремент total_entries + streak система (новые поля streak_count/last_entry_date)
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('total_entries, streak_count, last_entry_date')
-      .eq('id', user.id)
-      .single();
-
-    if (!userError && userData) {
-      const currentStreak = Number(userData.streak_count || 0);
-      let newStreak = currentStreak;
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-      if (userData.last_entry_date) {
-        const lastDate = new Date(userData.last_entry_date);
-        const lastDay = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
-        const diffDays = Math.floor((today.getTime() - lastDay.getTime()) / (1000 * 3600 * 24));
-
-        if (diffDays === 1) {
-          newStreak = currentStreak + 1;
-        } else if (diffDays === 0) {
-          newStreak = currentStreak || 1;
-        } else {
-          newStreak = 1;
-        }
-      } else {
-        newStreak = 1;
-      }
-
-      await supabase
-        .from('users')
-        .update({
-          total_entries: (userData.total_entries || 0) + 1,
-          streak_count: newStreak,
-          last_entry_date: today.toISOString().slice(0, 10),
-        })
-        .eq('id', user.id);
-    }
+    // 4. Atomic streak + total_entries update (prevents race conditions)
+    const admin = createAdminClient();
+    await admin.rpc('increment_entry_stats', { p_user_id: user.id });
 
     // Fire-and-forget scoring refresh (activity component).
     updateUserScoring(user.id, supabase).catch(() => {});
@@ -194,10 +159,14 @@ export async function POST(req: Request) {
     } | null = null;
 
     if (await isFeatureEnabled('analysis_enabled')) {
+      const analysisAbort = new AbortController();
+      const analysisTimeout = setTimeout(() => analysisAbort.abort(), SYNC_ANALYSIS_MS);
       try {
         const analysis = await Promise.race([
           analyzeEntry(content, 'unknown', null, null, null),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), SYNC_ANALYSIS_MS)),
+          new Promise<null>((resolve) => {
+            analysisAbort.signal.addEventListener('abort', () => resolve(null));
+          }),
         ]);
         if (analysis) {
           const admin = createAdminClient();
@@ -224,6 +193,8 @@ export async function POST(req: Request) {
         }
       } catch (e) {
         console.warn('[entries] sync analysis:', e);
+      } finally {
+        clearTimeout(analysisTimeout);
       }
     }
 
