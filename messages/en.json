@@ -536,7 +536,16 @@
     "errorLoading": "Failed to load notifications",
     "commented": "commented on your post",
     "reacted": "reacted to your post",
-    "matchFound": "Your signal resonates with a real event 🔮"
+    "matchFound": "Your signal resonates with a real event 🔮",
+    "title": "Updates",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This week",
+    "earlier": "Earlier",
+    "yes": "Yes",
+    "partly": "Partly",
+    "no": "No",
+    "openEntry": "Open entry →"
   },
   "push": {
     "bannerTitle": "Enable Morning Reminders?",
@@ -603,6 +612,30 @@
     "lag": "Came true after {days} days",
     "source": "Source:",
     "empty": "No cases found."
+  },
+  "touchpoints": {
+    "deepInsight": {
+      "title": "Deep insight ready"
+    },
+    "similarPatterns": {
+      "title": "{count} people feel similar patterns",
+      "openMap": "Open map →"
+    },
+    "tracking": {
+      "title": "Tracking status"
+    },
+    "report14d": {
+      "title": "Your 14-day report"
+    },
+    "weeklyDigest": {
+      "title": "Your week"
+    },
+    "collectiveAlert": {
+      "title": "Collective signal"
+    },
+    "silence3d": "Sometimes it is enough to capture a single word.",
+    "silence7d": "Your symbolic profile needs fresh data.",
+    "profileUnlocked": "Your symbolic profile is unlocked."
   },
   "socialForecast": {
     "title": "Socio-political likelihoods",

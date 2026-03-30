@@ -100,6 +100,16 @@ async function runCron(request: Request) {
   });
   results.push(snapshotResult);
 
+  const touchpointsResult = await runStep(appUrl, cronSecret, {
+    path: '/api/process-touchpoints',
+  });
+  results.push(touchpointsResult);
+
+  const weeklyDigestResult = await runStep(appUrl, cronSecret, {
+    path: '/api/weekly-digest',
+  });
+  results.push(weeklyDigestResult);
+
   return NextResponse.json({
     ok: results.every((r) => r.ok),
     durationMs: Date.now() - startedAt,

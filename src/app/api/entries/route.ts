@@ -10,6 +10,7 @@ import { analyzeEntry } from '@/lib/claude/client';
 import { applyClaudeAnalysisToEntry } from '@/lib/analysis';
 import { isFeatureEnabled } from '@/lib/features';
 import { DEFAULT_ENTRY_TITLE_RU } from '@/lib/entryDefaults';
+import { scheduleTouchpoints } from '@/lib/engagement/schedule-touchpoints';
 
 export const maxDuration = 60;
 
@@ -121,22 +122,6 @@ export async function POST(req: Request) {
       console.warn('[entries] content_hash update:', hashUpdateErr.message);
     }
 
-    // 3.5 Для personal-сигналов создаем серию self-report напоминаний 3/7/14/30 дней.
-    if (scope === 'personal') {
-      const offsets = [3, 7, 14, 30];
-      const reminderRows = offsets.map((days) => ({
-        user_id: user.id,
-        entry_id: entry.id,
-        type: 'self_report_reminder',
-        title: 'Это предчувствие сбылось?',
-        message: content.length > 80 ? `${content.slice(0, 80)}...` : content,
-        action_type: 'self_report',
-        status: 'pending',
-        scheduled_for: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
-      }));
-      await supabase.from('notifications').insert(reminderRows);
-    }
-
     // 4. Инкремент total_entries + streak система (новые поля streak_count/last_entry_date)
     const { data: userData, error: userError } = await supabase
       .from('users')
@@ -192,6 +177,19 @@ export async function POST(req: Request) {
       user_insight: string | null;
       prediction_potential: number | null;
     } | null = null;
+    let touchpointMetrics: {
+      entryType: string;
+      anxietyScore: number;
+      predictionPotential: number;
+      userInsight: string;
+      sensoryPatterns: Array<{ sensation?: string; intensity?: string; body_response?: string }>;
+    } = {
+      entryType: 'unknown',
+      anxietyScore: 0,
+      predictionPotential: 0,
+      userInsight: '',
+      sensoryPatterns: [],
+    };
 
     if (await isFeatureEnabled('analysis_enabled')) {
       try {
@@ -219,6 +217,13 @@ export async function POST(req: Request) {
               summary: analysis.summary,
               user_insight: analysis.user_insight,
               prediction_potential: analysis.prediction_potential,
+            };
+            touchpointMetrics = {
+              entryType: analysis.type || 'unknown',
+              anxietyScore: analysis.anxiety_score || 0,
+              predictionPotential: analysis.prediction_potential || 0,
+              userInsight: analysis.user_insight || '',
+              sensoryPatterns: analysis.sensory_data?.sensory_patterns || [],
             };
           }
         }
@@ -251,6 +256,22 @@ export async function POST(req: Request) {
         }).catch((err) => console.warn('[entries] analyze trigger:', err));
       }
     }
+
+    // Каждая запись запускает цепочку запланированных касаний (engagement).
+    const admin = createAdminClient();
+    scheduleTouchpoints(
+      {
+        entryId: entry.id,
+        userId: user.id,
+        entryType: touchpointMetrics.entryType,
+        scope,
+        anxietyScore: touchpointMetrics.anxietyScore,
+        predictionPotential: touchpointMetrics.predictionPotential,
+        userInsight: touchpointMetrics.userInsight,
+        sensoryPatterns: touchpointMetrics.sensoryPatterns,
+      },
+      admin
+    ).catch((e) => console.warn('[entries] scheduleTouchpoints:', e));
 
     return NextResponse.json(
       {

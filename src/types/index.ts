@@ -88,7 +88,7 @@ export interface Notification {
   title: string;
   message: string;
   data: Record<string, unknown> | null;
-  status: 'unread' | 'read' | 'pending';
+  status: 'unread' | 'read' | 'pending' | 'scheduled' | 'cancelled' | 'archived';
   created_at: string;
   read_at?: string;
   action_type?: string;

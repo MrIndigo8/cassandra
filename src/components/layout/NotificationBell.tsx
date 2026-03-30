@@ -1,21 +1,45 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from '@/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useTranslations } from 'next-intl';
 import type { Notification } from '@/types';
 import type { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 
-function timeAgo(dateString: string): string {
+type GroupKey = 'today' | 'yesterday' | 'week' | 'earlier';
+
+function timeAgoLabel(dateString: string): string {
   const diff = Date.now() - new Date(dateString).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'только что';
-  if (mins < 60) return `${mins} мин. назад`;
+  if (mins < 1) return 'now';
+  if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} ч. назад`;
+  if (hours < 24) return `${hours}h`;
   const days = Math.floor(hours / 24);
-  return `${days} дн. назад`;
+  return `${days}d`;
+}
+
+function groupByDate(items: Notification[]): Record<GroupKey, Notification[]> {
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const yesterdayStart = todayStart - 24 * 60 * 60 * 1000;
+  const weekStart = todayStart - 7 * 24 * 60 * 60 * 1000;
+  const groups: Record<GroupKey, Notification[]> = {
+    today: [],
+    yesterday: [],
+    week: [],
+    earlier: [],
+  };
+
+  for (const n of items) {
+    const t = new Date(n.created_at).getTime();
+    if (t >= todayStart) groups.today.push(n);
+    else if (t >= yesterdayStart) groups.yesterday.push(n);
+    else if (t >= weekStart) groups.week.push(n);
+    else groups.earlier.push(n);
+  }
+  return groups;
 }
 
 export function NotificationBell() {
@@ -23,16 +47,18 @@ export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const supabase = createClient();
   const t = useTranslations('notifications');
 
-  const unreadCount = notifications.filter(n => n.status === 'unread').length;
+  const unreadCount = notifications.filter((n) => n.status === 'unread').length;
+  const grouped = groupByDate(notifications);
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         setLoading(false);
         return;
@@ -42,11 +68,13 @@ export function NotificationBell() {
         .from('notifications')
         .select('*')
         .eq('user_id', user.id)
+        .not('status', 'eq', 'scheduled')
+        .not('status', 'eq', 'cancelled')
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(60);
 
       if (error) throw error;
-      if (data) setNotifications(data as Notification[]);
+      setNotifications((data || []) as Notification[]);
       setError(false);
     } catch (err) {
       console.error(err);
@@ -56,220 +84,204 @@ export function NotificationBell() {
     }
   }, [supabase]);
 
-  // Загрузка при монтировании
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // Realtime подписка
   useEffect(() => {
     let channelInstance: ReturnType<typeof supabase.channel> | null = null;
-
     const setupRealtime = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       channelInstance = supabase
-        .channel('notifications-' + user.id)
+        .channel(`notifications-${user.id}`)
         .on(
           'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'notifications',
-            filter: `user_id=eq.${user.id}`,
-          },
+          { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
           (payload: RealtimePostgresInsertPayload<Notification>) => {
-            const newNotif = payload.new;
-            setNotifications(prev => [newNotif, ...prev].slice(0, 20));
+            const n = payload.new;
+            if (n.status === 'scheduled' || n.status === 'cancelled') return;
+            setNotifications((prev) => [n, ...prev].slice(0, 60));
           }
         )
         .subscribe();
     };
-
     setupRealtime();
-
     return () => {
-      if (channelInstance) {
-        supabase.removeChannel(channelInstance);
-      }
+      if (channelInstance) supabase.removeChannel(channelInstance);
     };
   }, [supabase]);
 
-  // Клик вне dropdown — закрыть
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', onEsc);
+    return () => window.removeEventListener('keydown', onEsc);
   }, []);
 
   const markAsRead = async (notif: Notification) => {
     if (notif.status === 'unread') {
-      await supabase
-        .from('notifications')
-        .update({ status: 'read', read_at: new Date().toISOString() })
-        .eq('id', notif.id);
-
-      setNotifications(prev =>
-        prev.map(n => n.id === notif.id ? { ...n, status: 'read' } : n)
-      );
+      await supabase.from('notifications').update({ status: 'read', read_at: new Date().toISOString() }).eq('id', notif.id);
+      setNotifications((prev) => prev.map((n) => (n.id === notif.id ? { ...n, status: 'read' } : n)));
     }
+  };
 
-    // Навигация к записи
-    // Навигация к записи
-    const entryId = notif.data?.entry_id || notif.entry_id;
-    if (entryId) {
-      router.push(`/entry/${entryId}`);
+  const openNotification = async (notif: Notification) => {
+    await markAsRead(notif);
+    const actionTarget = (notif.data?.action_target as string | undefined) || null;
+    if (actionTarget) {
+      router.push(actionTarget);
+      setIsOpen(false);
+      return;
+    }
+    if (notif.entry_id) {
+      router.push(`/entry/${notif.entry_id}`);
+      setIsOpen(false);
+      return;
+    }
+    if (notif.action_type === 'similar_patterns') {
+      router.push('/map');
       setIsOpen(false);
     }
   };
 
-  const handleSelfReport = async (entryId: string, status: string) => {
+  const handleSelfReport = async (entryId: string, status: 'fulfilled' | 'partial' | 'unfulfilled') => {
     try {
+      const mapped = status === 'unfulfilled' ? 'not_fulfilled' : status;
       const res = await fetch('/api/self-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ entry_id: entryId, status })
+        body: JSON.stringify({ entry_id: entryId, status: mapped }),
       });
       if (res.ok) {
-        setNotifications(prev => prev.filter(n => !(n.entry_id === entryId && n.action_type === 'self_report')));
+        setNotifications((prev) => prev.filter((n) => !(n.entry_id === entryId && n.action_type === 'self_report')));
       }
     } catch (err) {
       console.error(err);
     }
   };
 
-  const typeIcon: Record<string, string> = {
-    match_found: '🔮',
-    role_upgrade: '⭐',
-    cluster_alert: '📡',
-    streak_milestone: '🔥',
-    system: '⚙️',
+  const iconByAction: Record<string, string> = {
+    deep_insight: '✦',
+    similar_patterns: '🔗',
+    tracking_update: '🔮',
+    weekly_report: '📊',
+    self_report: '🧭',
+    match_found: '🔴',
+  };
+
+  const sectionTitle: Record<GroupKey, string> = {
+    today: t('today'),
+    yesterday: t('yesterday'),
+    week: t('thisWeek'),
+    earlier: t('earlier'),
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
-      {/* Кнопка-колокольчик */}
+    <>
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-        title="Уведомления"
+        onClick={() => setIsOpen(true)}
+        className="relative h-9 w-9 rounded-full border border-border/40 bg-surface/70 text-text-secondary hover:text-text-primary"
+        title={t('title')}
       >
-        <svg
-          className="w-5 h-5 text-gray-600"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.8}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
-          />
-        </svg>
-        {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 min-w-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
-            {unreadCount > 9 ? '9+' : unreadCount}
+        <span className="text-base">🔔</span>
+        {unreadCount > 0 ? (
+          <span className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-red-500 px-1 text-center text-[10px] font-bold text-white">
+            {unreadCount > 99 ? '99+' : unreadCount}
           </span>
-        )}
+        ) : null}
       </button>
 
-      {/* Dropdown */}
-      {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <span className="text-sm font-bold text-gray-900">Уведомления</span>
-            {unreadCount > 0 && (
-              <span className="text-[10px] px-2 py-0.5 bg-red-50 text-red-600 rounded-full font-bold">
-                {unreadCount} новых
-              </span>
-            )}
-          </div>
+      {isOpen ? (
+        <div className="fixed inset-0 z-50">
+          <button className="absolute inset-0 bg-black/60" onClick={() => setIsOpen(false)} aria-label="close" />
+          <aside className="absolute right-0 top-0 h-full w-full max-w-md border-l border-border/40 bg-bg shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
+              <h3 className="text-sm font-semibold text-text-primary">✦ {t('title')}</h3>
+              <button className="text-text-muted hover:text-text-primary" onClick={() => setIsOpen(false)}>
+                ✕
+              </button>
+            </div>
 
-          <div className="max-h-80 overflow-y-auto">
-            {loading ? (
-              <div className="py-10 text-center text-gray-400">
-                <span className="text-sm italic">{t('loading')}</span>
-              </div>
-            ) : error ? (
-              <div className="py-10 text-center text-red-400">
-                <span className="text-sm italic">{t('errorLoading')}</span>
-              </div>
-            ) : notifications.length > 0 ? (
-              notifications.map(notif => (
-                <button
-                  key={notif.id}
-                  onClick={() => markAsRead(notif)}
-                  className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-gray-50 transition-colors border-b border-gray-50 ${
-                    notif.status === 'unread' ? 'bg-blue-50/30' : ''
-                  }`}
-                >
-                  <span className="text-lg shrink-0 mt-0.5">
-                    {typeIcon[notif.type] || '📌'}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm leading-snug mb-0.5 ${
-                      notif.status === 'unread' ? 'font-semibold text-gray-900' : 'text-gray-700'
-                    }`}>
-                      {notif.title}
-                    </p>
-                    {notif.action_type === 'self_report' && notif.entry_id ? (
-                      <div className="mt-2 mb-1">
-                        <p className="text-sm text-gray-600 mb-2 italic border-l-2 border-gray-200 pl-2">
-                          &quot;{notif.message}&quot;
-                        </p>
-                        <p className="text-xs font-medium text-gray-900 mb-2">
-                          Это сбылось?
-                        </p>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleSelfReport(notif.entry_id!, 'fulfilled'); }}
-                            className="flex-1 py-1 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600"
-                          >
-                            ✅ Да
+            <div className="h-[calc(100%-56px)] overflow-y-auto px-3 py-3">
+              {loading ? <p className="py-8 text-sm text-text-muted">{t('loading')}</p> : null}
+              {error ? <p className="py-8 text-sm text-red-400">{t('errorLoading')}</p> : null}
+              {!loading && !error && notifications.length === 0 ? (
+                <p className="py-8 text-sm text-text-muted">{t('empty')}</p>
+              ) : null}
+
+              {(['today', 'yesterday', 'week', 'earlier'] as GroupKey[]).map((k) => {
+                const items = grouped[k];
+                if (!items.length) return null;
+                return (
+                  <section key={k} className="mb-5">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">{sectionTitle[k]}</p>
+                    <div className="space-y-2">
+                      {items.map((notif) => (
+                        <article
+                          key={notif.id}
+                          className={`rounded-xl border border-border/30 bg-surface/60 p-3 transition-opacity ${
+                            notif.status === 'read' ? 'opacity-75' : 'opacity-100'
+                          }`}
+                        >
+                          <button className="w-full text-left" onClick={() => openNotification(notif)}>
+                            <div className="mb-1 flex items-center justify-between gap-2">
+                              <p className="text-sm font-semibold text-text-primary">
+                                {(notif.action_type && iconByAction[notif.action_type]) || '📌'} {notif.title}
+                              </p>
+                              <span className="text-[11px] text-text-muted">{timeAgoLabel(notif.created_at)}</span>
+                            </div>
+                            <p className="text-xs leading-relaxed text-text-secondary">{notif.message}</p>
                           </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleSelfReport(notif.entry_id!, 'partial'); }}
-                            className="flex-1 py-1 text-xs bg-yellow-400 text-white rounded-lg hover:bg-yellow-500"
-                          >
-                            🔶 Частично
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleSelfReport(notif.entry_id!, 'unfulfilled'); }}
-                            className="flex-1 py-1 text-xs bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300"
-                          >
-                            ❌ Нет
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-gray-500 line-clamp-2">
-                        {notif.message}
-                      </p>
-                    )}
-                    <span className="text-[10px] text-gray-400 mt-1 block">
-                      {timeAgo(notif.created_at)}
-                    </span>
-                  </div>
-                  {notif.status === 'unread' && (
-                    <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-2" />
-                  )}
-                </button>
-              ))
-            ) : (
-              <div className="py-10 text-center text-gray-400">
-                <span className="text-2xl block mb-2">🔔</span>
-                <span className="text-sm italic">{t('empty')}</span>
-              </div>
-            )}
-          </div>
+
+                          {notif.action_type === 'self_report' && notif.entry_id ? (
+                            <div className="mt-2 flex gap-1.5">
+                              <button
+                                onClick={() => handleSelfReport(notif.entry_id!, 'fulfilled')}
+                                className="rounded-md bg-emerald-600/80 px-2 py-1 text-[11px] text-white"
+                              >
+                                ✅ {t('yes')}
+                              </button>
+                              <button
+                                onClick={() => handleSelfReport(notif.entry_id!, 'partial')}
+                                className="rounded-md bg-amber-600/80 px-2 py-1 text-[11px] text-white"
+                              >
+                                🔶 {t('partly')}
+                              </button>
+                              <button
+                                onClick={() => handleSelfReport(notif.entry_id!, 'unfulfilled')}
+                                className="rounded-md bg-zinc-600/80 px-2 py-1 text-[11px] text-white"
+                              >
+                                ❌ {t('no')}
+                              </button>
+                            </div>
+                          ) : null}
+
+                          {notif.entry_id ? (
+                            <button
+                              onClick={() => {
+                                router.push(`/entry/${notif.entry_id}`);
+                                setIsOpen(false);
+                              }}
+                              className="mt-2 text-xs text-primary hover:underline"
+                            >
+                              {t('openEntry')}
+                            </button>
+                          ) : null}
+                        </article>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          </aside>
         </div>
-      )}
-    </div>
+      ) : null}
+    </>
   );
 }
