@@ -199,11 +199,11 @@ export function NotificationBell() {
       {isOpen ? (
         <div className="fixed inset-0 z-[60]">
           <button
-            className="absolute inset-0 bg-black/60"
+            className="absolute left-0 right-0 bottom-0 top-14 bg-black/60"
             onClick={() => setIsOpen(false)}
             aria-label="close"
           />
-          <aside className="fixed top-0 right-0 bottom-0 w-full max-w-md border-l border-border/40 bg-bg shadow-2xl">
+          <aside className="fixed right-0 top-14 h-[calc(100%-3.5rem)] w-full max-w-md border-l border-border/40 bg-bg shadow-2xl">
             <div className="flex items-center justify-between border-b border-border/40 px-4 py-3">
               <h3 className="text-sm font-semibold text-text-primary">✦ {t('title')}</h3>
               <button className="text-text-muted hover:text-text-primary" onClick={() => setIsOpen(false)}>
