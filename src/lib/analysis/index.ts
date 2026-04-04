@@ -4,6 +4,73 @@ import type { ClaudeAnalysisResult } from '@/lib/claude/parser';
 import { averageEmbeddings, generateEmbedding, parseEmbeddingValue, toVectorLiteral } from '@/lib/embeddings';
 import { runPostAnalysisPipeline } from '@/lib/analysis/postAnalysis';
 
+const STUCK_ANALYSIS_MS = 10 * 60 * 1000;
+
+/** Сбрасывает зависшие in_progress старше 10 минут → failed. Вызывать в начале /api/analyze. */
+export async function recoverStuckAnalysisLocks(supabaseAdmin: SupabaseClient): Promise<number> {
+  const threshold = new Date(Date.now() - STUCK_ANALYSIS_MS).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from('entries')
+    .update({ analysis_status: 'failed', analysis_started_at: null })
+    .eq('analysis_status', 'in_progress')
+    .not('analysis_started_at', 'is', null)
+    .lt('analysis_started_at', threshold)
+    .select('id');
+
+  if (error) {
+    console.error('[Analysis] recoverStuckAnalysisLocks:', error);
+    return 0;
+  }
+  return data?.length ?? 0;
+}
+
+/**
+ * Атомарно: pending → in_progress. Если 0 строк — другой воркер уже взял запись.
+ */
+export async function claimEntryForAnalysis(
+  supabaseAdmin: SupabaseClient,
+  entryId: string
+): Promise<boolean> {
+  const now = new Date().toISOString();
+  const { data, error } = await supabaseAdmin
+    .from('entries')
+    .update({
+      analysis_status: 'in_progress',
+      analysis_started_at: now,
+    })
+    .eq('id', entryId)
+    .eq('analysis_status', 'pending')
+    .select('id');
+
+  if (error) {
+    console.warn('[Analysis] claimEntryForAnalysis:', error.message);
+    return false;
+  }
+  return Array.isArray(data) && data.length > 0;
+}
+
+export async function setEntryAnalysisFailed(
+  supabaseAdmin: SupabaseClient,
+  entryId: string
+): Promise<void> {
+  await supabaseAdmin
+    .from('entries')
+    .update({ analysis_status: 'failed', analysis_started_at: null })
+    .eq('id', entryId);
+}
+
+/** Вернуть блокировку (например после таймаута синхронного анализа), чтобы cron мог повторить. */
+export async function releaseAnalysisLockToPending(
+  supabaseAdmin: SupabaseClient,
+  entryId: string
+): Promise<void> {
+  await supabaseAdmin
+    .from('entries')
+    .update({ analysis_status: 'pending', analysis_started_at: null })
+    .eq('id', entryId)
+    .eq('analysis_status', 'in_progress');
+}
+
 export type EntryAnalysisRow = {
   id: string;
   user_id: string;
@@ -45,6 +112,8 @@ export async function applyClaudeAnalysisToEntry(
       prediction_potential: analysis.prediction_potential,
       embedding: embedding ? toVectorLiteral(embedding) : null,
       ai_analyzed_at: new Date().toISOString(),
+      analysis_status: 'completed',
+      analysis_started_at: null,
     })
     .eq('id', entry.id);
 
@@ -77,7 +146,7 @@ export async function applyClaudeAnalysisToEntry(
   return true;
 }
 
-async function processOneEntry(
+async function processOneEntryAfterClaim(
   supabaseAdmin: SupabaseClient,
   entry: EntryAnalysisRow,
   analysis: ClaudeAnalysisResult
@@ -85,18 +154,38 @@ async function processOneEntry(
   return applyClaudeAnalysisToEntry(supabaseAdmin, entry, analysis);
 }
 
-/** Снижает гонку: другой воркер мог уже выставить ai_analyzed_at (например POST sync). */
-async function entryStillUnanalyzed(
+/**
+ * Захват записи (pending→in_progress), вызов Claude, запись результата или failed.
+ */
+async function analyzeSingleEntryWithLock(
   supabaseAdmin: SupabaseClient,
-  entryId: string
+  entry: EntryAnalysisRow
 ): Promise<boolean> {
-  const { data } = await supabaseAdmin
-    .from('entries')
-    .select('id')
-    .eq('id', entryId)
-    .is('ai_analyzed_at', null)
-    .maybeSingle();
-  return Boolean(data);
+  const claimed = await claimEntryForAnalysis(supabaseAdmin, entry.id);
+  if (!claimed) return false;
+
+  try {
+    const analysis = await analyzeEntry(
+      entry.content,
+      entry.type,
+      entry.direction,
+      entry.timeframe,
+      entry.quality
+    );
+    if (!analysis) {
+      await setEntryAnalysisFailed(supabaseAdmin, entry.id);
+      return false;
+    }
+    const ok = await processOneEntryAfterClaim(supabaseAdmin, entry, analysis);
+    if (!ok) {
+      await setEntryAnalysisFailed(supabaseAdmin, entry.id);
+    }
+    return ok;
+  } catch (entryError) {
+    console.error(`[Analysis] analyzeSingleEntryWithLock ${entry.id}:`, entryError);
+    await setEntryAnalysisFailed(supabaseAdmin, entry.id);
+    return false;
+  }
 }
 
 /**
@@ -120,7 +209,7 @@ export async function runAnalysisForEntryIds(entryIds: string[]): Promise<{ proc
     .from('entries')
     .select('id, user_id, content, type, direction, timeframe, quality')
     .in('id', uniqueIds)
-    .is('ai_analyzed_at', null);
+    .eq('analysis_status', 'pending');
 
   if (fetchError) {
     console.error('[Analysis] runAnalysisForEntryIds fetch:', fetchError);
@@ -134,24 +223,8 @@ export async function runAnalysisForEntryIds(entryIds: string[]): Promise<{ proc
   let processedCount = 0;
 
   for (const entry of entries) {
-    try {
-      if (!(await entryStillUnanalyzed(supabaseAdmin, entry.id))) continue;
-
-      const analysis = await analyzeEntry(
-        entry.content,
-        entry.type,
-        entry.direction,
-        entry.timeframe,
-        entry.quality
-      );
-      if (analysis) {
-        if (!(await entryStillUnanalyzed(supabaseAdmin, entry.id))) continue;
-        const ok = await processOneEntry(supabaseAdmin, entry, analysis);
-        if (ok) processedCount++;
-      }
-    } catch (entryError) {
-      console.error(`[Analysis] runAnalysisForEntryIds ${entry.id}:`, entryError);
-    }
+    const ok = await analyzeSingleEntryWithLock(supabaseAdmin, entry);
+    if (ok) processedCount++;
   }
 
   return { processed: processedCount };
@@ -177,7 +250,8 @@ export async function runAnalysis(): Promise<{ processed: number }> {
     const { data: entries, error: fetchError } = await supabaseAdmin
       .from('entries')
       .select('id, user_id, content, type, direction, timeframe, quality')
-      .is('ai_analyzed_at', null)
+      .eq('analysis_status', 'pending')
+      .order('created_at', { ascending: true })
       .limit(10);
 
     if (fetchError) {
@@ -193,25 +267,8 @@ export async function runAnalysis(): Promise<{ processed: number }> {
     let processedCount = 0;
 
     for (const entry of entries) {
-      try {
-        if (!(await entryStillUnanalyzed(supabaseAdmin, entry.id))) continue;
-
-        const analysis = await analyzeEntry(
-          entry.content,
-          entry.type,
-          entry.direction,
-          entry.timeframe,
-          entry.quality
-        );
-
-        if (analysis) {
-          if (!(await entryStillUnanalyzed(supabaseAdmin, entry.id))) continue;
-          const ok = await processOneEntry(supabaseAdmin, entry, analysis);
-          if (ok) processedCount++;
-        }
-      } catch (entryError) {
-        console.error(`[Analysis] Ошибка обработки записи ${entry.id}:`, entryError);
-      }
+      const ok = await analyzeSingleEntryWithLock(supabaseAdmin, entry);
+      if (ok) processedCount++;
     }
 
     return { processed: processedCount };

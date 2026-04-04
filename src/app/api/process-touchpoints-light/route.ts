@@ -3,6 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyCronAuth, unauthorizedResponse } from '@/lib/auth/verifyCron';
 import { runProcessTouchpointsBatch } from '@/lib/engagement/process-touchpoints-runner';
 
+/**
+ * Тот же пайплайн, что /api/process-touchpoints, но лимит 50 строк за вызов.
+ * Предназначен для внешнего cron (GitHub Actions, cron-job.org) чаще 1 раза в сутки,
+ * пока Vercel Hobby ограничивает один cron.
+ */
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
@@ -17,8 +22,8 @@ export async function POST(request: Request) {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    const result = await runProcessTouchpointsBatch(supabase, { limit: 100 });
-    return NextResponse.json(result);
+    const result = await runProcessTouchpointsBatch(supabase, { limit: 50 });
+    return NextResponse.json({ ...result, mode: 'light' as const });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: msg }, { status: 500 });

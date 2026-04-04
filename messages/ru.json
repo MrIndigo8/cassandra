@@ -20,6 +20,12 @@
     "reaction": "Реакция",
     "addReaction": "Добавить реакцию"
   },
+  "timeAgo": {
+    "now": "сейчас",
+    "minutes": "{count}м",
+    "hours": "{count}ч",
+    "days": "{count}д"
+  },
   "features": {
     "disabled": {
       "title": "Раздел временно отключён",
@@ -614,6 +620,62 @@
     "empty": "Случаи не найдены."
   },
   "touchpoints": {
+    "scheduled": {
+      "deep_insight": {
+        "title": "✦ Глубинный анализ готов",
+        "message": "Мы завершили дополнительный анализ вашей записи."
+      },
+      "similar_patterns": {
+        "title": "🔗 Ищем похожие паттерны",
+        "message": "Проверим, испытывают ли другие похожие ощущения."
+      },
+      "tracking_update": {
+        "title": "🔮 Статус отслеживания",
+        "message": "Мы продолжаем мониторить совпадения по вашей записи."
+      },
+      "self_report_7d": {
+        "title": "🔮 Произошло ли что-то похожее?",
+        "message": "Прошло 7 дней с момента вашей записи."
+      },
+      "self_report_14d": {
+        "title": "🔮 Вернитесь к вашей записи",
+        "message": "Прошло 14 дней — важно зафиксировать итог."
+      },
+      "tracking_14d": {
+        "title": "📊 Отчёт по вашей записи",
+        "message": "Через 14 дней мы пришлем итоговый статус."
+      }
+    },
+    "body": {
+      "deep_insight": {
+        "title": "✦ Глубинный анализ готов",
+        "message": "{message}"
+      },
+      "similar_patterns": {
+        "title": "🔗 {count} людей чувствуют похожее",
+        "message": "{message}"
+      },
+      "tracking_status": {
+        "title": "🔮 Статус вашего предчувствия",
+        "message": "{message}"
+      },
+      "tracking_14d": {
+        "title": "📊 Отчёт по вашей записи",
+        "message": "{message}"
+      },
+      "self_report_7d": {
+        "title": "🔮 Произошло ли что-то похожее?",
+        "message": "{message}"
+      },
+      "self_report_14d": {
+        "title": "🔮 Вернитесь к вашей записи",
+        "message": "{message}"
+      },
+      "weekly_digest": {
+        "title": "{title}",
+        "message": "{message}"
+      }
+    },
     "deepInsight": {
       "title": "Глубинный анализ готов"
     },

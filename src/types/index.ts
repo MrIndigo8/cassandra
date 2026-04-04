@@ -58,6 +58,9 @@ export interface Entry {
   ai_specificity: number | null;
   ai_summary: string | null;
   ai_analyzed_at: string | null;
+  /** Сериализация анализа: pending → in_progress → completed | failed */
+  analysis_status?: 'pending' | 'in_progress' | 'completed' | 'failed';
+  analysis_started_at?: string | null;
   anxiety_score?: number | null;
   threat_type?: 'conflict' | 'disaster' | 'economic' | 'health' | 'social' | 'personal' | 'unknown' | null;
   temporal_urgency?: 'imminent' | 'near_term' | 'distant' | 'unclear' | null;
@@ -94,6 +97,10 @@ export interface Notification {
   action_type?: string;
   entry_id?: string;
   scheduled_for?: string;
+  /** Ключ в messages.touchpoints.* (например scheduled.deep_insight, body.deep_insight) */
+  template_key?: string | null;
+  template_params?: Record<string, unknown> | null;
+  locale?: string | null;
 }
 
 export interface ExternalSignal {

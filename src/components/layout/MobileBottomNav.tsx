@@ -16,7 +16,7 @@ export function MobileBottomNav() {
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-border pb-[env(safe-area-inset-bottom,0)]">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/85 backdrop-blur-xl pb-[env(safe-area-inset-bottom,0)] shadow-[0_-4px_24px_-4px_rgba(0,0,0,0.35)]">
       <div className="max-w-[1024px] mx-auto grid grid-cols-5 items-end gap-0 px-1 pt-1">
         <Link
           href="/feed"
@@ -39,7 +39,7 @@ export function MobileBottomNav() {
         <div className="flex justify-center pb-1">
           <Link
             href="/feed#entry-composer-anchor"
-            className="flex h-14 w-14 -translate-y-3 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:bg-primary-hover transition-colors"
+            className="flex h-14 w-14 -translate-y-3 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary text-white shadow-[0_8px_28px_-4px_rgba(99,102,241,0.55)] hover:brightness-110 transition-all active:scale-95"
             aria-label={t('writeSignal')}
             title={t('writeSignal')}
           >

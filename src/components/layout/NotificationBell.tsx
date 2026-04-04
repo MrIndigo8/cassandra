@@ -9,15 +9,29 @@ import type { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 
 type GroupKey = 'today' | 'yesterday' | 'week' | 'earlier';
 
-function timeAgoLabel(dateString: string): string {
-  const diff = Date.now() - new Date(dateString).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'now';
-  if (mins < 60) return `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
+/** Локализованный заголовок/текст: template_key → messages.touchpoints.{key}, иначе title/message из БД. */
+function resolveNotificationText(
+  notif: Notification,
+  ttp: (key: string, values?: Record<string, string | number | Date>) => string
+): { title: string; message: string } {
+  if (!notif.template_key) {
+    return { title: notif.title, message: notif.message };
+  }
+  const raw = notif.template_params || {};
+  const values: Record<string, string | number | Date> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof v === 'string' || typeof v === 'number' || v instanceof Date) {
+      values[k] = v;
+    }
+  }
+  try {
+    return {
+      title: ttp(`${notif.template_key}.title`, values),
+      message: ttp(`${notif.template_key}.message`, values),
+    };
+  } catch {
+    return { title: notif.title, message: notif.message };
+  }
 }
 
 function groupByDate(items: Notification[]): Record<GroupKey, Notification[]> {
@@ -50,6 +64,22 @@ export function NotificationBell() {
   const router = useRouter();
   const supabase = createClient();
   const t = useTranslations('notifications');
+  const ttp = useTranslations('touchpoints');
+  const tTime = useTranslations('timeAgo');
+
+  const timeAgoLabel = useCallback(
+    (dateString: string) => {
+      const diff = Date.now() - new Date(dateString).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return tTime('now');
+      if (mins < 60) return tTime('minutes', { count: mins });
+      const hours = Math.floor(mins / 60);
+      if (hours < 24) return tTime('hours', { count: hours });
+      const days = Math.floor(hours / 24);
+      return tTime('days', { count: days });
+    },
+    [tTime]
+  );
 
   const unreadCount = notifications.filter((n) => n.status === 'unread').length;
   const grouped = groupByDate(notifications);
@@ -225,7 +255,9 @@ export function NotificationBell() {
                   <section key={k} className="mb-5">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">{sectionTitle[k]}</p>
                     <div className="space-y-2">
-                      {items.map((notif) => (
+                      {items.map((notif) => {
+                        const { title: lineTitle, message: lineMessage } = resolveNotificationText(notif, ttp);
+                        return (
                         <article
                           key={notif.id}
                           className={`rounded-xl border border-border/30 bg-surface/60 p-3 transition-opacity ${
@@ -235,11 +267,11 @@ export function NotificationBell() {
                           <button className="w-full text-left" onClick={() => openNotification(notif)}>
                             <div className="mb-1 flex items-center justify-between gap-2">
                               <p className="text-sm font-semibold text-text-primary">
-                                {(notif.action_type && iconByAction[notif.action_type]) || '📌'} {notif.title}
+                                {(notif.action_type && iconByAction[notif.action_type]) || '📌'} {lineTitle}
                               </p>
                               <span className="text-[11px] text-text-muted">{timeAgoLabel(notif.created_at)}</span>
                             </div>
-                            <p className="text-xs leading-relaxed text-text-secondary">{notif.message}</p>
+                            <p className="text-xs leading-relaxed text-text-secondary">{lineMessage}</p>
                           </button>
 
                           {notif.action_type === 'self_report' && notif.entry_id ? (
@@ -277,7 +309,8 @@ export function NotificationBell() {
                             </button>
                           ) : null}
                         </article>
-                      ))}
+                        );
+                      })}
                     </div>
                   </section>
                 );

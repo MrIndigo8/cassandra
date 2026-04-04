@@ -71,22 +71,24 @@ export function Header() {
   const canAccessAdmin = ['architect', 'admin', 'moderator'].includes(currentRole);
 
   return (
-    <header className="sticky top-0 z-50 bg-surface border-b border-border backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-border/50 bg-background/75 backdrop-blur-xl supports-[backdrop-filter]:bg-background/65">
       <div className="max-w-[1024px] mx-auto px-4 h-14 flex items-center justify-between">
         {/* Логотип */}
-        <Link href="/feed" className="flex items-center gap-2.5 font-display font-bold text-text-primary text-lg tracking-tight hover:opacity-80 transition-opacity">
-          <Logo className="w-7 h-7" />
+        <Link href="/feed" className="flex items-center gap-2.5 font-display font-bold text-text-primary text-lg tracking-tight hover:opacity-90 transition-opacity">
+          <Logo className="w-7 h-7 drop-shadow-[0_0_12px_rgba(167,139,250,0.35)]" />
           {tCommon('appName')}
         </Link>
 
         {/* Центральная часть: навигация */}
-        <div className="hidden md:flex flex-1 justify-center items-center gap-4">
+        <div className="hidden md:flex flex-1 justify-center items-center gap-1">
           {navLinks.map(link => (
             <Link
               key={link.href}
               href={link.href}
-              className={`text-sm font-medium transition-colors ${
-                pathname === link.href ? 'text-primary' : 'text-text-secondary hover:text-text-primary'
+              className={`text-sm font-medium px-3 py-1.5 rounded-full transition-all ${
+                pathname === link.href
+                  ? 'text-primary bg-primary/12 shadow-soft'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
               }`}
             >
               {link.label}
@@ -95,8 +97,10 @@ export function Header() {
           {canAccessAdmin && (
             <Link
               href="/admin"
-              className={`text-sm font-medium transition-colors ${
-                pathname.startsWith('/admin') ? 'text-primary' : 'text-text-secondary hover:text-text-primary'
+              className={`text-sm font-medium px-3 py-1.5 rounded-full transition-all ${
+                pathname.startsWith('/admin')
+                  ? 'text-primary bg-primary/12 shadow-soft'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
               }`}
             >
               Admin
@@ -116,7 +120,7 @@ export function Header() {
             {resolvedTheme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
           {/* Свитчер языка */}
-          <div className="flex items-center bg-surface-hover rounded-full p-1 border border-border">
+          <div className="flex items-center bg-surface/80 rounded-full p-1 border border-border/60 shadow-soft backdrop-blur-sm">
             <button
               onClick={() => handleLocaleChange('ru')}
               aria-label={tCommon('switchLanguageRu', { fallback: 'Переключить на русский' })}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { runAnalysis, runAnalysisForEntryIds } from '@/lib/analysis';
+import { createClient } from '@supabase/supabase-js';
+import { recoverStuckAnalysisLocks, runAnalysis, runAnalysisForEntryIds } from '@/lib/analysis';
 import { verifyCronAuth, unauthorizedResponse } from '@/lib/auth/verifyCron';
 import { isFeatureEnabled } from '@/lib/features';
 
@@ -24,6 +25,16 @@ async function handleAnalyze(request: Request) {
     if (!verifyCronAuth(request)) {
       return unauthorizedResponse();
     }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabaseUrl && supabaseServiceKey) {
+      const admin = createClient(supabaseUrl, supabaseServiceKey, {
+        auth: { persistSession: false },
+      });
+      await recoverStuckAnalysisLocks(admin);
+    }
+
     if (!(await isFeatureEnabled('analysis_enabled'))) {
       return NextResponse.json({ skipped: true, reason: 'Feature disabled by admin' });
     }

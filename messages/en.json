@@ -20,6 +20,12 @@
     "reaction": "Reaction",
     "addReaction": "Add reaction"
   },
+  "timeAgo": {
+    "now": "now",
+    "minutes": "{count}m",
+    "hours": "{count}h",
+    "days": "{count}d"
+  },
   "features": {
     "disabled": {
       "title": "This section is temporarily disabled",
@@ -614,6 +620,62 @@
     "empty": "No cases found."
   },
   "touchpoints": {
+    "scheduled": {
+      "deep_insight": {
+        "title": "✦ Deep insight ready",
+        "message": "We finished an additional analysis of your entry."
+      },
+      "similar_patterns": {
+        "title": "🔗 Looking for similar patterns",
+        "message": "We will check whether others feel something similar."
+      },
+      "tracking_update": {
+        "title": "🔮 Tracking status",
+        "message": "We keep monitoring possible matches for your entry."
+      },
+      "self_report_7d": {
+        "title": "🔮 Did anything similar happen?",
+        "message": "7 days have passed since your entry."
+      },
+      "self_report_14d": {
+        "title": "🔮 Return to your entry",
+        "message": "14 days have passed — it helps to record the outcome."
+      },
+      "tracking_14d": {
+        "title": "📊 Report on your entry",
+        "message": "In 14 days we will send a final status update."
+      }
+    },
+    "body": {
+      "deep_insight": {
+        "title": "✦ Deep insight ready",
+        "message": "{message}"
+      },
+      "similar_patterns": {
+        "title": "🔗 {count} people feel something similar",
+        "message": "{message}"
+      },
+      "tracking_status": {
+        "title": "🔮 Your premonition status",
+        "message": "{message}"
+      },
+      "tracking_14d": {
+        "title": "📊 Report on your entry",
+        "message": "{message}"
+      },
+      "self_report_7d": {
+        "title": "🔮 Did anything similar happen?",
+        "message": "{message}"
+      },
+      "self_report_14d": {
+        "title": "🔮 Return to your entry",
+        "message": "{message}"
+      },
+      "weekly_digest": {
+        "title": "{title}",
+        "message": "{message}"
+      }
+    },
     "deepInsight": {
       "title": "Deep insight ready"
     },

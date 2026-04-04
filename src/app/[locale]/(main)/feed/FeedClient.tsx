@@ -459,10 +459,10 @@ export function FeedClient({ initialEntries, initialFilter = 'all' }: FeedClient
             role="tab"
             aria-selected={feedFilter === key}
             onClick={() => onFeedFilterChange(key)}
-            className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
+            className={`px-3.5 py-1.5 rounded-full text-xs border transition-all ${
               feedFilter === key
-                ? 'bg-primary text-white border-primary'
-                : 'bg-surface text-text-secondary border-border hover:text-text-primary'
+                ? 'bg-gradient-to-r from-primary to-secondary text-white border-transparent shadow-soft'
+                : 'bg-surface/70 text-text-secondary border-border/60 backdrop-blur-sm hover:border-primary/30 hover:text-text-primary'
             }`}
           >
             {t(`filters.${key}`)}

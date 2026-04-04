@@ -1,0 +1,25 @@
+# Внешний cron для touchpoints (обход лимита Vercel Hobby: 1 cron/день).
+# Настройте в репозитории Secrets: APP_URL (https://your-app.vercel.app), CRON_SECRET.
+name: Touchpoints light
+
+on:
+  schedule:
+    - cron: '15 */2 * * *' # каждые 2 часа в :15 UTC
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST process-touchpoints-light
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$APP_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Set APP_URL and CRON_SECRET in repo Secrets"
+            exit 1
+          fi
+          curl -sS -X POST "${APP_URL}/api/process-touchpoints-light" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -w "\nHTTP %{http_code}\n"

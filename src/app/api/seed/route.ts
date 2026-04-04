@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyCronAuth } from '@/lib/auth/verifyCron';
 
 // We use service role key to bypass RLS for seeding
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -180,7 +181,11 @@ const historicalCases = [
   }
 ];
 
-export async function GET() {
+function forbidden(message: string) {
+  return NextResponse.json({ error: message }, { status: 403 });
+}
+
+async function runSeed() {
   const results = [];
   try {
     // Delete old cases to prevent duplicate seeds
@@ -204,4 +209,18 @@ export async function GET() {
     const errorMessage = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ message: "Seeding failed", error: errorMessage }, { status: 500 });
   }
+}
+
+export async function GET(request: Request) {
+  if (process.env.NODE_ENV === 'production') {
+    return forbidden('Seed endpoint is disabled in production');
+  }
+  if (!verifyCronAuth(request)) {
+    return forbidden('Forbidden');
+  }
+  return runSeed();
+}
+
+export async function POST(request: Request) {
+  return GET(request);
 }

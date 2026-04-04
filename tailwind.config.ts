@@ -122,6 +122,11 @@ const config: Config = {
         'glow-md': '0 0 20px rgba(139, 92, 246, 0.4)',
         'glow-match': '0 0 15px rgba(16, 185, 129, 0.3)',
         'glow-danger': '0 0 12px rgba(239, 68, 68, 0.4)',
+        /** Мягкая глубина для карточек ленты / лендинга */
+        card: '0 1px 0 0 rgba(255,255,255,0.05) inset, 0 4px 24px -6px rgba(0,0,0,0.45)',
+        'card-hover':
+          '0 1px 0 0 rgba(255,255,255,0.08) inset, 0 12px 40px -8px rgba(99, 102, 241, 0.2)',
+        soft: '0 2px 12px -2px rgba(0,0,0,0.35)',
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'Inter', 'system-ui', 'sans-serif'],

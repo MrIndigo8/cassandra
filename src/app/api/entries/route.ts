@@ -7,7 +7,12 @@ import { createEntrySchema } from '@/lib/validations';
 import { updateUserScoring } from '@/lib/scoring';
 import { createAdminClient } from '@/lib/supabase/server';
 import { analyzeEntry } from '@/lib/claude/client';
-import { applyClaudeAnalysisToEntry } from '@/lib/analysis';
+import {
+  applyClaudeAnalysisToEntry,
+  claimEntryForAnalysis,
+  releaseAnalysisLockToPending,
+  setEntryAnalysisFailed,
+} from '@/lib/analysis';
 import { isFeatureEnabled } from '@/lib/features';
 import { DEFAULT_ENTRY_TITLE_RU } from '@/lib/entryDefaults';
 import { scheduleTouchpoints } from '@/lib/engagement/schedule-touchpoints';
@@ -19,6 +24,7 @@ const SYNC_ANALYSIS_MS = 20_000;
 export async function POST(req: Request) {
   try {
     const cookieStore = cookies();
+    const submissionLocale = cookieStore.get('NEXT_LOCALE')?.value === 'en' ? 'en' : 'ru';
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -191,50 +197,58 @@ export async function POST(req: Request) {
       sensoryPatterns: [],
     };
 
+    const admin = createAdminClient();
+    const entryRow = {
+      id: entry.id,
+      user_id: user.id,
+      content,
+      type: 'unknown' as string | null,
+      direction: null as string | null,
+      timeframe: null as string | null,
+      quality: null as string | null,
+    };
+
     if (await isFeatureEnabled('analysis_enabled')) {
-      try {
-        const analysis = await Promise.race([
-          analyzeEntry(content, 'unknown', null, null, null),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), SYNC_ANALYSIS_MS)),
-        ]);
-        if (analysis) {
-          const admin = createAdminClient();
-          const entryRow = {
-            id: entry.id,
-            user_id: user.id,
-            content,
-            type: 'unknown' as string | null,
-            direction: null as string | null,
-            timeframe: null as string | null,
-            quality: null as string | null,
-          };
-          const applied = await applyClaudeAnalysisToEntry(admin, entryRow, analysis);
-          if (applied) {
-            syncAnalysisOk = true;
-            analysisPayload = {
-              title: analysis.title,
-              type: analysis.type,
-              summary: analysis.summary,
-              user_insight: analysis.user_insight,
-              prediction_potential: analysis.prediction_potential,
-            };
-            touchpointMetrics = {
-              entryType: analysis.type || 'unknown',
-              anxietyScore: analysis.anxiety_score || 0,
-              predictionPotential: analysis.prediction_potential || 0,
-              userInsight: analysis.user_insight || '',
-              sensoryPatterns: analysis.sensory_data?.sensory_patterns || [],
-            };
+      const claimed = await claimEntryForAnalysis(admin, entry.id);
+      if (claimed) {
+        try {
+          const analysis = await Promise.race([
+            analyzeEntry(content, 'unknown', null, null, null),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), SYNC_ANALYSIS_MS)),
+          ]);
+          if (analysis) {
+            const applied = await applyClaudeAnalysisToEntry(admin, entryRow, analysis);
+            if (applied) {
+              syncAnalysisOk = true;
+              analysisPayload = {
+                title: analysis.title,
+                type: analysis.type,
+                summary: analysis.summary,
+                user_insight: analysis.user_insight,
+                prediction_potential: analysis.prediction_potential,
+              };
+              touchpointMetrics = {
+                entryType: analysis.type || 'unknown',
+                anxietyScore: analysis.anxiety_score || 0,
+                predictionPotential: analysis.prediction_potential || 0,
+                userInsight: analysis.user_insight || '',
+                sensoryPatterns: analysis.sensory_data?.sensory_patterns || [],
+              };
+            } else {
+              await setEntryAnalysisFailed(admin, entry.id);
+            }
+          } else {
+            await releaseAnalysisLockToPending(admin, entry.id);
           }
+        } catch (e) {
+          console.warn('[entries] sync analysis:', e);
+          await setEntryAnalysisFailed(admin, entry.id);
         }
-      } catch (e) {
-        console.warn('[entries] sync analysis:', e);
       }
     }
 
     if (!syncAnalysisOk && cronSecret && appUrl) {
       try {
-        const admin = createAdminClient();
         const { data: beforeCron } = await admin
           .from('entries')
           .select('ai_analyzed_at')
@@ -258,7 +272,6 @@ export async function POST(req: Request) {
     }
 
     // Каждая запись запускает цепочку запланированных касаний (engagement).
-    const admin = createAdminClient();
     scheduleTouchpoints(
       {
         entryId: entry.id,
@@ -269,6 +282,7 @@ export async function POST(req: Request) {
         predictionPotential: touchpointMetrics.predictionPotential,
         userInsight: touchpointMetrics.userInsight,
         sensoryPatterns: touchpointMetrics.sensoryPatterns,
+        locale: submissionLocale,
       },
       admin
     ).catch((e) => console.warn('[entries] scheduleTouchpoints:', e));

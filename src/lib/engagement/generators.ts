@@ -1,11 +1,29 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { NotifLocale } from '@/lib/engagement/generator-i18n';
+import {
+  deepInsightStrings,
+  pick,
+  report14Strings,
+  selfReportStrings,
+  similarStrings,
+  trackingStrings,
+  weeklyStrings,
+} from '@/lib/engagement/generator-i18n';
 
-export async function generateDeepInsight(entry: {
-  id: string;
-  title: string | null;
-  content: string | null;
-  prediction_potential?: number | null;
-}, supabase: SupabaseClient): Promise<string> {
+function snippet(title: string | null, content: string | null, len = 50): string {
+  return title || (content || '').slice(0, len);
+}
+
+export async function generateDeepInsight(
+  entry: {
+    id: string;
+    title: string | null;
+    content: string | null;
+    prediction_potential?: number | null;
+  },
+  supabase: SupabaseClient,
+  locale: NotifLocale = 'ru'
+): Promise<string> {
   const { data: deep } = await supabase
     .from('deep_analysis')
     .select('archetypes, narrative_structure')
@@ -13,34 +31,39 @@ export async function generateDeepInsight(entry: {
     .maybeSingle();
 
   if (!deep) {
-    return `Ваша запись "${entry.title || (entry.content || '').slice(0, 50)}..." проанализирована. Откройте запись, чтобы увидеть детали.`;
+    const s = snippet(entry.title, entry.content);
+    return locale === 'en' ? deepInsightStrings.noDeep.en(s) : deepInsightStrings.noDeep.ru(s);
   }
 
   const parts: string[] = [];
 
   const mainArch = Array.isArray(deep.archetypes) ? deep.archetypes[0] : null;
-  if (mainArch) {
-    const archDescriptions: Record<string, string> = {
-      Shadow: 'Ваше бессознательное обрабатывает скрытые стороны — это важный процесс интеграции.',
-      Hero: 'Внутри вас активна энергия преодоления — вы готовитесь к важному шагу.',
-      Explorer: 'Ваша психика ищет новый опыт — впереди открытия.',
-      Magician: 'Активен процесс внутренней трансформации — обратите внимание на перемены.',
-      Destroyer: 'Что-то старое уходит — бессознательное освобождает место для нового.',
-      Mother: 'Тема заботы и защиты активна — прислушайтесь к отношениям с близкими.',
-      Trickster: 'Ваше бессознательное ломает шаблоны — возможно, пора взглянуть на ситуацию иначе.',
-    };
-    parts.push(archDescriptions[mainArch] || `В вашей записи активен архетип "${mainArch}".`);
+  if (mainArch && typeof mainArch === 'string') {
+    const arch =
+      deepInsightStrings.arch[mainArch as keyof typeof deepInsightStrings.arch];
+    if (arch) {
+      parts.push(pick(locale, arch));
+    } else {
+      parts.push(
+        locale === 'en'
+          ? deepInsightStrings.archFallback.en(mainArch)
+          : deepInsightStrings.archFallback.ru(mainArch)
+      );
+    }
   }
 
   if (typeof deep.narrative_structure === 'string' && deep.narrative_structure.trim()) {
-    parts.push(`Нарратив записи: ${deep.narrative_structure.trim()}.`);
+    const prefix = pick(locale, deepInsightStrings.narrativePrefix);
+    parts.push(`${prefix} ${deep.narrative_structure.trim()}.`);
   }
 
   if ((entry.prediction_potential || 0) > 0.6) {
-    parts.push('🔮 Эта запись имеет высокий предчувственный потенциал. Мы продолжаем отслеживание совпадений.');
+    parts.push(pick(locale, deepInsightStrings.highPotential));
   }
 
-  return parts.join('\n\n') || 'Ваша запись содержит ценный материал — система продолжает анализ.';
+  return (
+    parts.join('\n\n') || pick(locale, deepInsightStrings.fallback)
+  );
 }
 
 export async function findSimilarEntries(
@@ -49,7 +72,8 @@ export async function findSimilarEntries(
     threat_type?: string | null;
   },
   userId: string,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  locale: NotifLocale = 'ru'
 ): Promise<{ count: number; message: string }> {
   const sevenDays = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data: similar } = await supabase
@@ -72,13 +96,18 @@ export async function findSimilarEntries(
   if (matches.length === 0) return { count: 0, message: '' };
 
   const countries = new Set(matches.map((m) => m.ip_country_code).filter(Boolean));
-  let message = `${matches.length} пользователей`;
-  if (countries.size > 1) message += ` из ${countries.size} стран`;
-  message += ' за последнюю неделю сообщили о похожем переживании.';
-  if (entryThreat && entryThreat !== 'unknown' && entryThreat !== 'personal') {
-    message += ` Общая тема: ${entryThreat}.`;
+  const u = locale === 'en' ? similarStrings.users.en : similarStrings.users.ru;
+  let message = `${matches.length} ${u}`;
+  if (countries.size > 1) {
+    message += ` ${locale === 'en' ? similarStrings.fromCountries.en : similarStrings.fromCountries.ru} ${countries.size} ${
+      locale === 'en' ? similarStrings.countries.en : similarStrings.countries.ru
+    }`;
   }
-  message += '\n\nОткройте Карту, чтобы увидеть географию сигнала.';
+  message += ` ${locale === 'en' ? similarStrings.weekLine.en : similarStrings.weekLine.ru}`;
+  if (entryThreat && entryThreat !== 'unknown' && entryThreat !== 'personal') {
+    message += ` ${locale === 'en' ? similarStrings.theme.en : similarStrings.theme.ru} ${entryThreat}.`;
+  }
+  message += locale === 'en' ? similarStrings.openMap.en : similarStrings.openMap.ru;
   return { count: matches.length, message };
 }
 
@@ -90,7 +119,8 @@ export async function getTrackingStatus(
     prediction_potential?: number | null;
     sensory_data?: { verification_keywords?: string[] } | null;
   },
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  locale: NotifLocale = 'ru'
 ): Promise<string> {
   const { data: match } = await supabase
     .from('matches')
@@ -102,28 +132,36 @@ export async function getTrackingStatus(
     .maybeSingle();
 
   if (match) {
-    return `🔴 Обнаружено возможное совпадение.\n\n"${match.event_title}" — ${Math.round((match.similarity_score || 0) * 100)}%.\n\nОткройте запись, чтобы посмотреть детали.`;
+    const pct = Math.round((match.similarity_score || 0) * 100);
+    return locale === 'en'
+      ? trackingStrings.match.en(match.event_title || '', pct)
+      : trackingStrings.match.ru(match.event_title || '', pct);
   }
 
   const indicators = entry.sensory_data?.verification_keywords?.length || 0;
-  const title = entry.title || (entry.content || '').slice(0, 40);
+  const title = snippet(entry.title, entry.content, 40);
+  const observing = locale === 'en' ? trackingStrings.observing.en(title) : trackingStrings.observing.ru(title);
   const parts = [
-    `Ваша запись "${title}..." остаётся под наблюдением.`,
+    observing,
     '',
-    '📡 Что делает система:',
-    '• Сканирует мировые события по расписанию',
-    `• Отслеживает ${indicators} ключевых индикаторов`,
+    locale === 'en' ? trackingStrings.whatWeDo.en : trackingStrings.whatWeDo.ru,
+    locale === 'en' ? trackingStrings.bulletScan.en : trackingStrings.bulletScan.ru,
+    locale === 'en' ? trackingStrings.bulletIndicators.en(indicators) : trackingStrings.bulletIndicators.ru(indicators),
   ];
   if ((entry.prediction_potential || 0) > 0.7) {
-    parts.push('• Потенциал: ВЫСОКИЙ');
+    parts.push(locale === 'en' ? trackingStrings.bulletHigh.en : trackingStrings.bulletHigh.ru);
   }
-  parts.push('', 'Если совпадение будет найдено, вы получите уведомление сразу.');
+  parts.push(
+    '',
+    locale === 'en' ? trackingStrings.notifyLine.en : trackingStrings.notifyLine.ru
+  );
   return parts.join('\n');
 }
 
 export async function get14DayReport(
   entry: { id: string; title: string | null; content: string | null; created_at: string },
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  locale: NotifLocale = 'ru'
 ): Promise<string> {
   const { data: matches } = await supabase
     .from('matches')
@@ -131,25 +169,46 @@ export async function get14DayReport(
     .eq('entry_id', entry.id)
     .gt('similarity_score', 0.5);
 
-  const head = [
-    `📊 Отчёт по записи от ${new Date(entry.created_at).toLocaleDateString()}`,
-    `"${entry.title || (entry.content || '').slice(0, 50)}..."`,
-    '',
-  ];
+  const dateStr = new Date(entry.created_at).toLocaleDateString(locale === 'en' ? 'en-US' : 'ru-RU');
+  const snip = snippet(entry.title, entry.content);
+  let head =
+    locale === 'en'
+      ? report14Strings.head.en(dateStr, snip)
+      : report14Strings.head.ru(dateStr, snip);
+
   if (matches && matches.length > 0) {
     const best = [...matches].sort((a, b) => (b.similarity_score || 0) - (a.similarity_score || 0))[0];
-    head.push(`✅ Обнаружено совпадение: "${best.event_title}" (${Math.round((best.similarity_score || 0) * 100)}%).`);
-    head.push('Откройте запись для подробностей.');
+    const pct = Math.round((best.similarity_score || 0) * 100);
+    head +=
+      locale === 'en'
+        ? report14Strings.match.en(best.event_title || '', pct)
+        : report14Strings.match.ru(best.event_title || '', pct);
   } else {
-    head.push('🔍 Совпадений пока не найдено.');
-    head.push('Это не означает, что сигнал неверный: некоторые корреляции проявляются позже.');
+    head += locale === 'en' ? report14Strings.noMatch.en : report14Strings.noMatch.ru;
   }
-  return head.join('\n');
+  return head;
+}
+
+export function selfReport7dMessage(
+  entry: { title: string | null; content: string | null },
+  locale: NotifLocale
+): string {
+  const s = snippet(entry.title, entry.content, 50);
+  return locale === 'en' ? selfReportStrings.d7.en(s) : selfReportStrings.d7.ru(s);
+}
+
+export function selfReport14dMessage(
+  entry: { title: string | null; content: string | null },
+  locale: NotifLocale
+): string {
+  const s = snippet(entry.title, entry.content, 50);
+  return locale === 'en' ? selfReportStrings.d14.en(s) : selfReportStrings.d14.ru(s);
 }
 
 export async function generateWeeklyDigest(
   userId: string,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  locale: NotifLocale = 'ru'
 ): Promise<{ title: string; message: string } | null> {
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data: entries } = await supabase
@@ -167,47 +226,61 @@ export async function generateWeeklyDigest(
       .eq('user_id', userId)
       .gt('similarity_score', 0.6)
       .gte('created_at', weekAgo),
-    supabase
-      .from('users')
-      .select('streak_count, rating_score')
-      .eq('id', userId)
-      .maybeSingle(),
-    supabase
-      .from('symbolic_fingerprints')
-      .select('total_dreams_analyzed')
-      .eq('user_id', userId)
-      .maybeSingle(),
-    supabase
-      .from('matches')
-      .select('id', { count: 'exact', head: true })
-      .gte('created_at', weekAgo),
+    supabase.from('users').select('streak_count, rating_score').eq('id', userId).maybeSingle(),
+    supabase.from('symbolic_fingerprints').select('total_dreams_analyzed').eq('user_id', userId).maybeSingle(),
+    supabase.from('matches').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
   ]);
 
-  const parts = [`🔮 Ваша неделя в Кассандре`, '', `📝 Записей: ${entryIds.length}`];
-  if ((user?.streak_count || 0) > 0) parts.push(`🔥 Серия: ${user?.streak_count} дней`);
-  if ((user?.rating_score || 0) > 0) parts.push(`⚡ Рейтинг: ${(user?.rating_score || 0).toFixed(1)}`);
+  const parts: string[] = [
+    locale === 'en' ? weeklyStrings.header.en : weeklyStrings.header.ru,
+    '',
+    locale === 'en' ? weeklyStrings.entries.en(entryIds.length) : weeklyStrings.entries.ru(entryIds.length),
+  ];
+  if ((user?.streak_count || 0) > 0) {
+    const sc = user?.streak_count ?? 0;
+    parts.push(locale === 'en' ? weeklyStrings.streak.en(sc) : weeklyStrings.streak.ru(sc));
+  }
+  if ((user?.rating_score || 0) > 0) {
+    const rs = (user?.rating_score || 0).toFixed(1);
+    parts.push(locale === 'en' ? weeklyStrings.rating.en(rs) : weeklyStrings.rating.ru(rs));
+  }
   parts.push('');
 
   if (myMatches && myMatches.length > 0) {
-    parts.push('🎯 Ваши совпадения:');
+    parts.push(locale === 'en' ? weeklyStrings.yourMatches.en : weeklyStrings.yourMatches.ru);
     myMatches.slice(0, 3).forEach((m) => {
-      parts.push(`• "${m.event_title}" — ${Math.round((m.similarity_score || 0) * 100)}%`);
+      const pct = Math.round((m.similarity_score || 0) * 100);
+      parts.push(
+        locale === 'en'
+          ? weeklyStrings.matchLine.en(m.event_title || '', pct)
+          : weeklyStrings.matchLine.ru(m.event_title || '', pct)
+      );
     });
     parts.push('');
   }
 
-  parts.push(`🌍 На платформе за неделю: ${platformMatches || 0} совпадений`);
+  parts.push(
+    locale === 'en'
+      ? weeklyStrings.platform.en(platformMatches || 0)
+      : weeklyStrings.platform.ru(platformMatches || 0)
+  );
 
   const analyzed = fp?.total_dreams_analyzed || 0;
   if (analyzed < 10) {
-    parts.push('', `🧠 Символьный профиль: ${analyzed}/10`);
+    parts.push('', locale === 'en' ? weeklyStrings.profileProgress.en(analyzed) : weeklyStrings.profileProgress.ru(analyzed));
   } else if (analyzed < 20) {
-    parts.push('', `🔮 Персональный оракул: ${analyzed}/20`);
+    parts.push('', locale === 'en' ? weeklyStrings.oracleProgress.en(analyzed) : weeklyStrings.oracleProgress.ru(analyzed));
   }
-  parts.push('', 'Что вы чувствуете прямо сейчас? Новая запись усиливает точность профиля.');
+  parts.push('', locale === 'en' ? weeklyStrings.cta.en : weeklyStrings.cta.ru);
+
+  const mc = myMatches?.length || 0;
+  const title =
+    locale === 'en'
+      ? weeklyStrings.title.en(entryIds.length, mc)
+      : weeklyStrings.title.ru(entryIds.length, mc);
 
   return {
-    title: `🔮 Неделя: ${entryIds.length} записей${myMatches?.length ? `, ${myMatches.length} совпадений` : ''}`,
+    title,
     message: parts.join('\n'),
   };
 }

@@ -5,6 +5,7 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/navigation';
 import { LanguageRedirect } from '@/components/LanguageRedirect';
+import { Logo } from '@/components/layout/Logo';
 
 export default async function HomePage() {
   const t = await getTranslations('landing');
@@ -22,22 +23,23 @@ export default async function HomePage() {
   } catch {}
 
   return (
-    <div className="min-h-screen bg-background text-text-primary">
+    <div className="app-shell min-h-screen text-text-primary">
       <LanguageRedirect />
 
-      <header className="border-b border-border backdrop-blur bg-background/90 sticky top-0 z-50">
+      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/75 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center" aria-hidden="true">
-              <span className="text-white font-bold text-sm">К</span>
-            </div>
-            <span className="text-xl font-bold">Кассандра</span>
+            <Logo className="w-9 h-9 shrink-0 drop-shadow-[0_0_14px_rgba(167,139,250,0.4)]" aria-hidden />
+            <span className="text-xl font-display font-bold tracking-tight">Кассандра</span>
           </div>
-          <nav className="flex items-center gap-4">
-            <Link href="/login" className="text-text-secondary hover:text-text-primary transition-colors">
+          <nav className="flex items-center gap-3 sm:gap-4">
+            <Link
+              href="/login"
+              className="text-sm text-text-secondary hover:text-text-primary transition-colors px-2 py-1 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+            >
               {t('login')}
             </Link>
-            <Link href="/register" className="btn-primary text-sm">
+            <Link href="/register" className="btn-primary text-sm px-5">
               {t('register')}
             </Link>
           </nav>
@@ -45,17 +47,27 @@ export default async function HomePage() {
       </header>
 
       <main>
-        <section className="max-w-7xl mx-auto px-4 pt-14 pb-12">
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
+        <section className="relative max-w-7xl mx-auto px-4 pt-12 pb-14 md:pt-16 md:pb-16 overflow-hidden">
+          <div
+            className="pointer-events-none absolute -top-24 right-0 h-72 w-72 rounded-full bg-primary/20 blur-3xl opacity-70"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute top-40 -left-20 h-64 w-64 rounded-full bg-secondary/15 blur-3xl opacity-60"
+            aria-hidden
+          />
+          <div className="relative grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface border border-border mb-6 text-sm text-text-secondary">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse-slow" />
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface/80 border border-border/60 backdrop-blur-sm mb-6 text-sm text-text-secondary shadow-soft">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse-slow shadow-[0_0_8px_rgba(167,139,250,0.8)]" />
                 {t('badge')}
               </div>
-              <h1 className="text-5xl md:text-6xl font-bold leading-tight mb-5">
+              <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-bold leading-[1.08] tracking-tight mb-5">
                 {t('title1')}
                 <br />
-                <span className="text-primary">{t('title2')}</span>
+                <span className="bg-gradient-to-r from-primary via-violet-300 to-secondary bg-clip-text text-transparent">
+                  {t('title2')}
+                </span>
               </h1>
               <p className="text-lg text-text-secondary max-w-xl mb-8">{t('desc')}</p>
               <div className="flex flex-wrap gap-3">
@@ -64,8 +76,8 @@ export default async function HomePage() {
               </div>
             </div>
 
-            <div className="card p-6 h-[360px] relative overflow-hidden">
-              <div className="absolute inset-0 shimmer-bg opacity-60" />
+            <div className="card glass p-6 min-h-[320px] md:h-[360px] relative overflow-hidden border-primary/10">
+              <div className="absolute inset-0 shimmer-bg opacity-50" />
               <div className="relative z-10">
                 <h3 className="text-lg font-semibold mb-4">{t('liveMapTitle')}</h3>
                 <div className="grid grid-cols-2 gap-3 mb-3">
@@ -98,7 +110,7 @@ export default async function HomePage() {
         </section>
 
         <section className="max-w-7xl mx-auto px-4 py-10">
-          <h2 className="text-2xl font-bold mb-5">{t('socialProof')}</h2>
+          <h2 className="font-display text-2xl md:text-3xl font-bold mb-6 tracking-tight">{t('socialProof')}</h2>
           <div className="grid md:grid-cols-3 gap-4">
             <div className="card p-4">
               <p className="text-xs text-text-muted">{t('metricUsers')}</p>
@@ -126,7 +138,7 @@ export default async function HomePage() {
         </section>
 
         <section id="how-it-works" className="max-w-7xl mx-auto px-4 py-14">
-          <h2 className="text-3xl font-bold text-center mb-10">{t('howItWorks')}</h2>
+          <h2 className="font-display text-3xl font-bold text-center mb-10 tracking-tight">{t('howItWorks')}</h2>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="card text-center p-6">
               <div className="w-14 h-14 rounded-xl bg-dream/10 border border-dream/20 flex items-center justify-center mx-auto mb-4">🌙</div>
@@ -147,15 +159,15 @@ export default async function HomePage() {
         </section>
 
         <section className="max-w-7xl mx-auto px-4 pb-16">
-          <div className="card p-8 text-center">
-            <h2 className="text-3xl font-bold mb-3">{t('finalCtaTitle')}</h2>
+          <div className="card glass p-8 md:p-10 text-center border-primary/15">
+            <h2 className="font-display text-2xl md:text-3xl font-bold mb-3 tracking-tight">{t('finalCtaTitle')}</h2>
             <p className="text-text-secondary mb-6">{t('footer')}</p>
             <Link href="/register" className="btn-primary px-8 py-3 text-base">{t('cta')}</Link>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-border py-7 px-4">
+      <footer className="border-t border-border/50 py-8 px-4 bg-background/40 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <span className="text-sm text-text-muted">Кассандра © 2026</span>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">

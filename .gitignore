@@ -20,6 +20,9 @@
 .DS_Store
 *.pem
 
+# local Claude worktrees (duplicate trees; not source of truth)
+.claude/worktrees/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

@@ -4,49 +4,50 @@
 
 :root,
 html.dark {
-  --color-bg: #0b0f1a;
-  --color-surface: #131b2e;
-  --color-surface-hover: #1a2440;
-  --color-border: #1e293b;
-  --color-primary: #8b5cf6;
-  --color-primary-hover: #7c3aed;
-  --color-primary-light: #a78bfa;
-  --color-secondary: #6366f1;
-  --color-accent: #8b5cf6;
-  --color-accent-light: #a78bfa;
-  --color-success: #10b981;
-  --color-success-light: #34d399;
-  --color-danger: #ef4444;
-  --color-danger-light: #f87171;
-  --color-warning: #f59e0b;
-  --color-warning-light: #fbbf24;
-  --color-text-primary: #e2e8f0;
+  /* Чуть светлее база: «ночной туман», меньше тяжести */
+  --color-bg: #0a0e16;
+  --color-surface: #111827;
+  --color-surface-hover: #1a2332;
+  --color-border: rgba(148, 163, 184, 0.12);
+  --color-primary: #a78bfa;
+  --color-primary-hover: #8b5cf6;
+  --color-primary-light: #c4b5fd;
+  --color-secondary: #818cf8;
+  --color-accent: #a78bfa;
+  --color-accent-light: #ddd6fe;
+  --color-success: #34d399;
+  --color-success-light: #6ee7b7;
+  --color-danger: #f87171;
+  --color-danger-light: #fca5a5;
+  --color-warning: #fbbf24;
+  --color-warning-light: #fde68a;
+  --color-text-primary: #f1f5f9;
   --color-text-secondary: #94a3b8;
   --color-text-muted: #64748b;
-  --color-glow: rgba(139, 92, 246, 0.15);
+  --color-glow: rgba(167, 139, 250, 0.12);
 }
 
 html.light {
   --color-bg: #f8fafc;
   --color-surface: #ffffff;
-  --color-surface-hover: #f8fafc;
-  --color-border: #e2e8f0;
+  --color-surface-hover: #f1f5f9;
+  --color-border: rgba(15, 23, 42, 0.08);
   --color-primary: #7c3aed;
   --color-primary-hover: #6d28d9;
   --color-primary-light: #a78bfa;
   --color-secondary: #6366f1;
   --color-accent: #7c3aed;
   --color-accent-light: #a78bfa;
-  --color-success: #10b981;
+  --color-success: #059669;
   --color-success-light: #34d399;
-  --color-danger: #ef4444;
+  --color-danger: #dc2626;
   --color-danger-light: #f87171;
-  --color-warning: #f59e0b;
+  --color-warning: #d97706;
   --color-warning-light: #fbbf24;
-  --color-text-primary: #1e293b;
-  --color-text-secondary: #64748b;
-  --color-text-muted: #94a3b8;
-  --color-glow: rgba(124, 58, 237, 0.12);
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-glow: rgba(124, 58, 237, 0.1);
 }
 
 @layer base {
@@ -54,6 +55,23 @@ html.light {
     @apply antialiased bg-background text-text-primary;
     font-family: var(--font-sans), 'Inter', system-ui, sans-serif;
     min-height: 100vh;
+    letter-spacing: 0.01em;
+  }
+
+  /** Мягкие акценты без перегруза — лента и основной layout */
+  .app-shell {
+    background-color: var(--color-bg);
+    background-image:
+      radial-gradient(ellipse 90% 55% at 50% -15%, rgba(139, 92, 246, 0.14), transparent 55%),
+      radial-gradient(ellipse 70% 45% at 100% 5%, rgba(59, 130, 246, 0.07), transparent 50%),
+      radial-gradient(ellipse 55% 35% at 0% 25%, rgba(167, 139, 250, 0.05), transparent 45%);
+    background-attachment: fixed;
+  }
+
+  html.light .app-shell {
+    background-image:
+      radial-gradient(ellipse 90% 50% at 50% -10%, rgba(139, 92, 246, 0.08), transparent 55%),
+      radial-gradient(ellipse 70% 40% at 100% 0%, rgba(59, 130, 246, 0.05), transparent 50%);
   }
 
   ::-webkit-scrollbar {
@@ -84,23 +102,32 @@ html.light {
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-border bg-surface p-6 transition-all duration-300;
+    @apply rounded-2xl border border-border bg-surface p-6 shadow-card backdrop-blur-sm transition-all duration-300;
   }
 
   .glass {
-    @apply card;
+    @apply rounded-2xl border border-border bg-surface p-6 shadow-soft backdrop-blur-md transition-all duration-300;
+    border-color: color-mix(in srgb, var(--color-border) 70%, transparent);
+    background-color: color-mix(in srgb, var(--color-surface) 88%, transparent);
   }
 
   .card-hover {
-    @apply hover:border-primary hover:shadow-glow-sm;
+    @apply hover:border-primary hover:shadow-card-hover;
   }
 
   .btn-primary {
-    @apply rounded-xl bg-primary px-4 py-2.5 font-medium text-white transition-all duration-200 active:scale-[0.98] hover:bg-primary-hover;
+    @apply rounded-xl px-4 py-2.5 font-medium text-white shadow-soft transition-all duration-200 active:scale-[0.98];
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+    box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.12) inset;
+  }
+
+  .btn-primary:hover {
+    filter: brightness(1.06);
+    box-shadow: 0 4px 20px -4px rgba(99, 102, 241, 0.45);
   }
 
   .btn-secondary {
-    @apply rounded-xl border border-border bg-surface px-6 py-2.5 font-medium text-text-primary transition-all duration-200 active:scale-[0.98] hover:border-primary;
+    @apply rounded-xl border border-border bg-surface px-6 py-2.5 font-medium text-text-primary shadow-soft backdrop-blur-sm transition-all duration-200 active:scale-[0.98] hover:border-primary hover:bg-surface-hover;
   }
 
   .btn-gold {
@@ -108,7 +135,15 @@ html.light {
   }
 
   .btn-ghost {
-    @apply rounded-lg px-3 py-2 text-text-secondary transition-colors hover:bg-slate-700/30 hover:text-text-primary;
+    @apply rounded-lg px-3 py-2 text-text-secondary transition-colors hover:text-text-primary;
+  }
+
+  html.dark .btn-ghost:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+
+  html.light .btn-ghost:hover {
+    background-color: rgba(15, 23, 42, 0.06);
   }
 
   .input {

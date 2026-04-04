@@ -139,7 +139,7 @@ export function EntryCard({
   }, [entry.sensory_data]);
 
   return (
-    <article className="card p-5 hover:shadow-card-hover transition-all duration-200">
+    <article className="card card-hover p-5 transition-all duration-300">
       <header className="flex items-start gap-3">
         <Link
           href={`/profile/${user.username}`}

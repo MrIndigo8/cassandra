@@ -22,7 +22,9 @@ export async function POST(request: Request) {
   const { searchParams } = new URL(request.url);
   const force = searchParams.get('force') === '1';
   if (!force && now.getUTCDay() !== 0) {
-    return NextResponse.json({ processed: 0, skipped: true, reason: 'not_sunday' });
+    const reason = 'not_sunday';
+    console.log('[weekly-digest] Skipped:', reason, 'Day:', now.getUTCDay());
+    return NextResponse.json({ processed: 0, skipped: true, reason });
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -30,48 +32,61 @@ export async function POST(request: Request) {
   if (!supabaseUrl || !supabaseServiceKey) {
     return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
   }
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const { data: activeEntries } = await supabase
-    .from('entries')
-    .select('user_id')
-    .gte('created_at', weekAgo)
-    .limit(5000);
+  try {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  const userIds = Array.from(new Set((activeEntries || []).map((e) => e.user_id))).filter(Boolean);
-  if (userIds.length === 0) return NextResponse.json({ processed: 0 });
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: activeEntries } = await supabase
+      .from('entries')
+      .select('user_id')
+      .gte('created_at', weekAgo)
+      .limit(5000);
 
-  const weekKey = currentWeekKey(now);
-  const { data: existingRows } = await supabase
-    .from('notifications')
-    .select('user_id, data')
-    .eq('action_type', 'weekly_report')
-    .gte('created_at', weekAgo);
+    const userIds = Array.from(new Set((activeEntries || []).map((e) => e.user_id))).filter(Boolean);
+    if (userIds.length === 0) {
+      console.log('[weekly-digest] Sent:', { usersCount: 0, digestsGenerated: 0 });
+      return NextResponse.json({ processed: 0 });
+    }
 
-  const alreadySent = new Set(
-    (existingRows || [])
-      .filter((r) => ((r.data as { week_key?: string } | null)?.week_key || '') === weekKey)
-      .map((r) => r.user_id)
-  );
+    const weekKey = currentWeekKey(now);
+    const { data: existingRows } = await supabase
+      .from('notifications')
+      .select('user_id, data')
+      .eq('action_type', 'weekly_report')
+      .gte('created_at', weekAgo);
 
-  let processed = 0;
-  for (const userId of userIds) {
-    if (alreadySent.has(userId)) continue;
-    const digest = await generateWeeklyDigest(userId, supabase);
-    if (!digest) continue;
+    const alreadySent = new Set(
+      (existingRows || [])
+        .filter((r) => ((r.data as { week_key?: string } | null)?.week_key || '') === weekKey)
+        .map((r) => r.user_id)
+    );
 
-    const { error } = await supabase.from('notifications').insert({
-      user_id: userId,
-      type: 'weekly_digest',
-      action_type: 'weekly_report',
-      title: digest.title,
-      message: digest.message,
-      status: 'unread',
-      data: { template: 'weekly_digest', week_key: weekKey },
-    });
-    if (!error) processed++;
+    let processed = 0;
+    for (const userId of userIds) {
+      if (alreadySent.has(userId)) continue;
+      const digest = await generateWeeklyDigest(userId, supabase, 'ru');
+      if (!digest) continue;
+
+      const { error } = await supabase.from('notifications').insert({
+        user_id: userId,
+        type: 'weekly_digest',
+        action_type: 'weekly_report',
+        title: '',
+        message: '',
+        template_key: 'body.weekly_digest',
+        template_params: { title: digest.title, message: digest.message },
+        locale: 'ru',
+        status: 'unread',
+        data: { template: 'weekly_digest', week_key: weekKey },
+      });
+      if (!error) processed++;
+    }
+
+    console.log('[weekly-digest] Sent:', { usersCount: userIds.length, digestsGenerated: processed });
+    return NextResponse.json({ processed, week_key: weekKey, users: userIds.length });
+  } catch (error) {
+    console.error('[weekly-digest] Failed:', error);
+    return NextResponse.json({ error: 'Weekly digest failed' }, { status: 500 });
   }
-
-  return NextResponse.json({ processed, week_key: weekKey, users: userIds.length });
 }
