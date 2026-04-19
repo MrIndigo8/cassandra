@@ -18,7 +18,6 @@ import {
   typesForFeedFilter,
   type FeedFilterKey,
 } from '@/lib/feed/feedFilters';
-import { usePathname, useRouter } from '@/navigation';
 
 type BaseEntryRow = {
   id: string;
@@ -96,8 +95,6 @@ export function FeedClient({ initialEntries, initialFilter = 'all' }: FeedClient
   const { user, profile } = useUser();
   const t = useTranslations('feed');
   const tCommon = useTranslations('common');
-  const pathname = usePathname();
-  const router = useRouter();
 
   const displayedEntries = useMemo(
     () => entries.filter((e) => matchesFeedFilter(e.type, feedFilter)),
