@@ -1,8 +1,8 @@
 /** Фильтры ленты: общие типы для SSR и клиента (Supabase `.in('type', …)`). */
 
-export type FeedFilterKey = 'all' | 'dreams' | 'premonitions' | 'anxieties' | 'thoughts';
+export type FeedFilterKey = 'all' | 'dreams' | 'premonitions' | 'anxieties' | 'thoughts' | 'mine' | 'community' | 'verified' | 'clusters';
 
-const FEED_FILTER_TYPE_LISTS: Record<Exclude<FeedFilterKey, 'all'>, string[]> = {
+const FEED_FILTER_TYPE_LISTS: Record<'dreams' | 'premonitions' | 'anxieties' | 'thoughts', string[]> = {
   dreams: ['dream'],
   premonitions: ['premonition', 'vision', 'deja_vu', 'synchronicity'],
   anxieties: ['anxiety'],
@@ -10,8 +10,8 @@ const FEED_FILTER_TYPE_LISTS: Record<Exclude<FeedFilterKey, 'all'>, string[]> = 
 };
 
 export function typesForFeedFilter(key: FeedFilterKey): string[] | null {
-  if (key === 'all') return null;
-  return FEED_FILTER_TYPE_LISTS[key];
+  if (key in FEED_FILTER_TYPE_LISTS) return FEED_FILTER_TYPE_LISTS[key as keyof typeof FEED_FILTER_TYPE_LISTS];
+  return null;
 }
 
 export function isValidFeedFilter(s: string | undefined): s is FeedFilterKey {
@@ -20,7 +20,11 @@ export function isValidFeedFilter(s: string | undefined): s is FeedFilterKey {
     s === 'dreams' ||
     s === 'premonitions' ||
     s === 'anxieties' ||
-    s === 'thoughts'
+    s === 'thoughts' ||
+    s === 'mine' ||
+    s === 'community' ||
+    s === 'verified' ||
+    s === 'clusters'
   );
 }
 

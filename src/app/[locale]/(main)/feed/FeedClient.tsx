@@ -1,12 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/useUser';
 import { EntryCard, type FeedEntry } from '@/components/EntryCard';
 import { InlineEntryForm } from '@/components/InlineEntryForm';
 import { PushBanner } from '@/components/PushBanner';
 import MorningDigestBanner from '@/components/MorningDigestBanner';
+import { FeedFilters } from '@/components/feed/FeedFilters';
+import { ClusterAlertBanner, type ClusterAlertProps } from '@/components/feed/ClusterAlertBanner';
 import { useTranslations } from 'next-intl';
 import type { RealtimePostgresInsertPayload } from '@supabase/supabase-js';
 import type { Entry, User } from '@/types';
@@ -84,6 +86,8 @@ const PAGE_SIZE = 20;
 export function FeedClient({ initialEntries, initialFilter = 'all' }: FeedClientProps) {
   const [entries, setEntries] = useState<FeedEntry[]>(initialEntries);
   const [feedFilter, setFeedFilter] = useState<FeedFilterKey>(initialFilter);
+  const [activeCluster, setActiveCluster] = useState<ClusterAlertProps | null>(null);
+  const prevInitialFilter = useRef(initialFilter);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(initialEntries.length === PAGE_SIZE);
@@ -357,6 +361,32 @@ export function FeedClient({ initialEntries, initialFilter = 'all' }: FeedClient
     return () => window.removeEventListener('entry:created', handler);
   }, [appendSingleEntry]);
 
+  // Sync feedFilter state when initialFilter prop changes (URL navigation via FeedFilters)
+  useEffect(() => {
+    if (initialFilter !== prevInitialFilter.current) {
+      prevInitialFilter.current = initialFilter;
+      setFeedFilter(initialFilter);
+      void reloadFeed(initialFilter);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFilter]);
+
+  // Fetch active cluster for ClusterAlertBanner
+  useEffect(() => {
+    fetch('/api/noosphere-data')
+      .then((r) => r.json())
+      .then((data) => {
+        type MatchPt = { isArchived: boolean; matchCount: number; avgScore: number; topMatch: { eventTitle: string } };
+        const active = ((data.matchPoints || []) as MatchPt[])
+          .filter((p) => !p.isArchived)
+          .sort((a, b) => b.matchCount - a.matchCount)[0];
+        if (active) {
+          setActiveCluster({ title: active.topMatch.eventTitle, participants: active.matchCount, intensity: active.avgScore });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const loadMore = async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
@@ -451,23 +481,8 @@ export function FeedClient({ initialEntries, initialFilter = 'all' }: FeedClient
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 mt-6" role="tablist" aria-label={t('allSignals')}>
-        {(['all', 'dreams', 'premonitions', 'anxieties', 'thoughts'] as const).map((key) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={feedFilter === key}
-            onClick={() => onFeedFilterChange(key)}
-            className={`px-3.5 py-1.5 rounded-full text-xs border transition-all ${
-              feedFilter === key
-                ? 'bg-gradient-to-r from-primary to-secondary text-white border-transparent shadow-soft'
-                : 'bg-surface/70 text-text-secondary border-border/60 backdrop-blur-sm hover:border-primary/30 hover:text-text-primary'
-            }`}
-          >
-            {t(`filters.${key}`)}
-          </button>
-        ))}
+      <div className="mt-6">
+        <FeedFilters currentFilter={feedFilter} />
       </div>
 
       {/* Пустое состояние или Ошибка */}
@@ -484,36 +499,9 @@ export function FeedClient({ initialEntries, initialFilter = 'all' }: FeedClient
         </div>
       ) : entries.length > 0 ? (
         <div className="flex flex-col gap-5 mt-8">
+          {activeCluster && <ClusterAlertBanner {...activeCluster} />}
           {displayedEntries.map((entry) => (
-            <EntryCard
-              key={entry.id}
-              entry={{
-                id: entry.id,
-                type: entry.type,
-                title: entry.title,
-                content: entry.content,
-                image_url: entry.image_url || null,
-                is_verified: entry.is_verified,
-                best_match_score: entry.best_match_score,
-                view_count: entry.view_count ?? 0,
-                prediction_potential: entry.prediction_potential ?? null,
-                user_insight: entry.user_insight ?? null,
-                sensory_data: entry.sensory_data ?? null,
-                created_at: entry.created_at,
-              }}
-              user={{
-                id: entry.user.id,
-                username: entry.user.username || 'anonymous',
-                avatar_url: entry.user.avatar_url || null,
-                role: entry.user.role || 'observer',
-                rating_score: Number(entry.user.rating_score || 0),
-              }}
-              likes_count={entry.likes_count ?? 0}
-              comments_count={entry.comments_count ?? 0}
-              user_liked={Boolean(entry.user_liked)}
-              community_count={entry.community_count ?? 0}
-              match={entry.match || null}
-            />
+            <EntryCard key={entry.id} entry={entry} />
           ))}
         </div>
       ) : (

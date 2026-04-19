@@ -471,15 +471,7 @@ export default function ProfileClient({
             />
           ) : (
             entries.map((entry) => (
-              <EntryCard
-                key={entry.id}
-                entry={entry}
-                user={entry.user}
-                likes_count={entry.likes_count}
-                comments_count={entry.comments_count}
-                user_liked={entry.user_liked}
-                match={entry.match}
-              />
+              <EntryCard key={entry.id} entry={entry} />
             ))
           )}
           {hasMore ? (

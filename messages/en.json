@@ -155,7 +155,11 @@
       "dreams": "Dreams",
       "premonitions": "Premonitions",
       "anxieties": "Anxieties",
-      "thoughts": "Thoughts"
+      "thoughts": "Thoughts",
+      "mine": "Mine",
+      "community": "Community",
+      "verified": "Matched",
+      "clusters": "Clusters"
     },
     "emptyFilter": "No entries in this category yet.",
     "empty": "No entries yet. Share your signal!",
@@ -175,6 +179,11 @@
       "start": "Voice",
       "stop": "Stop",
       "transcribing": "Transcribing..."
+    },
+    "clusterAlert": {
+      "title": "Active cluster",
+      "description": "{participants} people saw similar patterns in the last {hours} hours. Intensity {intensity}.",
+      "cta": "Open in Noosphere"
     }
   },
   "entry": {
@@ -735,5 +744,15 @@
       "ECONOMIC_ANXIETY": "Fear of loss and material instability.",
       "WAR_FOREBODING": "Collective sense of impending conflict."
     }
+  },
+  "roles": {
+    "oracle": "Oracle",
+    "sensitive": "Sensitive",
+    "chronicler": "Chronicler",
+    "observer": "Observer",
+    "architect": "Architect",
+    "admin": "Administrator",
+    "moderator": "Moderator",
+    "banned": "Banned"
   }
 }
