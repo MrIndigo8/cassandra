@@ -59,7 +59,6 @@ function avatarColor(username: string): string {
 }
 
 export function EntryCard({ entry: e }: EntryCardProps) {
-  const t = useTranslations('feed');
   const tRole = useTranslations('roles');
   const tEntry = useTranslations('entry');
   const locale = useLocale();
@@ -126,7 +125,7 @@ export function EntryCard({ entry: e }: EntryCardProps) {
         {e.title && (
           <h3 className="mb-2 font-display text-lg font-semibold text-text-primary">{e.title}</h3>
         )}
-        <p className="text-[15px] leading-relaxed text-text-primary/95" style={{ textWrap: 'pretty' as 'pretty' }}>
+        <p className="text-[15px] leading-relaxed text-text-primary/95" style={{ textWrap: 'pretty' as const }}>
           {e.content}
         </p>
       </Link>

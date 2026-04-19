@@ -460,14 +460,6 @@ export function FeedClient({ initialEntries, initialFilter = 'all' }: FeedClient
     }
   }, [initialEntries.length, initialFilter, reloadFeed]);
 
-  const onFeedFilterChange = (key: FeedFilterKey) => {
-    if (key === feedFilter) return;
-    setFeedFilter(key);
-    const href = key === 'all' ? pathname : `${pathname}?filter=${key}`;
-    router.replace(href);
-    void reloadFeed(key);
-  };
-
   return (
     <div className="max-w-2xl mx-auto py-6 px-4">
       <div className="space-y-6">
